@@ -1,4 +1,4 @@
 window.CAMPAIGN_CENTER_DB = {
-  projectUrl: "PASTE_SUPABASE_PROJECT_URL_HERE",
+  projectUrl: "https://ixugvsijwyjvaqcofoll.supabase.co",
   publicKey: "PASTE_SUPABASE_PUBLISHABLE_KEY_HERE"
 };
