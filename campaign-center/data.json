@@ -1,0 +1,23 @@
+{
+  "source": "GitHub repository data file",
+  "updatedAt": "2026-06-30",
+  "campaign": {
+    "titleYi": "חברים לדבר מצוה — הילף פאר א משפחה",
+    "titleEn": "Friends for a Mitzvah — Family Relief",
+    "raised": 68240,
+    "goal": 100000,
+    "activeAskanim": 24
+  },
+  "metrics": {
+    "needsAttention": 7,
+    "waitingOnOthers": 12,
+    "completedToday": 29,
+    "newDonors": 41,
+    "newDonorAmount": 8420
+  },
+  "askanim": [
+    {"name": "ר׳ יואל בערגער", "raised": 8200, "goal": 10000},
+    {"name": "ר׳ מנחם קליין", "raised": 5440, "goal": 8000},
+    {"name": "ר׳ שמואל פריד", "raised": 1150, "goal": 6000}
+  ]
+}
