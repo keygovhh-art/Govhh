@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="yi" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0d6659">
+  <title>גבהה קאמפיין סענטער — קשרים</title>
+  <style>
+    html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#f6f2ea}
+    iframe{display:block;width:100%;height:100%;border:0;background:#f6f2ea}
+    .loading{position:fixed;inset:0;display:grid;place-items:center;background:#123f39;color:#fff;font:700 15px Arial,sans-serif;z-index:2}
+  </style>
+</head>
+<body>
+  <div id="loading" class="loading">מען עפנט דעם קשרים־צענטער…</div>
+  <iframe id="campaignCenter" src="index.html" title="גבהה קאמפיין סענטער"></iframe>
+  <script>
+    const frame = document.getElementById('campaignCenter');
+    frame.addEventListener('load', () => {
+      const doc = frame.contentDocument;
+      if (!doc.querySelector('script[data-kesher-module]')) {
+        const script = doc.createElement('script');
+        script.src = new URL('contacts.js?v=1', location.href).href;
+        script.dataset.kesherModule = 'yes';
+        doc.head.appendChild(script);
+      }
+      document.getElementById('loading').style.display = 'none';
+    });
+  </script>
+</body>
+</html>
