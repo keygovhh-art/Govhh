@@ -10,8 +10,20 @@
     'Custom'
   ]);
 
+  const kesherFeatureCodes = new Set([
+    'contacts',
+    'kesher_book',
+    'basic_call_guides',
+    'campaign_contact_sharing',
+    'professional_playbooks',
+    'contact_segments',
+    'playbook_outcome_analytics'
+  ]);
+
   function currentPlan() {
-    return window.state?.campaign?.plan || window.afAccountPlanName || 'Personal Askan';
+    if (typeof state !== 'undefined' && state?.campaign?.plan) return state.campaign.plan;
+    if (typeof afAccountPlanName !== 'undefined' && afAccountPlanName) return afAccountPlanName;
+    return 'Personal Askan';
   }
 
   function isAllowed() {
@@ -19,7 +31,22 @@
   }
 
   function tr(yi, en) {
-    return window.language === 'en' ? en : yi;
+    return typeof language !== 'undefined' && language === 'en' ? en : yi;
+  }
+
+  function syncPlanDefinitions() {
+    if (typeof planDefinitions === 'undefined') return;
+
+    const freePlan = planDefinitions['Personal Askan'];
+    if (freePlan?.features) {
+      freePlan.features = freePlan.features.filter((code) => !kesherFeatureCodes.has(code));
+    }
+
+    for (const planName of allowedPlans) {
+      const definition = planDefinitions[planName];
+      if (!definition?.features) continue;
+      if (!definition.features.includes('contacts')) definition.features.push('contacts');
+    }
   }
 
   function ensureTeaser() {
@@ -52,18 +79,18 @@
   }
 
   function showPlans() {
-    if (typeof window.renderPlanGrid === 'function') {
-      window.selectedPlan = 'Chesed Quick';
-      window.planMode = 'change';
-      window.renderPlanGrid();
-    }
-    if (typeof window.openModal === 'function') {
-      window.openModal('plans');
+    if (typeof selectedPlan !== 'undefined') selectedPlan = 'Chesed Quick';
+    if (typeof planMode !== 'undefined') planMode = 'change';
+    if (typeof renderPlanGrid === 'function') renderPlanGrid();
+
+    if (typeof openModal === 'function') {
+      openModal('plans');
     } else {
       document.querySelector('#plans')?.classList.add('on');
     }
-    if (typeof window.toast === 'function') {
-      window.toast(
+
+    if (typeof toast === 'function') {
+      toast(
         'די גאנצע קשרים אפטיילונג הייבט זיך אן ביי Chesed Quick.',
         'The full Kesher section starts with Chesed Quick.'
       );
@@ -83,6 +110,8 @@
   }
 
   function applyGate() {
+    syncPlanDefinitions();
+
     const allowed = isAllowed();
     const homeCard = document.querySelector('#kesherHome');
     const navButton = document.querySelector('.nav [data-page="kesher"]');
