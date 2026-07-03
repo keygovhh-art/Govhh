@@ -13,6 +13,13 @@
 const app=document.getElementById('app');
 app.addEventListener('load',function(){
  const doc=app.contentDocument;
+ if(!doc.querySelector('link[data-maximum-clarity]')){
+   const clarity=doc.createElement('link');
+   clarity.rel='stylesheet';
+   clarity.href='clarity-rebuild-v3.css?v=1';
+   clarity.setAttribute('data-maximum-clarity','yes');
+   doc.head.appendChild(clarity);
+ }
  if(doc.querySelector('script[data-focus-memory-v2]'))return;
  const script=doc.createElement('script');
  script.src='focus-memory-v2.js?v=1';
