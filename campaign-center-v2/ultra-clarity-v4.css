@@ -1,0 +1,179 @@
+/* GAVHAH Ultra Clarity V4
+   Core rule: important information must be readable at a glance by a tired, busy askan. */
+:root{
+  --uc-text:#123f39;
+  --uc-muted:#536560;
+  --uc-line:#d8d2c8;
+  --uc-ok:#0d6659;
+  --uc-warn:#8a650f;
+  --uc-risk:#a43a3a;
+}
+
+body{font-size:17px;line-height:1.55}
+.app{padding-inline:18px;padding-bottom:130px}
+
+/* Header and page identity */
+.brand h1,.brand>div>h1{font-size:25px!important;line-height:1.22!important}
+.brand small{font-size:14px!important;line-height:1.45!important;color:var(--uc-muted)!important}
+.logo{width:58px!important;height:58px!important;font-size:30px!important;border-radius:19px!important}
+.pill,.icon{font-size:15px!important;min-height:46px!important;padding:11px 14px!important}
+.icon{width:46px!important}
+.eyebrow{font-size:14px!important;line-height:1.45!important}
+.welcome h2,.hero h2{font-size:32px!important;line-height:1.2!important}
+.welcome p,.hero p{font-size:17px!important;line-height:1.6!important}
+.section-title{margin-top:25px!important}
+.section-title h2,.section-title h3{font-size:29px!important;line-height:1.25!important}
+.section-title p{font-size:16px!important;line-height:1.5!important;color:var(--uc-muted)!important}
+.back{font-size:16px!important;min-height:44px!important}
+
+/* Main cards and doors */
+.card,.home-current,.guide,.door{border-color:var(--uc-line)!important}
+.card{padding:21px!important;border-radius:25px!important;margin-top:17px!important}
+.card h3{font-size:23px!important;line-height:1.3!important}
+.sub{font-size:15px!important;line-height:1.55!important;color:var(--uc-muted)!important}
+.door{padding:20px!important;min-height:155px!important}
+.door .ico{width:50px!important;height:50px!important;font-size:27px!important}
+.door strong{font-size:20px!important;line-height:1.35!important}
+.door small{font-size:15px!important;line-height:1.5!important;color:var(--uc-muted)!important}
+.guide h3{font-size:21px!important}
+.guide p{font-size:15px!important;line-height:1.55!important}
+
+/* Buttons and form controls */
+.btn,.soft,.danger,.mini-btn{min-height:48px!important;font-size:16px!important;padding:12px 16px!important;border-radius:14px!important}
+.mini-btn{min-height:42px!important;font-size:14px!important;padding:10px 12px!important}
+label{font-size:15px!important;line-height:1.45!important}
+input,select,textarea{font-size:17px!important;line-height:1.45!important;min-height:54px!important;padding:14px 15px!important;border-width:1.5px!important;border-color:var(--uc-line)!important}
+textarea{min-height:120px!important}
+.field-note,.archive-note,.plan-summary,.demo{font-size:13px!important;line-height:1.55!important}
+
+/* Privacy, member status and askan progress */
+.privacy,.setting{padding:18px 0!important;gap:15px!important;align-items:flex-start!important}
+.privacy strong,.setting strong{font-size:19px!important;line-height:1.35!important}
+.privacy small,.setting small{font-size:15px!important;line-height:1.55!important;color:var(--uc-muted)!important;margin-top:6px!important}
+.member{padding:17px 0!important;gap:13px!important;align-items:flex-start!important}
+.avatar{width:54px!important;height:54px!important;font-size:18px!important;flex:0 0 auto!important}
+.member strong,.action strong,.task strong{font-size:18px!important;line-height:1.4!important}
+.member small,.action small,.task small{font-size:14px!important;line-height:1.55!important;color:var(--uc-muted)!important}
+.member-actions{gap:9px!important;flex-wrap:wrap!important}
+
+/* Statuses must be unmistakable */
+.tag,.badge,.limit-chip,.goal-meta span,.hero-meta span,.date-strip span,
+.contact-tag,.lead-tags span,.dispatch-tags span,.room-channel,
+.focus-lane-status,.fmv2-status,.playbook-version{
+  font-size:13px!important;
+  font-weight:800!important;
+  line-height:1.25!important;
+  padding:9px 11px!important;
+  min-height:34px!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  border-radius:999px!important;
+}
+.tag.private{background:#ede7f8!important;color:#5f458c!important;border:1px solid #d8caef!important}
+.tag.shared{background:#e1f3ed!important;color:#075f51!important;border:1px solid #b9ddd4!important}
+.status-dot{width:13px!important;height:13px!important;margin-inline-end:8px!important;box-shadow:0 0 0 4px rgba(45,138,99,.12)!important}
+.status-dot.pending{box-shadow:0 0 0 4px rgba(208,154,40,.13)!important}
+.status-dot.void{box-shadow:0 0 0 4px rgba(183,71,71,.12)!important}
+.notice,.plan-warning{font-size:15px!important;line-height:1.55!important;padding:14px 15px!important}
+
+/* Goals, features and money */
+.feature-card{padding:18px!important;min-height:135px!important}
+.feature-card strong{font-size:18px!important;line-height:1.4!important}
+.feature-card small{font-size:14px!important;line-height:1.55!important;color:var(--uc-muted)!important}
+.feature-card .feature-icon{font-size:28px!important}
+.goal{padding:18px 0!important}
+.goal h4{font-size:19px!important;line-height:1.4!important}
+.goal-amounts{font-size:14px!important}
+.summary-box{padding:16px!important}
+.summary-box span,.metric span,.stat span{font-size:13px!important;line-height:1.4!important}
+.summary-box strong,.metric strong,.stat strong{font-size:27px!important;line-height:1.15!important}
+.transaction{padding:17px 0!important}
+.transaction strong{font-size:18px!important}
+.transaction small{font-size:14px!important;line-height:1.55!important}
+.transaction .amount strong{font-size:22px!important}
+
+/* Plan cards */
+.plan{padding:20px!important;border-radius:22px!important}
+.plan h3{font-size:22px!important}
+.plan p,.plan ul{font-size:15px!important;line-height:1.6!important}
+.plan .feature-checks span{font-size:13px!important;line-height:1.45!important}
+.plan-current strong{font-size:18px!important}
+.plan-current small{font-size:14px!important;line-height:1.55!important}
+.entitlement{font-size:15px!important;padding:12px 13px!important}
+
+/* Navigation: readable without squinting */
+.nav{padding-top:10px!important;padding-bottom:calc(11px + env(safe-area-inset-bottom))!important}
+.nav button{font-size:13px!important;gap:5px!important;min-height:55px!important}
+.nav span{font-size:25px!important}
+.fab{width:68px!important;height:68px!important;font-size:36px!important;bottom:82px!important}
+
+/* Kesher, campaign network, call office and conference room */
+.kesher-home h3,.network-home-card h3{font-size:20px!important;line-height:1.35!important}
+.kesher-home p,.network-home-card p{font-size:14px!important;line-height:1.55!important}
+.contact-main h3,.lead-card h3,.dispatch-card h3{font-size:19px!important;line-height:1.35!important}
+.contact-main p,.lead-card p,.dispatch-card p,.contact-note,.contact-next,.lead-next,.dispatch-next,.dispatch-owner{font-size:14px!important;line-height:1.55!important;color:var(--uc-muted)!important}
+.contact-avatar{width:52px!important;height:52px!important;font-size:20px!important}
+.kesher-stat span,.office-stat span,.command-summary span{font-size:12px!important;font-weight:700!important}
+.kesher-stat strong,.office-stat strong,.command-summary strong{font-size:27px!important}
+.room-author strong{font-size:16px!important}
+.room-author small{font-size:12px!important}
+.room-body{font-size:16px!important;line-height:1.65!important}
+.room-actions button{font-size:13px!important;padding:9px 12px!important}
+.active-members-only,.accept-rule,.shared-preview-note,.privacy-line,.guide-ethics{font-size:13px!important;line-height:1.6!important;padding:13px 14px!important}
+
+/* Focus Memory / paid focus system */
+.fmv2-preview strong{font-size:17px!important;line-height:1.45!important}
+.fmv2-preview small{font-size:14px!important;line-height:1.5!important}
+.fmv2-tab,.fmv2-filter,.fmv2-preset{font-size:15px!important;min-height:47px!important;padding:12px 16px!important}
+.fmv2-plan-hero h2{font-size:34px!important;line-height:1.18!important}
+.fmv2-plan-hero p,.fmv2-question{font-size:17px!important;line-height:1.6!important}
+.fmv2-background-card span{font-size:13px!important}
+.fmv2-background-card strong{font-size:18px!important;line-height:1.45!important}
+.fmv2-background-card small{font-size:14px!important}
+.fmv2-panel h3{font-size:27px!important;line-height:1.28!important}
+.fmv2-sub{font-size:15px!important;line-height:1.6!important}
+.fmv2-memory-badge{font-size:14px!important;padding:9px 12px!important}
+.fmv2-metric span{font-size:13px!important}
+.fmv2-metric strong{font-size:33px!important}
+.fmv2-metric small{font-size:12px!important}
+.fmv2-yesterday h4{font-size:21px!important;line-height:1.35!important}
+.fmv2-yesterday p,.fmv2-day-note{font-size:15px!important;line-height:1.6!important}
+.fmv2-win strong{font-size:15px!important}
+.fmv2-win span{font-size:12px!important}
+.fmv2-group-head input{font-size:19px!important}
+.fmv2-group-count{font-size:13px!important}
+.fmv2-task-num{width:42px!important;height:42px!important;font-size:18px!important}
+.fmv2-task-line input,.fmv2-task-line select{font-size:17px!important;min-height:56px!important}
+.fmv2-mini{font-size:12px!important}
+.fmv2-mini input,.fmv2-mini select{font-size:16px!important;min-height:52px!important}
+.fmv2-insight strong{font-size:19px!important}
+.fmv2-insight p{font-size:15px!important;line-height:1.6!important}
+.fmv2-lane,.fmv2-portfolio{padding:19px!important}
+.fmv2-lane strong,.fmv2-portfolio strong{font-size:20px!important;line-height:1.4!important}
+.fmv2-lane p,.fmv2-portfolio p{font-size:16px!important;line-height:1.6!important;color:var(--uc-muted)!important}
+.fmv2-status{font-size:14px!important;min-height:38px!important;padding:10px 12px!important}
+.fmv2-day-top strong{font-size:20px!important}
+.fmv2-day-top span{font-size:13px!important;padding:9px 11px!important}
+.fmv2-day-outcome{font-size:17px!important;line-height:1.6!important}
+.fmv2-day-stats span{font-size:12px!important;padding:8px 10px!important}
+.fmv2-save-row .btn,.fmv2-save-row .soft{font-size:18px!important;min-height:58px!important}
+.fmv2-save-note{font-size:14px!important;line-height:1.5!important}
+
+@media(max-width:520px){
+  .app{padding-inline:16px}
+  .brand h1,.brand>div>h1{font-size:23px!important}
+  .brand small{font-size:13px!important}
+  .welcome h2,.hero h2{font-size:30px!important}
+  .section-title h2,.section-title h3{font-size:27px!important}
+  .card h3{font-size:22px!important}
+  .privacy{display:grid!important;grid-template-columns:1fr!important}
+  .privacy>.tag,.privacy>.switch{justify-self:start!important}
+  .feature-grid{grid-template-columns:1fr!important}
+  .fmv2-metrics{grid-template-columns:1fr 1fr!important}
+  .fmv2-metric:last-child{grid-column:1/-1!important}
+  .fmv2-task{grid-template-columns:42px 1fr!important}
+  .fmv2-task-meta{grid-template-columns:1fr 1fr!important}
+  .fmv2-lane-grid,.fmv2-portfolio-grid{grid-template-columns:1fr!important}
+  .fmv2-save-row{display:grid!important;grid-template-columns:1fr!important}
+  .fmv2-save-row>*{width:100%!important}
+}
