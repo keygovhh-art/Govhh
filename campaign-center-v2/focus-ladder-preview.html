@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="yi" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>גבהה Focus Ladder</title>
+<style>html,body,iframe{margin:0;width:100%;height:100%;border:0;background:#f6f2ea}body{overflow:hidden}iframe{display:block}</style>
+</head>
+<body>
+<iframe id="app" src="index.html?focusPreview=1" title="גבהה Focus Ladder"></iframe>
+<script>
+const app=document.getElementById('app');
+app.addEventListener('load',function(){
+ const doc=app.contentDocument;
+ const script=doc.createElement('script');
+ script.src='focus-ladder.js?v=1';
+ script.setAttribute('data-focus-ladder','yes');
+ doc.head.appendChild(script);
+});
+</script>
+</body>
+</html>
