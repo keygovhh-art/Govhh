@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>גבהה'להבות חסד בעולם! - חסד פלאטפארמע</title>
+<title data-en="GVOHA – Flames of Chesed in the World! - Chesed Platform">גבהה'להבות חסד בעולם! - חסד פלאטפארמע</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:Arial,sans-serif;background:#f8f9fa;color:#1a1a1a;line-height:1.8}
@@ -11,9 +11,12 @@ header{background:#1a5c2e;color:#fff;padding:1rem 0;position:sticky;top:0;z-inde
 .container{max-width:1200px;margin:0 auto;padding:0 20px}
 nav{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap}
 .logo{font-size:1.5rem;font-weight:700;color:#d4af37}
-.nav-links{display:flex;gap:1.5rem;list-style:none;flex-wrap:wrap}
+.nav-links{display:flex;gap:1.5rem;list-style:none;flex-wrap:wrap;align-items:center}
 .nav-links a{color:#fff;text-decoration:none;font-weight:500}
 .nav-links a:hover{color:#d4af37}
+.nav-right{display:flex;align-items:center;gap:.75rem}
+.lang-toggle{background:#d4af37;color:#1a5c2e;border:none;border-radius:6px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:.95rem}
+.lang-toggle:hover{background:#c4a030}
 .mobile-menu{display:none;background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer}
 section{padding:4rem 0;scroll-margin-top:80px}
 section:nth-child(even){background:#fff}
@@ -54,175 +57,179 @@ th{background:#1a5c2e;color:#fff;font-weight:600}
 .stat-label{color:#666;margin-top:.5rem}
 footer{background:#1a5c2e;color:#fff;padding:3rem 0 1rem;text-align:center}
 footer a{color:#d4af37;text-decoration:none}
+html[dir="ltr"] th,html[dir="ltr"] td{text-align:left}
 @media (max-width:768px){.nav-links{display:none;width:100%;flex-direction:column;padding-top:1rem}.nav-links.active{display:flex}.mobile-menu{display:block}h1{font-size:1.8rem}h2{font-size:1.5rem}}
 </style>
 </head>
 <body>
 <header><div class="container"><nav>
-<div class="logo">גבהה'להבות חסד בעולם!</div>
+<div class="logo" data-en="GVOHA – Flames of Chesed in the World!">גבהה'להבות חסד בעולם!</div>
+<div class="nav-right">
+<button class="lang-toggle" id="langToggle" onclick="toggleLang()">EN</button>
 <button class="mobile-menu" onclick="document.getElementById('navLinks').classList.toggle('active')">☰</button>
+</div>
 <ul class="nav-links" id="navLinks">
-<li><a href="#היים">היים</a></li>
-<li><a href="#נייעס">נייעס</a></li>
-<li><a href="#עסקנות">עסקנות שטיבל</a></li>
-<li><a href="#עסקנים">עסקנים געזוכט</a></li>
-<li><a href="#מייחדים">מייחדים באהבה</a></li>
-<li><a href="#מנינים">מנינים</a></li>
-<li><a href="#גרופ">גרופ צענטער</a></li>
-<li><a href="#בוכהאלטעריי">בוכהאלטעריי</a></li>
-<li><a href="#מערכת">מערכת</a></li>
+<li><a href="#היים" data-en="Home">היים</a></li>
+<li><a href="#נייעס" data-en="News">נייעס</a></li>
+<li><a href="#עסקנות" data-en="Discussion Forum">עסקנות שטיבל</a></li>
+<li><a href="#עסקנים" data-en="Volunteers Needed">עסקנים געזוכט</a></li>
+<li><a href="#מייחדים" data-en="Donate with Love">מייחדים באהבה</a></li>
+<li><a href="#מנינים" data-en="Minyanim">מנינים</a></li>
+<li><a href="#גרופ" data-en="Group Center">גרופ צענטער</a></li>
+<li><a href="#בוכהאלטעריי" data-en="Bookkeeping">בוכהאלטעריי</a></li>
+<li><a href="#מערכת" data-en="Contact">מערכת</a></li>
 </ul></nav></div></header>
 
 <section id="היים"><div class="container">
-<h1>גבהה'להבות חסד בעולם!</h1>
-<p class="pasuk">עולם חסד יבנה</p>
-<p style="font-size:1.2rem;margin:1rem 0">א פלאטפארמע פאר חסד און הילף איבער דער גארער וועלט</p>
+<h1 data-en="GVOHA – Flames of Chesed in the World!">גבהה'להבות חסד בעולם!</h1>
+<p class="pasuk" data-en="The world is built with kindness">עולם חסד יבנה</p>
+<p style="font-size:1.2rem;margin:1rem 0" data-en="A platform for kindness and help across the entire world">א פלאטפארמע פאר חסד און הילף איבער דער גארער וועלט</p>
 <div class="btn-group">
-<button class="btn btn-gold" onclick="alert('איך וויל העלפן - וועט ארבעטן ווען VoIP.ms איז פארבינדן')">איך וויל העלפן</button>
-<button class="btn" onclick="alert('איך דארף הילף - וועט ארבעטן ווען VoIP.ms איז פארבינדן')">איך דארף הילף</button>
-<button class="btn btn-gold" onclick="document.getElementById('מייחדים').scrollIntoView({behavior:'smooth'})">היינטיגע צדקה</button>
+<button class="btn btn-gold" data-en="I Want to Help" onclick="notify('איך וויל העלפן - וועט ארבעטן ווען VoIP.ms איז פארבינדן','I Want to Help – will work once VoIP.ms is connected')">איך וויל העלפן</button>
+<button class="btn" data-en="I Need Help" onclick="notify('איך דארף הילף - וועט ארבעטן ווען VoIP.ms איז פארבינדן','I Need Help – will work once VoIP.ms is connected')">איך דארף הילף</button>
+<button class="btn btn-gold" data-en="Today's Charity" onclick="document.getElementById('מייחדים').scrollIntoView({behavior:'smooth'})">היינטיגע צדקה</button>
 </div>
 <div class="quotes">
-<div class="quote">"על שלשה דברים העולם עומד: על התורה ועל העבודה ועל גמילות חסדים" - אבות</div>
-<div class="quote">"כל המקיים נפש אחת מישראל כאילו קיים עולם מלא" - סנהדרין</div>
-<div class="quote">"גדול המעשה יותר מן העושה" - בבא בתרא</div>
+<div class="quote" data-en='"On three things the world stands: on Torah, on service, and on acts of kindness" - Avos'>"על שלשה דברים העולם עומד: על התורה ועל העבודה ועל גמילות חסדים" - אבות</div>
+<div class="quote" data-en='"Whoever saves one soul of Israel, it is as if he saved an entire world" - Sanhedrin'>"כל המקיים נפש אחת מישראל כאילו קיים עולם מלא" - סנהדרין</div>
+<div class="quote" data-en='"Greater is the one who causes an act of kindness than the one who does it himself" - Bava Basra'>"גדול המעשה יותר מן העושה" - בבא בתרא</div>
 </div></div></section>
 
 <section id="נייעס"><div class="container">
-<h2>נייעס פון עולם החסד גלאבאל</h2>
+<h2 data-en="News from the Global World of Chesed">נייעס פון עולם החסד גלאבאל</h2>
 <div class="card-grid">
-<div class="card"><h3>נייע הכנסת כלה פאנד אין לאנדאן</h3><p class="card-meta">כ"ה תשרי תשפ"ו</p><p>א נייע פאנד איז געעפנט געווארן צו העלפן יתומות מיט חתונה הוצאות. שוין געזאמלט $25,000.</p><button class="btn">לייען מער</button></div>
-<div class="card"><h3>חסד ארגאניזאציע ראטעוועט 50 משפחות אין אוקריינע</h3><p class="card-meta">כ"ד תשרי תשפ"ו</p><p>גבהה וואלענטירן האבן געשיקט עסן און מעדיצין פאר משפחות אין נויט.</p><button class="btn">לייען מער</button></div>
-<div class="card"><h3>וואלענטירן געזוכט פאר ביקור חולים</h3><p class="card-meta">כ"ג תשרי תשפ"ו</p><p>מאונט סיני שפיטאל אין ניו יארק דארף וואלענטירן פאר שבת און יום טוב.</p><button class="btn">לייען מער</button></div>
+<div class="card"><h3 data-en="New Hachnasas Kallah Fund in London">נייע הכנסת כלה פאנד אין לאנדאן</h3><p class="card-meta" data-en="25th of Tishrei, 5786">כ"ה תשרי תשפ"ו</p><p data-en="A new fund has been opened to help orphaned brides with wedding expenses. Already raised $25,000.">א נייע פאנד איז געעפנט געווארן צו העלפן יתומות מיט חתונה הוצאות. שוין געזאמלט $25,000.</p><button class="btn" data-en="Read More">לייען מער</button></div>
+<div class="card"><h3 data-en="Chesed Organization Rescues 50 Families in Ukraine">חסד ארגאניזאציע ראטעוועט 50 משפחות אין אוקריינע</h3><p class="card-meta" data-en="24th of Tishrei, 5786">כ"ד תשרי תשפ"ו</p><p data-en="GVOHA volunteers sent food and medicine to families in need.">גבהה וואלענטירן האבן געשיקט עסן און מעדיצין פאר משפחות אין נויט.</p><button class="btn" data-en="Read More">לייען מער</button></div>
+<div class="card"><h3 data-en="Volunteers Needed for Bikur Cholim">וואלענטירן געזוכט פאר ביקור חולים</h3><p class="card-meta" data-en="23rd of Tishrei, 5786">כ"ג תשרי תשפ"ו</p><p data-en="Mount Sinai Hospital in New York needs volunteers for Shabbos and Yom Tov.">מאונט סיני שפיטאל אין ניו יארק דארף וואלענטירן פאר שבת און יום טוב.</p><button class="btn" data-en="Read More">לייען מער</button></div>
 </div></div></section>
 
 <section id="עסקנות"><div class="container">
-<h2>עסקנות שטיבל - ארט צו שמועסן און זיך בראטן</h2>
+<h2 data-en="Discussion Forum – A Place to Talk and Brainstorm">עסקנות שטיבל - ארט צו שמועסן און זיך בראטן</h2>
 <div class="card-grid">
-<div class="card"><h3>רפואה און הילף</h3><p>שמועס: "דאקטאר רעקאמענדאציע פאר קינדער" - פלוני אלמוני | 12 ענטפערס</p><button class="btn">אריינגיין</button></div>
-<div class="card"><h3>שידוכים</h3><p>שמועס: "עצה פאר עלטערן פון בחורים" - פלוני אלמוני | 8 ענטפערס</p><button class="btn">אריינגיין</button></div>
-<div class="card"><h3>פרנסה עצות</h3><p>שמועס: "ארבעט מעגליכקייטן פאר יונגעלייט" - פלוני אלמוני | 15 ענטפערס</p><button class="btn">אריינגיין</button></div>
-<div class="card"><h3>��ינוך הבנים</h3><p>שמועס: "ווי אזוי העלפן א קינד מיט לערנען" - פלוני אלמוני | 20 ענטפערס</p><button class="btn">אריינגיין</button></div>
+<div class="card"><h3 data-en="Medical Help">רפואה און הילף</h3><p data-en='Discussion: "Doctor recommendation for children" - Anonymous | 12 replies'>שמועס: "דאקטאר רעקאמענדאציע פאר קינדער" - פלוני אלמוני | 12 ענטפערס</p><button class="btn" data-en="Enter">אריינגיין</button></div>
+<div class="card"><h3 data-en="Shidduchim">שידוכים</h3><p data-en='Discussion: "Advice for parents of boys" - Anonymous | 8 replies'>שמועס: "עצה פאר עלטערן פון בחורים" - פלוני אלמוני | 8 ענטפערס</p><button class="btn" data-en="Enter">אריינגיין</button></div>
+<div class="card"><h3 data-en="Parnassah Advice">פרנסה עצות</h3><p data-en='Discussion: "Job opportunities for young couples" - Anonymous | 15 replies'>שמועס: "ארבעט מעגליכקייטן פאר יונגעלייט" - פלוני אלמוני | 15 ענטפערס</p><button class="btn" data-en="Enter">אריינגיין</button></div>
+<div class="card"><h3 data-en="Chinuch (Children's Education)">חינוך הבנים</h3><p data-en='Discussion: "How to help a child with learning" - Anonymous | 20 replies'>שמועס: "ווי אזוי העלפן א קינד מיט לערנען" - פלוני אלמוני | 20 ענטפערס</p><button class="btn" data-en="Enter">אריינגיין</button></div>
 </div>
-<div style="text-align:center;margin-top:2rem"><button class="btn btn-gold">עפן א נייע שמועס</button></div>
+<div style="text-align:center;margin-top:2rem"><button class="btn btn-gold" data-en="Start a New Discussion">עפן א נייע שמועס</button></div>
 </div></section>
 
 <section id="עסקנים"><div class="container">
-<h2>עסקנים געזוכט</h2>
+<h2 data-en="Volunteers Needed">עסקנים געזוכט</h2>
 <div class="tabs">
-<button class="tab active" onclick="switchTab(event,'tab1')">פארלאנג א עסקן</button>
-<button class="tab" onclick="switchTab(event,'tab2')">וואלענטיר יעצט</button>
+<button class="tab active" data-en="Request a Volunteer" onclick="switchTab(event,'tab1')">פארלאנג א עסקן</button>
+<button class="tab" data-en="Volunteer Now" onclick="switchTab(event,'tab2')">וואלענטיר יעצט</button>
 </div>
 <div id="tab1" class="tab-content active">
-<form onsubmit="alert('פארעם געשיקט! וועט גיין צו VoIP.ms נומער 1-800-GVOHA');return false">
-<div class="form-group"><label>נאמען</label><input type="text" required></div>
-<div class="form-group"><label>טעלעפאן</label><input type="tel" required></div>
-<div class="form-group"><label>וואספארא הילף דארפט איר</label><textarea rows="4" required></textarea></div>
-<div class="form-group"><label>שטאט</label><input type="text" required></div>
-<button type="submit" class="btn">שיק אריין</button>
+<form onsubmit="notify('פארעם געשיקט! וועט גיין צו VoIP.ms נומער 1-800-GVOHA','Form submitted! Will go to VoIP.ms number 1-800-GVOHA');return false">
+<div class="form-group"><label data-en="Name">נאמען</label><input type="text" required></div>
+<div class="form-group"><label data-en="Phone">טעלעפאן</label><input type="tel" required></div>
+<div class="form-group"><label data-en="What kind of help do you need">וואספארא הילף דארפט איר</label><textarea rows="4" required></textarea></div>
+<div class="form-group"><label data-en="City">שטאט</label><input type="text" required></div>
+<button type="submit" class="btn" data-en="Submit">שיק אריין</button>
 </form></div>
 <div id="tab2" class="tab-content">
-<form onsubmit="alert('רעגיסטרירונג געשיקט!');return false">
-<div class="form-group"><label>נאמען</label><input type="text" required></div>
-<div class="form-group"><label>טעלעפאן</label><input type="tel" required></div>
-<div class="form-group"><label>אימעיל</label><input type="email" required></div>
-<div class="form-group"><label>איך קען העלפן מיט:</label>
+<form onsubmit="notify('רעגיסטרירונג געשיקט!','Registration submitted!');return false">
+<div class="form-group"><label data-en="Name">נאמען</label><input type="text" required></div>
+<div class="form-group"><label data-en="Phone">טעלעפאן</label><input type="tel" required></div>
+<div class="form-group"><label data-en="Email">אימעיל</label><input type="email" required></div>
+<div class="form-group"><label data-en="I can help with:">איך קען העלפן מיט:</label>
 <div class="checkbox-group">
-<div class="checkbox-item"><input type="checkbox"> <label>אויטא</label></div>
-<div class="checkbox-item"><input type="checkbox"> <label>רפואה</label></div>
-<div class="checkbox-item"><input type="checkbox"> <label>לעגאל</label></div>
-<div class="checkbox-item"><input type="checkbox"> <label>מענטש צו רעדן</label></div>
-<div class="checkbox-item"><input type="checkbox"> <label>געלט</label></div>
-<div class="checkbox-item"><input type="checkbox"> <label>בישול</label></div>
+<div class="checkbox-item"><input type="checkbox"> <label data-en="Car">אויטא</label></div>
+<div class="checkbox-item"><input type="checkbox"> <label data-en="Medical">רפואה</label></div>
+<div class="checkbox-item"><input type="checkbox"> <label data-en="Legal">לעגאל</label></div>
+<div class="checkbox-item"><input type="checkbox"> <label data-en="Someone to talk to">מענטש צו רעדן</label></div>
+<div class="checkbox-item"><input type="checkbox"> <label data-en="Money">געלט</label></div>
+<div class="checkbox-item"><input type="checkbox"> <label data-en="Cooking">בישול</label></div>
 </div></div>
-<button type="submit" class="btn btn-gold">רעגיסטריר מיך</button>
+<button type="submit" class="btn btn-gold" data-en="Register Me">רעגיסטריר מיך</button>
 </form></div></div></section>
 
 <section id="מייחדים"><div class="container">
 <div class="gold-section">
-<h2 style="color:#1a5c2e">מייחדים באהבה - היינטיגע צדקה</h2>
-<p style="font-size:1.2rem;margin:1rem 0">היינט שטיצן מיר: <strong>בית תמחוי חסדי יוסף</strong></p>
-<p>טעגליכע הייסע מאלצייטן פאר 200 נפשות אין בני ברק</p>
+<h2 style="color:#1a5c2e" data-en="Giving with Love – Today's Charity">מייחדים באהבה - היינטיגע צדקה</h2>
+<p style="font-size:1.2rem;margin:1rem 0"><span data-en="Today we are supporting:">היינט שטיצן מיר:</span> <strong data-en="Bais Tamchui Chasdei Yosef">בית תמחוי חסדי יוסף</strong></p>
+<p data-en="Daily hot meals for 200 people in Bnei Brak">טעגליכע הייסע מאלצייטן פאר 200 נפשות אין בני ברק</p>
 <div class="donation-amounts">
-<button class="btn" onclick="alert('סטרייפ וועט עפענען פאר $18')">$18</button>
-<button class="btn" onclick="alert('סטרייפ וועט עפענען פאר $36')">$36</button>
-<button class="btn" onclick="alert('סטרייפ וועט עפענען פאר $100')">$100</button>
-<button class="btn" onclick="alert('סטרייפ וועט עפענען פאר $180')">$180</button>
+<button class="btn" onclick="notify('סטרייפ וועט עפענען פאר $18','Stripe will open for $18')">$18</button>
+<button class="btn" onclick="notify('סטרייפ וועט עפענען פאר $36','Stripe will open for $36')">$36</button>
+<button class="btn" onclick="notify('סטרייפ וועט עפענען פאר $100','Stripe will open for $100')">$100</button>
+<button class="btn" onclick="notify('סטרייפ וועט עפענען פאר $180','Stripe will open for $180')">$180</button>
 </div>
-<button class="btn" style="background:#1a5c2e;font-size:1.2rem;padding:15px 40px" onclick="alert('סטרייפ וועט עפענען')">שענק יעצט</button>
-<p style="margin-top:1rem;font-size:.9rem">100% גייט דירעקט צו די צדקה</p>
+<button class="btn" style="background:#1a5c2e;font-size:1.2rem;padding:15px 40px" data-en="Donate Now" onclick="notify('סטרייפ וועט עפענען','Stripe will open')">שענק יעצט</button>
+<p style="margin-top:1rem;font-size:.9rem" data-en="100% goes directly to the charity">100% גייט דירעקט צו די צדקה</p>
 </div></div></section>
 
 <section id="מנינים"><div class="container">
-<h2>מנינים צענטער</h2>
+<h2 data-en="Minyanim Center">מנינים צענטער</h2>
 <div class="form-group" style="max-width:600px;margin:0 auto">
-<input type="text" placeholder="אריינגעב שטאט, זיפ קאוד, אדער שול נאמען">
-<button class="btn" style="margin-top:1rem">זוך</button>
+<input type="text" placeholder="אריינגעב שטאט, זיפ קאוד, אדער שול נאמען" data-en-placeholder="Enter city, zip code, or shul name">
+<button class="btn" style="margin-top:1rem" data-en="Search">זוך</button>
 </div>
 <table>
-<thead><tr><th>שול נאמען</th><th>אדרעס</th><th>שחרית</th><th>מנחה</th><th>מעריב</th></tr></thead>
+<thead><tr><th data-en="Shul Name">שול נאמען</th><th data-en="Address">אדרעס</th><th data-en="Shacharis">שחרית</th><th data-en="Mincha">מנחה</th><th data-en="Maariv">מעריב</th></tr></thead>
 <tbody>
-<tr><td>בית מדרש הגדול</td><td>בורו פארק, ברוקלין</td><td>7:00, 8:00, 9:00</td><td>1:30, 3:00</td><td>אחר צאת הכוכבים</td></tr>
-<tr><td>קהל עדת ישורון</td><td>מאנסי, ניו יארק</td><td>6:45, 8:30</td><td>2:00</td><td>אחר צאת הכוכבים</td></tr>
-<tr><td>שטיבל חסידים</td><td>לייקוואוד, ניו דזשערסי</td><td>7:15, 9:30</td><td>1:45, 3:15</td><td>אחר צאת הכוכבים</td></tr>
+<tr><td data-en="Beis Medrash HaGadol">בית מדרש הגדול</td><td data-en="Boro Park, Brooklyn">בורו פארק, ברוקלין</td><td>7:00, 8:00, 9:00</td><td>1:30, 3:00</td><td data-en="After nightfall (Tzeis Hakochavim)">אחר צאת הכוכבים</td></tr>
+<tr><td data-en="Kehal Adas Yeshurun">קהל עדת ישורון</td><td data-en="Monsey, New York">מאנסי, ניו יארק</td><td>6:45, 8:30</td><td>2:00</td><td data-en="After nightfall (Tzeis Hakochavim)">אחר צאת הכוכבים</td></tr>
+<tr><td data-en="Stiebel Chassidim">שטיבל חסידים</td><td data-en="Lakewood, New Jersey">לייקוואוד, ניו דזשערסי</td><td>7:15, 9:30</td><td>1:45, 3:15</td><td data-en="After nightfall (Tzeis Hakochavim)">אחר צאת הכוכבים</td></tr>
 </tbody></table></div></section>
 
 <section id="גרופ"><div class="container">
-<h2>גבהה גרופ צענטער</h2>
-<p style="text-align:center;margin-bottom:2rem">עפן אייער אייגענעם פריוואטן טשענעל פאר אייער קהילה אדער ארגאניזאציע</p>
-<div style="text-align:center;margin-bottom:3rem"><button class="btn btn-gold">עפן א נייעם טשענעל</button></div>
+<h2 data-en="GVOHA Group Center">גבהה גרופ צענטער</h2>
+<p style="text-align:center;margin-bottom:2rem" data-en="Open your own private channel for your community or organization">עפן אייער אייגענעם פריוואטן טשענעל פאר אייער קהילה אדער ארגאניזאציע</p>
+<div style="text-align:center;margin-bottom:3rem"><button class="btn btn-gold" data-en="Open a New Channel">עפן א נייעם טשענעל</button></div>
 <div class="card-grid">
-<div class="card"><h3>חסד פון בארא פארק</h3><p class="card-meta">124 מיטגלידער</p><button class="btn">אנשליסן</button></div>
-<div class="card"><h3>ביקור חולים לייקוואוד</h3><p class="card-meta">89 מיטגלידער</p><button class="btn">אנשליסן</button></div>
-<div class="card"><h3>הכנסת כלה לאנדאן</h3><p class="card-meta">67 מיטגלידער</p><button class="btn">אנשליסן</button></div>
+<div class="card"><h3 data-en="Chesed of Boro Park">חסד פון בארא פארק</h3><p class="card-meta" data-en="124 members">124 מיטגלידער</p><button class="btn" data-en="Join">אנשליסן</button></div>
+<div class="card"><h3 data-en="Bikur Cholim Lakewood">ביקור חולים לייקוואוד</h3><p class="card-meta" data-en="89 members">89 מיטגלידער</p><button class="btn" data-en="Join">אנשליסן</button></div>
+<div class="card"><h3 data-en="Hachnasas Kallah London">הכנסת כלה לאנדאן</h3><p class="card-meta" data-en="67 members">67 מיטגלידער</p><button class="btn" data-en="Join">אנשליסן</button></div>
 </div></div></section>
 
 <section id="בוכהאלטעריי"><div class="container">
-<h2>בוכהאלטעריי - אויטאמאטישע טרעקינג</h2>
+<h2 data-en="Bookkeeping – Automatic Tracking">בוכהאלטעריי - אויטאמאטישע טרעקינג</h2>
 <div class="stats">
-<div class="stat-card"><div class="stat-number">$0</div><div class="stat-label">היינט געשאפט</div></div>
-<div class="stat-card"><div class="stat-number">0</div><div class="stat-label">היינט טעלעפאן רופן</div></div>
-<div class="stat-card"><div class="stat-number">0</div><div class="stat-label">היינט מענטשן געהאלפן</div></div>
+<div class="stat-card"><div class="stat-number">$0</div><div class="stat-label" data-en="Raised Today">היינט געשאפט</div></div>
+<div class="stat-card"><div class="stat-number">0</div><div class="stat-label" data-en="Phone Calls Today">היינט טעלעפאן רופן</div></div>
+<div class="stat-card"><div class="stat-number">0</div><div class="stat-label" data-en="People Helped Today">היינט מענטשן געהאלפן</div></div>
 </div>
 <div class="card">
-<h3>וואכנטליכע חסד אקטיוויטעט</h3>
-<p style="text-align:center;padding:3rem;color:#999">[גראף וועט זיך ווייזן דא ווען VoIP.ms און סטרייפ זענען פארבינדן]</p>
-<p style="text-align:center;font-size:.9rem;color:#666">דאטא אפדעיט זיך אויטאמאטיש פון VoIP.ms און סטרייפ</p>
+<h3 data-en="Weekly Chesed Activity">וואכנטליכע חסד אקטיוויטעט</h3>
+<p style="text-align:center;padding:3rem;color:#999" data-en="[Graph will appear here once VoIP.ms and Stripe are connected]">[גראף וועט זיך ווייזן דא ווען VoIP.ms און סטרייפ זענען פארבינדן]</p>
+<p style="text-align:center;font-size:.9rem;color:#666" data-en="Data updates automatically from VoIP.ms and Stripe">דאטא אפדעיט זיך אויטאמאטיש פון VoIP.ms און סטרייפ</p>
 </div></div></section>
 
 <section id="מערכת"><div class="container">
-<h2>מערכת</h2>
+<h2 data-en="Contact">מערכת</h2>
 <div class="card-grid">
 <div class="card">
-<h3>קאנטאקט</h3>
-<form onsubmit="alert('מעסעדזש געשיקט');return false">
-<div class="form-group"><label>נאמען</label><input type="text" required></div>
-<div class="form-group"><label>אימעיל</label><input type="email" required></div>
-<div class="form-group"><label>מעסעדזש</label><textarea rows="4" required></textarea></div>
-<button type="submit" class="btn">שיק</button>
+<h3 data-en="Contact">קאנטאקט</h3>
+<form onsubmit="notify('מעסעדזש געשיקט','Message sent');return false">
+<div class="form-group"><label data-en="Name">נאמען</label><input type="text" required></div>
+<div class="form-group"><label data-en="Email">אימעיל</label><input type="email" required></div>
+<div class="form-group"><label data-en="Message">מעסעדזש</label><textarea rows="4" required></textarea></div>
+<button type="submit" class="btn" data-en="Send">שיק</button>
 </form></div>
 <div class="card">
-<h3>רעזערוויר א גבהה אפיס ספאט פאר א שעה</h3>
-<p style="margin-bottom:1rem">פאר פריוואטע שיחות אדער מיעטינגען</p>
+<h3 data-en="Reserve a GVOHA Office Slot for an Hour">רעזערוויר א גבהה אפיס ספאט פאר א שעה</h3>
+<p style="margin-bottom:1rem" data-en="For private conversations or meetings">פאר פריוואטע שיחות אדער מיעטינגען</p>
 <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem">
-<button class="btn" onclick="alert('9:00 רעזערווירט')">9:00</button>
-<button class="btn" onclick="alert('10:00 רעזערווירט')">10:00</button>
-<button class="btn" onclick="alert('11:00 רעזערווירט')">11:00</button>
-<button class="btn" onclick="alert('12:00 רעזערווירט')">12:00</button>
-<button class="btn" onclick="alert('1:00 רעזערווירט')">1:00</button>
-<button class="btn" onclick="alert('2:00 רעזערווירט')">2:00</button>
-<button class="btn" onclick="alert('3:00 רעזערווירט')">3:00</button>
-<button class="btn" onclick="alert('4:00 רעזערווירט')">4:00</button>
-<button class="btn" onclick="alert('5:00 רעזערווירט')">5:00</button>
+<button class="btn" onclick="notify('9:00 רעזערווירט','9:00 reserved')">9:00</button>
+<button class="btn" onclick="notify('10:00 רעזערווירט','10:00 reserved')">10:00</button>
+<button class="btn" onclick="notify('11:00 רעזערווירט','11:00 reserved')">11:00</button>
+<button class="btn" onclick="notify('12:00 רעזערווירט','12:00 reserved')">12:00</button>
+<button class="btn" onclick="notify('1:00 רעזערווירט','1:00 reserved')">1:00</button>
+<button class="btn" onclick="notify('2:00 רעזערווירט','2:00 reserved')">2:00</button>
+<button class="btn" onclick="notify('3:00 רעזערווירט','3:00 reserved')">3:00</button>
+<button class="btn" onclick="notify('4:00 רעזערווירט','4:00 reserved')">4:00</button>
+<button class="btn" onclick="notify('5:00 רעזערווירט','5:00 reserved')">5:00</button>
 </div></div></div></div></section>
 
 <footer><div class="container">
-<h3 style="color:#d4af37">גבהה'להבות חסד בעולם!</h3>
-<p style="margin:1rem 0">טעלעפאן: 1-800-GVOHA | צו פארבינדן די סייט מיט VoIP.ms</p>
+<h3 style="color:#d4af37" data-en="GVOHA – Flames of Chesed in the World!">גבהה'להבות חסד בעולם!</h3>
+<p style="margin:1rem 0" data-en="Phone: 1-800-GVOHA | To connect the site with VoIP.ms">טעלעפאן: 1-800-GVOHA | צו פארבינדן די סייט מיט VoIP.ms</p>
 <div style="margin:2rem 0">
-<a href="#היים">היים</a> | <a href="#נייעס">נייעס</a> | <a href="#עסקנות">עסקנות</a> | <a href="#עסקנים">עסקנים</a> | <a href="#מייחדים">צדקה</a> | <a href="#מנינים">מנינים</a> | <a href="#גרופ">גרופ</a> | <a href="#בוכהאלטעריי">בוכהאלטעריי</a> | <a href="#מערכת">מערכת</a>
+<a href="#היים" data-en="Home">היים</a> | <a href="#נייעס" data-en="News">נייעס</a> | <a href="#עסקנות" data-en="Forum">עסקנות</a> | <a href="#עסקנים" data-en="Volunteers">עסקנים</a> | <a href="#מייחדים" data-en="Charity">צדקה</a> | <a href="#מנינים" data-en="Minyanim">מנינים</a> | <a href="#גרופ" data-en="Group">גרופ</a> | <a href="#בוכהאלטעריי" data-en="Bookkeeping">בוכהאלטעריי</a> | <a href="#מערכת" data-en="Contact">מערכת</a>
 </div>
-<p style="font-size:.9rem;margin-top:2rem">© תשפ"ו גבהה'להבות חסד בעולם! - כל הזכויות שמורות</p>
+<p style="font-size:.9rem;margin-top:2rem" data-en="© 5786 GVOHA – Flames of Chesed in the World! All rights reserved.">© תשפ"ו גבהה'להבות חסד בעולם! - כל הזכויות שמורות</p>
 </div></footer>
 
 <script>
@@ -239,6 +246,29 @@ e.preventDefault();
 const target=document.querySelector(this.getAttribute('href'));
 if(target){target.scrollIntoView({behavior:'smooth'});document.getElementById('navLinks').classList.remove('active')}
 })})
+
+let L=localStorage.getItem('govhh-lang')||'yi';
+function notify(yi,en){alert(L==='yi'?yi:en)}
+function applyLang(){
+document.documentElement.lang=L;
+document.documentElement.dir=L==='yi'?'rtl':'ltr';
+document.querySelectorAll('[data-en]').forEach(el=>{
+if(!el.dataset.yi)el.dataset.yi=el.textContent;
+el.textContent=L==='yi'?el.dataset.yi:el.dataset.en;
+});
+document.querySelectorAll('[data-en-placeholder]').forEach(el=>{
+if(!el.dataset.yiPlaceholder)el.dataset.yiPlaceholder=el.placeholder;
+el.placeholder=L==='yi'?el.dataset.yiPlaceholder:el.dataset.enPlaceholder;
+});
+const toggle=document.getElementById('langToggle');
+if(toggle)toggle.textContent=L==='yi'?'EN':'ייִדיש';
+}
+function toggleLang(){
+L=L==='yi'?'en':'yi';
+localStorage.setItem('govhh-lang',L);
+applyLang();
+}
+applyLang();
 </script>
 </body>
 </html>
