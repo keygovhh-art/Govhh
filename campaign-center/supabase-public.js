@@ -20,3 +20,25 @@ window.CAMPAIGN_CENTER_DB = {
   script.defer = true;
   document.head.appendChild(script);
 })();
+
+(function loadCampaignOperationsAndCockpit() {
+  function loadCockpit() {
+    if (document.querySelector('script[data-campaign-cockpit-v1]')) return;
+    const cockpit = document.createElement('script');
+    cockpit.src = new URL('../campaign-center-v2/campaign-cockpit-v1.js?v=1', document.baseURI).href;
+    cockpit.dataset.campaignCockpitV1 = 'yes';
+    document.head.appendChild(cockpit);
+  }
+
+  if (document.querySelector('script[data-campaign-network-loader]')) {
+    loadCockpit();
+    return;
+  }
+
+  const network = document.createElement('script');
+  network.src = new URL('../campaign-center-v2/campaign-network-loader.js?v=1', document.baseURI).href;
+  network.dataset.campaignNetworkLoader = 'yes';
+  network.onload = loadCockpit;
+  network.onerror = loadCockpit;
+  document.head.appendChild(network);
+})();
