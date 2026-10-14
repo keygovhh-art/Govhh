@@ -33,7 +33,7 @@ const trim = (x, max = 200) => typeof x === 'string' ? x.trim().slice(0, max) : 
 const uuid = x => typeof x === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
 const amount = x => {
   const value = String(x ?? '');
-  if (!/^(?:0|[1-9]\\d{0,12})(?:\\.\\d{1,2})?$/.test(value)) throw bad(400, 'Invalid amount: up to 2 decimals');
+  if (!/^(?:0|[1-9]\d{0,12})(?:\.\d{1,2})?$/.test(value)) throw bad(400, 'Invalid amount: up to 2 decimals');
   const n = Number(value);
   if (!Number.isFinite(n) || n <= 0 || n > 1000000000000) throw bad(400, 'Invalid positive amount');
   return n.toFixed(2);
