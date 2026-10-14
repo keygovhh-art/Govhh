@@ -1,0 +1,25 @@
+name: Campaign Center Neon preflight
+on:
+  pull_request:
+    paths:
+      - 'campaign-center-neon/**'
+      - '.github/workflows/campaign-center-neon.yml'
+  push:
+    branches:
+      - prep/neon-render-campaign-center-20261014
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: campaign-center-neon
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts
+      - run: npm run check
+      - run: npm run build
