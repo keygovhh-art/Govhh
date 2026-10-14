@@ -1,0 +1,271 @@
+import express from 'express';
+import pg from 'pg';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { randomUUID } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const required = ['DATABASE_URL', 'NEON_AUTH_BASE_URL', 'NEON_AUTH_JWKS_URL'];
+const missing = required.filter(key => !process.env[key]);
+if (missing.length) {
+  console.error('Missing Render environment settings:', missing.join(', '));
+  process.exit(1);
+}
+const authBase = new URL(process.env.NEON_AUTH_BASE_URL);
+const jwksUrl = new URL(process.env.NEON_AUTH_JWKS_URL);
+if (authBase.protocol !== 'https:' || jwksUrl.protocol !== 'https:' || authBase.origin !== jwksUrl.origin) {
+  throw new Error('Neon Auth and JWKS settings must share the same HTTPS origin');
+}
+const jwks = createRemoteJWKSet(jwksUrl);
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: 10000 });
+const app = express();
+app.disable('x-powered-by');
+app.use(express.json({ limit: '32kb' }));
+app.use((req, res, next) => {
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('Referrer-Policy', 'no-referrer');
+  if (req.path.startsWith('/api/')) res.set('Cache-Control', 'no-store');
+  next();
+});
+
+const bad = (status, message) => Object.assign(new Error(message), { status });
+const trim = (x, max = 200) => typeof x === 'string' ? x.trim().slice(0, max) : '';
+const uuid = x => typeof x === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
+const amount = x => {
+  const n = Number(x);
+  if (!Number.isFinite(n) || n <= 0 || n > 1000000000000 || Math.round(n * 100) !== n * 100) throw bad(400, 'Invalid positive amount (2 decimals maximum)');
+  return n.toFixed(2);
+};
+const log = async (db, org, campaign, actor, type, target = null, details = {}) => {
+  await db.query('INSERT INTO cc_activity_events(organization_id,campaign_id,actor_subject,event_type,target_id,details) VALUES ($1,$2,$3,$4,$5,$6)', [org,campaign,actor,type,target,JSON.stringify(details)]);
+};
+async function transaction(work) {
+  const db = await pool.connect();
+  try {
+    await db.query('BEGIN');
+    const result = await work(db);
+    await db.query('COMMIT');
+    return result;
+  } catch (error) {
+    await db.query('ROLLBACK');
+    throw error;
+  } finally { db.release(); }
+}
+const q = (sql, params) => pool.query(sql, params);
+async function authenticate(req, _res, next) {
+  try {
+    const match = /^Bearer\s+([^\s]+)$/i.exec(req.get('authorization') || '');
+    if (!match) throw bad(401, 'Please sign in');
+    const { payload } = await jwtVerify(match[1], jwks, { issuer: authBase.origin });
+    if (typeof payload.sub !== 'string' || !payload.sub) throw bad(401, 'Invalid user');
+    req.userId = payload.sub;
+    next();
+  } catch (error) { next(error.status ? error : bad(401, 'Session expired or invalid')); }
+}
+async function member(db, org, user) {
+  if (!uuid(org)) throw bad(400, 'Invalid organization');
+  const found = await db.query("SELECT role FROM cc_memberships WHERE organization_id=$1 AND subject=$2 AND membership_status='active'", [org,user]);
+  if (!found.rowCount) throw bad(404, 'Organization not found');
+  return found.rows[0].role;
+}
+async function campaignAccess(db, id, user) {
+  if (!uuid(id)) throw bad(400, 'Invalid campaign');
+  const found = await db.query("SELECT c.*,m.role FROM cc_campaigns c JOIN cc_memberships m ON m.organization_id=c.organization_id AND m.subject=$2 AND m.membership_status='active' WHERE c.id=$1", [id,user]);
+  if (!found.rowCount) throw bad(404, 'Campaign not found');
+  const c = found.rows[0];
+  if (!['owner','manager','finance','auditor'].includes(c.role)) {
+    const joined = await db.query('SELECT 1 FROM cc_campaign_members WHERE campaign_id=$1 AND subject=$2',[id,user]);
+    if (!joined.rowCount) throw bad(404, 'Campaign not found');
+  }
+  return c;
+}
+function need(role, allowed) { if (!allowed.includes(role)) throw bad(403,'Insufficient permission'); }
+
+app.get('/api/health', async (req, res, next) => {
+  try { await q('SELECT 1'); res.json({ status:'ok',database:'neon' }); }
+  catch (error) { next(error); }
+});
+app.get('/api/config', (_req,res) => res.json({ neonAuthUrl: authBase.toString().replace(/\/$/,'') }));
+app.use('/api', authenticate);
+app.get('/api/me', async (req,res,next) => {
+  try {
+    const result = await q("SELECT o.id,o.name,m.role FROM cc_organizations o JOIN cc_memberships m ON m.organization_id=o.id WHERE m.subject=$1 AND m.membership_status='active' ORDER BY o.created_at DESC",[req.userId]);
+    res.json({ subject:req.userId, organizations:result.rows });
+  } catch(error) { next(error); }
+});
+app.post('/api/organizations', async (req,res,next) => {
+  try {
+    const name = trim(req.body?.name,120);
+    if (name.length < 2) throw bad(400,'Please enter organization name');
+    const result = await transaction(async db => {
+      const o = (await db.query('INSERT INTO cc_organizations(name,owner_subject) VALUES($1,$2) RETURNING *',[name,req.userId])).rows[0];
+      await db.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,'owner','active',now())",[o.id,req.userId]);
+      await log(db,o.id,null,req.userId,'organization.created',o.id);
+      return o;
+    });
+    res.status(201).json(result);
+  } catch(error) { next(error); }
+});
+app.get('/api/organizations/:oid/campaigns', async(req,res,next) => {
+  try {
+    await member(pool,req.params.oid,req.userId);
+    const result=await q('SELECT id,title,currency,goal_amount,status,created_at FROM cc_campaigns WHERE organization_id=$1 ORDER BY created_at DESC',[req.params.oid]);
+    res.json(result.rows);
+  } catch(error) {next(error);}
+});
+app.post('/api/organizations/:oid/campaigns', async(req,res,next) => {
+  try {
+    const title=trim(req.body?.title,160), goal=Number(req.body?.goalAmount||0);
+    if (!title || !Number.isFinite(goal) || goal<0 || goal>1000000000000) throw bad(400,'Invalid campaign details');
+    const result=await transaction(async db=>{
+      const role=await member(db,req.params.oid,req.userId);need(role,['owner','manager']);
+      const c=(await db.query('INSERT INTO cc_campaigns(organization_id,title,goal_amount) VALUES($1,$2,$3) RETURNING *',[req.params.oid,title,goal])).rows[0];
+      await db.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[req.params.oid,c.id,req.userId]);
+      await log(db,req.params.oid,c.id,req.userId,'campaign.created',c.id,{title});
+      return c;
+    });
+    res.status(201).json(result);
+  } catch(error) {next(error);}
+});
+app.get('/api/campaigns/:cid/overview', async(req,res,next)=>{
+  try {
+    const c=await campaignAccess(pool,req.params.cid,req.userId);
+    const stats=await q("SELECT event_kind,COALESCE(SUM(amount),0)::text AS amount FROM cc_finance_events WHERE campaign_id=$1 AND organization_id=$2 AND (event_kind='pledge' OR (event_kind='receipt' AND verified_at IS NOT NULL)) GROUP BY event_kind",[c.id,c.organization_id]);
+    const tasks=await q('SELECT status,count(*)::int AS total FROM cc_assignments WHERE campaign_id=$1 GROUP BY status',[c.id]);
+    res.json({campaign:c,finance:stats.rows,tasks:tasks.rows});
+  } catch(error){next(error);}
+});
+app.get('/api/campaigns/:cid/tasks', async(req,res,next)=>{
+  try {
+    const c=await campaignAccess(pool,req.params.cid,req.userId);
+    const managers=['owner','manager','finance','auditor','squad_leader'].includes(c.role);
+    const r=await q('SELECT id,title,kind,priority,status,due_at,assignee_subject,created_at FROM cc_assignments WHERE organization_id=$1 AND campaign_id=$2 AND ($3::boolean OR assignee_subject=$4) ORDER BY created_at DESC LIMIT 200',[c.organization_id,c.id,managers,req.userId]);
+    res.json(r.rows);
+  } catch(error){next(error);}
+});
+app.post('/api/campaigns/:cid/tasks',async(req,res,next)=>{
+  try {
+    const title=trim(req.body?.title,240), priority=trim(req.body?.priority,16)||'normal', kind=trim(req.body?.kind,16)||'task';
+    if(!title || !['low','normal','high','critical'].includes(priority) || !['task','call_lead','followup','review'].includes(kind)) throw bad(400,'Invalid task');
+    const result=await transaction(async db=>{
+      const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,['owner','manager','squad_leader']);
+      const assignee=trim(req.body?.assigneeSubject,128)||req.userId;
+      const a=(await db.query('INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,kind) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[c.organization_id,c.id,assignee,title,priority,kind])).rows[0];
+      await log(db,c.organization_id,c.id,req.userId,'task.created',a.id,{assignee});
+      return a;
+    });res.status(201).json(result);
+  } catch(error){next(error);}
+});
+app.patch('/api/tasks/:id',async(req,res,next)=>{
+  try {
+    if(!uuid(req.params.id)||!['open','in_progress','done','cancelled'].includes(req.body?.status))throw bad(400,'Invalid task update');
+    const result=await transaction(async db=>{
+      const t=(await db.query('SELECT * FROM cc_assignments WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
+      if(!t)throw bad(404,'Task not found');
+      const c=await campaignAccess(db,t.campaign_id,req.userId);
+      if(t.organization_id!==c.organization_id)throw bad(404,'Task not found');
+      if(t.assignee_subject!==req.userId)need(c.role,['owner','manager','squad_leader']);
+      const done=(await db.query('UPDATE cc_assignments SET status=$1 WHERE id=$2 RETURNING *',[req.body.status,t.id])).rows[0];
+      await log(db,c.organization_id,c.id,req.userId,'task.status',t.id,{from:t.status,to:done.status});
+      return done;
+    });res.json(result);
+  } catch(error){next(error);}
+});
+app.get('/api/campaigns/:cid/contacts',async(req,res,next)=>{
+  try {
+    const c=await campaignAccess(pool,req.params.cid,req.userId);
+    const r=await q("SELECT id,display_name,phone,notes,privacy,do_not_call,status,next_followup_at,created_at FROM cc_contacts WHERE campaign_id=$1 AND organization_id=$2 AND (privacy='campaign' OR created_by=$3) ORDER BY created_at DESC LIMIT 200",[c.id,c.organization_id,req.userId]);
+    res.json(r.rows);
+  } catch(error){next(error);}
+});
+app.post('/api/campaigns/:cid/contacts',async(req,res,next)=>{
+  try {
+    const name=trim(req.body?.name,160), phone=trim(req.body?.phone,40), notes=trim(req.body?.notes,2000),privacy=req.body?.privacy==='private'?'private':'campaign';
+    if(!name || (phone && !/^[+0-9 ()\-]{7,40}$/.test(phone)))throw bad(400,'Invalid contact');
+    const result=await transaction(async db=>{
+      const c=await campaignAccess(db,req.params.cid,req.userId);
+      need(c.role,['owner','manager','squad_leader','askan']);
+      const row=(await db.query('INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,notes,privacy) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,display_name,phone,notes,privacy,status,do_not_call,created_at',[c.organization_id,c.id,req.userId,name,phone,notes,privacy])).rows[0];
+      await log(db,c.organization_id,c.id,req.userId,'contact.created',row.id,{privacy});
+      return row;
+    });res.status(201).json(result);
+  } catch(error){next(error);}
+});
+app.get('/api/contacts/:id/calls',async(req,res,next)=>{
+  try {
+    if(!uuid(req.params.id))throw bad(400,'Invalid contact');
+    const contact=(await q('SELECT * FROM cc_contacts WHERE id=$1',[req.params.id])).rows[0];
+    if(!contact)throw bad(404,'Contact not found');
+    await campaignAccess(pool,contact.campaign_id,req.userId);
+    if(contact.privacy==='private' && contact.created_by!==req.userId)throw bad(404,'Contact not found');
+    const r=await q('SELECT id,member_subject,outcome,note,created_at FROM cc_call_events WHERE contact_id=$1 AND organization_id=$2 ORDER BY created_at DESC LIMIT 200',[contact.id,contact.organization_id]);
+    res.json(r.rows);
+  } catch(error){next(error);}
+});
+app.post('/api/contacts/:id/calls',async(req,res,next)=>{
+  try {
+    if(!uuid(req.params.id))throw bad(400,'Invalid contact');
+    const outcome=req.body?.outcome,note=trim(req.body?.note,2000);
+    if(!['no_answer','spoke','callback','pledged','paid','not_interested','do_not_call'].includes(outcome))throw bad(400,'Invalid outcome');
+    const result=await transaction(async db=>{
+      const t=(await db.query('SELECT * FROM cc_contacts WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
+      if(!t)throw bad(404,'Contact not found');
+      const c=await campaignAccess(db,t.campaign_id,req.userId);
+      need(c.role,['owner','manager','squad_leader','askan']);
+      if(t.organization_id!==c.organization_id || (t.privacy==='private'&&t.created_by!==req.userId))throw bad(404,'Contact not found');
+      if(t.do_not_call)throw bad(409,'Do not call: this contact is restricted');
+      const e=(await db.query('INSERT INTO cc_call_events(organization_id,campaign_id,contact_id,member_subject,outcome,note) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[c.organization_id,c.id,t.id,req.userId,outcome,note])).rows[0];
+      if(outcome==='do_not_call')await db.query("UPDATE cc_contacts SET do_not_call=true,status='do_not_call' WHERE id=$1",[t.id]);
+      await log(db,c.organization_id,c.id,req.userId,'call.logged',e.id,{contactId:t.id,outcome});
+      return e;
+    });res.status(201).json(result);
+  } catch(error){next(error);}
+});
+app.get('/api/campaigns/:cid/finance',async(req,res,next)=>{
+  try {
+    const c=await campaignAccess(pool,req.params.cid,req.userId);
+    const viewAll=['owner','manager','finance','auditor'].includes(c.role);
+    const r=await q('SELECT id,credited_member_subject,event_kind,amount,currency,verified_at,verification_reference,created_at FROM cc_finance_events WHERE campaign_id=$1 AND organization_id=$2 AND ($3::boolean OR credited_member_subject=$4) ORDER BY created_at DESC LIMIT 200',[c.id,c.organization_id,viewAll,req.userId]);
+    res.json(r.rows);
+  } catch(error){next(error);}
+});
+app.post('/api/campaigns/:cid/finance',async(req,res,next)=>{
+  try {
+    const kind=req.body?.kind;
+    if(!['pledge','receipt'].includes(kind))throw bad(400,'Only pledge / manually verified receipt supported');
+    const sum=amount(req.body?.amount);
+    const reference=trim(req.body?.verificationReference,200);
+    if(kind==='receipt' && reference.length<3)throw bad(400,'Treasurer verification reference required');
+    const result=await transaction(async db=>{
+      const c=await campaignAccess(db,req.params.cid,req.userId);
+      if(kind==='receipt')need(c.role,['owner','finance']);
+      else need(c.role,['owner','manager','finance','askan','squad_leader']);
+      const row=(await db.query("INSERT INTO cc_finance_events(organization_id,campaign_id,credited_member_subject,source_system,source_event_key,event_kind,amount,currency,verified_at,verification_reference) VALUES($1,$2,$3,'manual-neon',$4,$5,$6,$7,$8,$9) RETURNING *",
+        [c.organization_id,c.id,req.userId,randomUUID(),kind,sum,c.currency,kind==='receipt'?new Date():null,kind==='receipt'?reference:null])).rows[0];
+      await log(db,c.organization_id,c.id,req.userId,'finance.'+kind,row.id,{amount:sum,currency:c.currency,manual:true});
+      return row;
+    });res.status(201).json(result);
+  }catch(error){next(error);}
+});
+app.get('/api/organizations/:oid/activity',async(req,res,next)=>{
+  try {
+    const role=await member(pool,req.params.oid,req.userId);
+    need(role,['owner','manager','auditor']);
+    const r=await q('SELECT id,campaign_id,actor_subject,event_type,target_id,details,created_at FROM cc_activity_events WHERE organization_id=$1 ORDER BY created_at DESC LIMIT 200',[req.params.oid]);
+    res.json(r.rows);
+  }catch(error){next(error);}
+});
+
+const root=dirname(fileURLToPath(import.meta.url));
+app.use(express.static(join(root,'../dist'),{index:false,maxAge:'1h'}));
+app.get('/{*path}',(req,res)=>{
+  if(req.path.startsWith('/api'))return res.status(404).json({error:'Not found'});
+  return res.sendFile(join(root,'../dist/index.html'));
+});
+app.use((error,req,res,_next)=>{
+  const status=error.status || (error.code==='23503'?400:error.code==='23505'?409:500);
+  if(status===500)console.error('Campaign Center API error',error.message);
+  res.status(status).json({error:status===500?'Unexpected server error':error.message});
+});
+const port=Number(process.env.PORT||10000);
+app.listen(port,'0.0.0.0',()=>console.log('Campaign Center Neon API listening on',port));
