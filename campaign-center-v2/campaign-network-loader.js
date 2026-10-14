@@ -1,14 +1,9 @@
-/* Temporary preview loader: removes the obsolete local render patch before executing the module. */
-(async function () {
-  try {
-    const response = await fetch(new URL('campaign-network.js?v=1', document.baseURI));
-    let source = await response.text();
-    source = source.replace(
-      "function patch(){if(typeof renderAll==='function'&&!window.__networkPatched){const old=renderAll;renderAll=function(){old();renderAll()};window.__networkPatched=true}}",
-      "function patch(){}"
-    );
-    (0, eval)(source);
-  } catch (error) {
-    console.error('Campaign Network could not load', error);
-  }
+/* Load the Campaign Network as an ordinary script; never eval remote code. */
+(function(){
+  if(document.querySelector('script[data-campaign-network-main]')) return;
+  const script=document.createElement('script');
+  script.src=new URL('campaign-network.js?v=2',document.baseURI).href;
+  script.dataset.campaignNetworkMain='yes';
+  script.onerror=()=>console.error('Campaign Network script failed to load');
+  document.head.appendChild(script);
 })();
