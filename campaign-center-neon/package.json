@@ -1,0 +1,24 @@
+{
+  "name": "gavhah-campaign-center-neon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "node server/index.js",
+    "check": "node --check server/index.js && node --check src/main.js"
+  },
+  "dependencies": {
+    "@neondatabase/auth": "0.6.0-beta",
+    "express": "^5.1.0",
+    "jose": "^6.1.0",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "vite": "8.3.4"
+  }
+}
