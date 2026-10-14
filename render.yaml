@@ -10,7 +10,7 @@ services:
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
-    autoDeployTrigger: commit
+    autoDeployTrigger: 'off' # Enable only after secure staging, domain and live auth tests
     envVars:
       - key: NODE_ENV
         value: production
