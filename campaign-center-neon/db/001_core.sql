@@ -134,12 +134,9 @@ CREATE OR REPLACE FUNCTION public.cc_prevent_history_mutation()
 RETURNS trigger LANGUAGE plpgsql AS $block$
 BEGIN RAISE EXCEPTION 'Campaign Center history is append-only; create a correction event instead';
 END $block$;
-DROP TRIGGER IF EXISTS cc_finance_no_mutate ON public.cc_finance_events;
-CREATE TRIGGER cc_finance_no_mutate BEFORE UPDATE OR DELETE ON public.cc_finance_events
+CREATE OR REPLACE TRIGGER cc_finance_no_mutate BEFORE UPDATE OR DELETE ON public.cc_finance_events
 FOR EACH ROW EXECUTE FUNCTION public.cc_prevent_history_mutation();
-DROP TRIGGER IF EXISTS cc_call_no_mutate ON public.cc_call_events;
-CREATE TRIGGER cc_call_no_mutate BEFORE UPDATE OR DELETE ON public.cc_call_events
+CREATE OR REPLACE TRIGGER cc_call_no_mutate BEFORE UPDATE OR DELETE ON public.cc_call_events
 FOR EACH ROW EXECUTE FUNCTION public.cc_prevent_history_mutation();
-DROP TRIGGER IF EXISTS cc_audit_no_mutate ON public.cc_activity_events;
-CREATE TRIGGER cc_audit_no_mutate BEFORE UPDATE OR DELETE ON public.cc_activity_events
+CREATE OR REPLACE TRIGGER cc_audit_no_mutate BEFORE UPDATE OR DELETE ON public.cc_activity_events
 FOR EACH ROW EXECUTE FUNCTION public.cc_prevent_history_mutation();
