@@ -58,3 +58,15 @@ textarea{font:inherit;background:#fff;border:1px solid #cedbd6;border-radius:10p
  .progress-stats{grid-template-columns:1fr}
  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+/* Optional Internet video is a separate floating viewer; the operational
+   fundraising UI remains fully functional with video switched off. */
+.video-choice{border:1px solid #d6e4df;background:#f8faf9}
+.video-choice form{padding-top:10px;border-top:1px solid #dce7e3;margin-top:10px}
+.optional-video-dock{position:fixed;z-index:400;bottom:12px;inset-inline-end:12px;width:min(540px,calc(100vw - 24px));background:#fff;border:1px solid #97b5aa;box-shadow:0 12px 40px #001e182d;border-radius:15px;padding:10px;direction:rtl}
+.optional-video-dock[hidden]{display:none!important}
+.optional-video-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:3px 3px 8px}
+.optional-video-head strong{font-size:.9rem}
+.optional-video-dock video{display:block;width:100%;height:auto;aspect-ratio:16/9;max-height:65vh;background:#101a1b;border-radius:10px;object-fit:contain}
+.optional-video-dock p{margin:7px 2px 2px;font-size:.78rem}
+@media(max-width:550px){.optional-video-dock{inset-inline:4px;width:calc(100vw - 8px);bottom:4px;padding:7px;border-radius:11px}.optional-video-dock video{max-height:35vh}.optional-video-dock .optional-video-head button{font-size:.8rem;padding:7px 10px}}
