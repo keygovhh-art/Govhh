@@ -111,6 +111,42 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const owner='owner-A',first='member-1',second='member-2';
   const org1=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES('A', $1) RETURNING id",[owner])).rows[0].id;
   await pool.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,'owner','active',now())",[org1,owner]);
+
+  // Per-organization secret is AES-GCM sealed, never reflected, and owner-only.
+  const ym='/yemot/organizations/'+org1;
+  assert.equal((await req(ym,{user:first})).status,404,'Unjoined account cannot inspect Yemot configuration');
+  assert.equal((await req(ym,{user:owner})).data.configured,false);
+  const originalToken='local-ci-test-token-never-prod-012345';
+  assert.equal((await req(ym,{user:owner,method:'PUT',data:{token:originalToken}})).status,200);
+  const stored=(await pool.query('SELECT token_ciphertext,token_nonce,enabled FROM cc_yemot_connections WHERE organization_id=$1',[org1])).rows[0];
+  assert.ok(stored.token_ciphertext&&!JSON.stringify(stored).includes(originalToken),'Secret encrypted at rest');
+  assert.equal(stored.enabled,false,'Saving a token cannot automatically enable any external action');
+  const status=await req(ym,{user:owner});
+  assert.equal(status.data.configured,true);
+  assert.ok(!JSON.stringify(status.data).includes(originalToken),'No token in API response');
+  assert.equal((await req(ym+'/enabled',{user:first,method:'PATCH',data:{enabled:true}})).status,404);
+  assert.equal((await req(ym+'/enabled',{user:owner,method:'PATCH',data:{enabled:true}})).status,200);
+  const realFetch=globalThis.fetch;
+  let testedYemot=false;
+  globalThis.fetch=async(input,init)=>{
+   if(String(input)==='https://www.call2all.co.il/ym/api/GetTemplates'){
+     testedYemot=true;const v=JSON.parse(init.body);
+     assert.equal(init.method,'POST');
+     assert.equal(v.token,originalToken);
+     assert.ok(!String(input).includes(originalToken),'Token may never appear in request URL');
+     return {ok:true,json:async()=>({responseStatus:'OK',templates:[{templateId:1}]})};
+   }
+   return realFetch(input,init);
+  };
+  try{
+   const testY=await req(ym+'/test',{user:owner,method:'POST',data:{}});
+   assert.equal(testY.status,200);
+   assert.equal(testY.data.templateCount,1);
+   assert.ok(testedYemot);
+  }finally{globalThis.fetch=realFetch;}
+  assert.equal((await req(ym,{user:owner,method:'DELETE'})).status,200);
+  assert.equal((await req(ym,{user:owner})).data.configured,false);
+
   const c1=(await pool.query("INSERT INTO cc_campaigns(organization_id,title) VALUES($1,'Campaign A') RETURNING id",[org1])).rows[0].id;
   await pool.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject) VALUES($1,$2,$3)',[org1,c1,owner]);
   const uninvitedEdit=await req('/campaigns/'+c1,{user:'stranger',method:'PATCH',data:{status:'active'}});
