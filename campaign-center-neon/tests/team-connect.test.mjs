@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import express from 'express';
 import pg from 'pg';
 import teamRouter from '../server/team.js';
+import webHallRouter from '../server/web-hall.js';
 import {connectUserRouter,connectServiceRouter} from '../server/connect.js';
 
 const connection=process.env.TEST_DATABASE_URL;
@@ -39,7 +40,7 @@ const auth=(req,res,next)=>{req.userId=req.get('x-test-user')||'anonymous';next(
 
 async function prepare(){
  // Disposable Postgres on GitHub Actions only; NEVER any external production database.
- for(const file of ['001_core.sql','002_team_connect.sql']){
+ for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql']){
   const sql=await readFile(join(import.meta.dirname,'../db',file),'utf8');
   await pool.query(sql);
  }
@@ -47,6 +48,7 @@ async function prepare(){
 async function launch(){
  const app=express();app.use(express.json({limit:'20kb'}));
  app.use('/api/team',teamRouter({pool,authenticate:auth,member,campaignAccess,need,log,bad,uuid,trim}));
+ app.use('/api/rooms',webHallRouter({pool,authenticate:auth,campaignAccess,need,log,bad,uuid,trim}));
  app.use('/api/connect/service',connectServiceRouter({pool,bad,uuid,log}));
  app.use('/api/connect',connectUserRouter({pool,authenticate:auth,log,bad}));
  app.use((err,req,res,next)=>res.status(err.status||500).json({error:err.message}));
