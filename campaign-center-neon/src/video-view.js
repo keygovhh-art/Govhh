@@ -56,12 +56,17 @@ export async function watchOptionalVideo(url,kind,roomId){
  player.scrollIntoView({block:'nearest',behavior:'smooth'});
  // Never call play(): the viewer controls playback on their own device.
 }
-export function videoPanel(status,kind,roomId,grants,esc){
+export function videoPanel(status,kind,roomId,grants,esc,eligibleMembers=[]){
  if(!roomId)return '';
  const eligible=status?.allowed===true;
  const isManager=status?.isManager===true;
  const broad=kind==='conference'?'admitted':'checked_in';
  const broadLabel=kind==='conference'?'אלע אריינגעלאזטע צוהערער':'אלע איינגעטשעקטע עסקנים';
+ const candidateIds=[...new Set(eligibleMembers.map(x=>typeof x==='string'?x:x.subject).filter(x=>typeof x==='string'&&x.length>0))];
+ const whoSelector=candidateIds.length?
+   '<select name="subject" required><option value="">קלייב אן ערלויבטן מיטגליד</option>'+
+    candidateIds.map(x=>'<option value="'+esc(x)+'">'+esc(x)+'</option>').join('')+'</select>':
+   '<input name="subject" required maxlength="128" placeholder="ערלויבטער מיטגליד־קאוד">';
  const managerPanel=isManager?'<form data-form="video-config" class="stack">'+
   '<input type="hidden" name="kind" value="'+kind+'">'+
   '<label>לייוו־ווידעא מצב<select name="enabled">'+
@@ -75,10 +80,10 @@ export function videoPanel(status,kind,roomId,grants,esc){
   '<p class="muted">מען דארף א לעבעדיגן ווידעא־שידור־קוואל. דער סיסטעם מאכט נאכנישט אליין א קאמערא־שידור. דער אויסערליכער פראוויידער דארף באשיצן זיינע לינקס.</p>'+
   '<button type="submit">אפהיטן ווידעא־איינשטעלונגען</button></form>'+
   '<form data-form="video-grant" class="stack"><input type="hidden" name="kind" value="'+kind+'">'+
-   '<label>ערלויבטער מיטגליד־קאוד<input name="subject" required maxlength="128" placeholder="מיטגליד־קאוד"></label>'+
+   '<label>באשטעטיגטער מיטגליד'+whoSelector+'</label>'+
    '<label>אויסוואל<select name="allowed"><option value="true">ערלויבן צוקוקן</option><option value="false">אוועקנעמען ערלויבעניש</option></select></label>'+
    '<button type="submit">אפהיטן פערזענליכע רשות</button></form>'+
-  (grants||[]).filter(g=>g.granted).map(g=>'<p class="muted">ערלויבט: '+esc(g.subject)+'</p>').join(''):'';
+  (grants||[]).filter(g=>g.granted).map(g=>'<div class="inline"><span class="muted">ערלויבט: '+esc(g.subject)+'</span>'+ '<button type="button" data-action="video-revoke" data-kind="'+kind+'" data-subject="'+esc(g.subject)+'">אוועקנעמען</button></div>').join(''):'';
  return '<section class="card video-choice"><h3>פרייוויליגער לייוו־ווידעא</h3>'+
    '<p class="muted">ווידעא איז קיינמאל נישט קיין חיוב. נאר ווער עס וויל, מיט גענוג אינטערנעט און מיט דער מנהל־רשות, קען באזונדער אנצינדן דעם שידור.</p>'+
    (status?.enabled?
