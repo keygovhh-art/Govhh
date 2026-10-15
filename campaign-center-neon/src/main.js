@@ -389,6 +389,22 @@ async function click(event){
     await api('/floor-program/'+state.joinedRoomId+(a==='event-check-in'?'/check-in':'/check-out'),{method:'POST',body:'{}'});
     await refresh();return;
   }
+  if(a==='program-lunch-preset'){
+    const form=document.querySelector('form[data-form="program-add"]');
+    if(!form)throw new Error('קודם גיי אריין אינעם קאמפיין־זאל');
+    const today=new Date(),lunch=new Date();
+    lunch.setHours(13,30,0,0);
+    if(lunch<today)lunch.setDate(lunch.getDate()+1);
+    const end=new Date(lunch.getTime()+30*60000);
+    const localInput=v=>v.getFullYear()+'-'+String(v.getMonth()+1).padStart(2,'0')+'-'+String(v.getDate()).padStart(2,'0')+'T'+String(v.getHours()).padStart(2,'0')+':'+String(v.getMinutes()).padStart(2,'0');
+    form.elements.title.value='לאנטש און דברי חיזוק';
+    form.elements.segmentType.value='lunch';
+    form.elements.scheduledStart.value=localInput(lunch);
+    form.elements.scheduledEnd.value=localInput(end);
+    form.elements.description.value='א האלבע שעה הפסקה פון די רופן, מיט א פראגראם פון דברי חיזוק און אנווייזונגען.';
+    form.elements.speaker.focus();
+    return;
+  }
   if(a==='program-start'||a==='program-complete'||a==='program-cancel'){
     const status=a==='program-start'?'live':a==='program-complete'?'completed':'cancelled';
     await api('/floor-program/'+state.joinedRoomId+'/programs/'+encodeURIComponent(btn.dataset.id)+'/status',{method:'POST',body:JSON.stringify({status})});
