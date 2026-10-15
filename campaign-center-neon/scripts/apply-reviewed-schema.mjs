@@ -24,7 +24,7 @@ const sqlNames=[
  '004_conference_center.sql','005_virtual_campaign_floor.sql',
  '006_floor_program_checkins.sql','007_conference_policy_lists.sql',
  '008_opt_in_video.sql','009_experimental_browser_audio.sql',
- '010_automatic_event_schedule.sql','011_sponsored_max_seats.sql'
+ '010_automatic_event_schedule.sql','011_sponsored_max_seats.sql','012_yemot_encrypted_connections.sql'
 ];
 const root=join(dirname(fileURLToPath(import.meta.url)),'..','db');
 const client=new pg.Client({connectionString:conn,connectionTimeoutMillis:10000});
@@ -37,9 +37,9 @@ try{
  if(old.length>0){
   // Migration is allowed only on a wholly fresh production schema; a
   // partially migrated DB needs human reconciliation, never blind replay.
-  if(old.length!==29||old.some(x=>!x.relrowsecurity))
+  if(old.length!==30||old.some(x=>!x.relrowsecurity))
    throw Error('Partial/unknown Campaign Center schema; manual review required');
-  console.log('Already migrated: 29 CC tables, all RLS enabled; no changes');
+  console.log('Already migrated: 30 CC tables, all RLS enabled; no changes');
   await client.query('COMMIT');
   process.exitCode=0;
  }else{
@@ -50,10 +50,10 @@ try{
    console.log('Applied '+file);
   }
   const result=(await client.query("SELECT c.relname,c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','p') AND c.relname LIKE 'cc_%'")).rows;
-  if(result.length!==29||result.some(x=>!x.relrowsecurity))
+  if(result.length!==30||result.some(x=>!x.relrowsecurity))
    throw Error('Postmigration table/RLS verification failed: '+result.length+' tables');
   await client.query('COMMIT');
-  console.log('PASS '+mode+': 29 protected tables created in one transaction, no existing application tables modified.');
+  console.log('PASS '+mode+': 30 protected tables created in one transaction, no existing application tables modified.');
  }
 }catch(error){
  try{await client.query('ROLLBACK');}catch{}
