@@ -9,7 +9,7 @@ import { conferenceView } from './conference-view.js';
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferenceCode:''};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferenceCode:''};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -276,10 +276,13 @@ async function submit(event){
      const lead=state.leads.find(p=>p.id===d.contactId);
      if(!lead||lead.claimed_by!==state.subject||new Date(lead.claim_expires_at).getTime()<=Date.now())
        throw new Error('קודם נעם דעם קשר פאר דיין רוף');
-     await api('/contacts/'+encodeURIComponent(d.contactId)+'/calls',{method:'POST',
-       body:JSON.stringify({outcome:d.outcome,note:d.note||''})});
-     await api('/team/contacts/'+encodeURIComponent(d.contactId)+'/release',{method:'POST',
-       body:'{}',headers:{'Content-Type':'application/json'}});break;
+     const attemptId=state.callKeys[d.contactId]||crypto.randomUUID();
+     state.callKeys[d.contactId]=attemptId;
+     const recorded=await api('/floor/'+state.joinedRoomId+'/calls/'+encodeURIComponent(d.contactId),{
+       method:'POST',body:JSON.stringify({outcome:d.outcome,note:d.note||'',attemptId})
+     });
+     delete state.callKeys[d.contactId];
+     break;
    }
    case 'hall-new': await api('/rooms/campaigns/'+state.campaignId,{method:'POST',body:JSON.stringify({title:d.title})});break;
    case 'hall-message': await api('/rooms/'+state.joinedRoomId+'/announcements',{method:'POST',body:JSON.stringify({message:d.message})});break;
