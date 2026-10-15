@@ -23,7 +23,8 @@ const sqlNames=[
  '001_core.sql','002_team_connect.sql','003_web_hall.sql',
  '004_conference_center.sql','005_virtual_campaign_floor.sql',
  '006_floor_program_checkins.sql','007_conference_policy_lists.sql',
- '008_opt_in_video.sql','009_experimental_browser_audio.sql'
+ '008_opt_in_video.sql','009_experimental_browser_audio.sql',
+ '010_automatic_event_schedule.sql'
 ];
 const root=join(dirname(fileURLToPath(import.meta.url)),'..','db');
 const client=new pg.Client({connectionString:conn,connectionTimeoutMillis:10000});
