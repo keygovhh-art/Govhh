@@ -1,0 +1,27 @@
+name: Production HTTPS smoke — Campaign Center and Gavhah
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/production-live-smoke.yml"
+      - "campaign-center-neon/scripts/http-smoke.mjs"
+  workflow_dispatch:
+jobs:
+  check-live-services:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Campaign Center health, Neon Auth configuration, unauthenticated and service-secret gates
+        env:
+          CC_BASE_URL: https://gavhah-campaign-center.onrender.com
+        run: node campaign-center-neon/scripts/http-smoke.mjs
+      - name: Gavhah original and MAX server public health
+        run: |
+          set -eu
+          curl --retry 5 --retry-all-errors --retry-delay 4 --max-time 35 -fsS -o /dev/null https://gavhah.onrender.com/
+          echo "PASS Gavhah public frontend responds with HTTP 2xx"
