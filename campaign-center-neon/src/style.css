@@ -70,3 +70,5 @@ textarea{font:inherit;background:#fff;border:1px solid #cedbd6;border-radius:10p
 .optional-video-dock video{display:block;width:100%;height:auto;aspect-ratio:16/9;max-height:65vh;background:#101a1b;border-radius:10px;object-fit:contain}
 .optional-video-dock p{margin:7px 2px 2px;font-size:.78rem}
 @media(max-width:550px){.optional-video-dock{inset-inline:4px;width:calc(100vw - 8px);bottom:4px;padding:7px;border-radius:11px}.optional-video-dock video{max-height:35vh}.optional-video-dock .optional-video-head button{font-size:.8rem;padding:7px 10px}}
+
+.requested-hall{border:2px solid #2c8365;background:#f1faf6}.requested-hall small{font-weight:600}
