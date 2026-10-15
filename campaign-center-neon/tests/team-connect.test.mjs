@@ -6,6 +6,7 @@ import express from 'express';
 import pg from 'pg';
 import teamRouter from '../server/team.js';
 import campaignAdminRouter from '../server/campaign-admin.js';
+import contactsImportRouter from '../server/contacts-import.js';
 import webHallRouter from '../server/web-hall.js';
 import {connectUserRouter,connectServiceRouter} from '../server/connect.js';
 
@@ -47,9 +48,10 @@ async function prepare(){
  }
 }
 async function launch(){
- const app=express();app.use(express.json({limit:'20kb'}));
+ const app=express();app.use('/api/import',express.json({limit:'1mb'}));app.use(express.json({limit:'20kb'}));
  app.use('/api/team',teamRouter({pool,authenticate:auth,member,campaignAccess,need,log,bad,uuid,trim}));
  app.use('/api/campaigns',campaignAdminRouter({pool,authenticate:auth,campaignAccess,need,bad,log,trim}));
+ app.use('/api/import',contactsImportRouter({pool,authenticate:auth,campaignAccess,need,bad,log}));
  app.use('/api/rooms',webHallRouter({pool,authenticate:auth,campaignAccess,need,log,bad,uuid,trim}));
  app.use('/api/connect/service',connectServiceRouter({pool,bad,uuid,log}));
  app.use('/api/connect',connectUserRouter({pool,authenticate:auth,log,bad}));
