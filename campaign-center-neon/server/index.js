@@ -2,6 +2,7 @@ import express from 'express';
 import pg from 'pg';
 import teamRouter from './team.js';
 import webHallRouter from './web-hall.js';
+import conferenceRouter from './conferences.js';
 import campaignAdminRouter from './campaign-admin.js';
 import contactsImportRouter from './contacts-import.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
@@ -112,6 +113,7 @@ app.use('/api', authenticate);
 app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
 app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
+app.use('/api/conferences',conferenceRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/campaigns', campaignAdminRouter({pool,authenticate,campaignAccess,need,bad,log,trim}));
 app.use('/api/import', contactsImportRouter({pool,authenticate,campaignAccess,need,bad,log}));
 app.get('/api/me', async (req,res,next) => {
