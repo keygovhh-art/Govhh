@@ -8,7 +8,7 @@ const configured=Boolean(authUrl&&apiUrl&&/^https:\/\//.test(authUrl)
   &&/^https:\/\//.test(apiUrl)&&!authUrl.includes("your-staging"));
 const auth=configured?createAuthClient(authUrl):null;
 const state={session:null,me:null,organization:null,campaign:null,
-  campaigns:[],assignments:[],events:[],members:[],error:"",notice:"",busy:false};
+  campaigns:[],assignments:[],events:[],members:[],campaignMembers:[],error:"",notice:"",busy:false};
 const safe=s=>String(s??"").replaceAll("&","&amp;").replaceAll("<","&lt;")
  .replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#39;");
 const f=v=>"$"+Number(v||0).toLocaleString("en-US",{maximumFractionDigits:2});
@@ -85,7 +85,10 @@ function viewCampaign(){
     '<div class="actions">'+(a.status!=="in_progress"?'<button class="btn alt" data-job="'+safe(a.id)+'" data-status="in_progress">אין ארבעט</button>':"")+
     (a.status!=="done"?'<button class="btn" data-job="'+safe(a.id)+'" data-status="done">פארטיג</button>':"")+
     '</div></article>').join("");
-  const memberOptions=state.members.filter(m=>m.status==="active").map(m=>
+  const memberOptions=state.campaignMembers.filter(m=>m.status==="active").map(m=>
+    '<option value="'+safe(m.subject)+'">'+safe(m.subject)+'</option>').join("");
+  const attachOptions=state.members.filter(m=>m.status==="active"&&
+    !state.campaignMembers.some(x=>x.subject===m.subject)).map(m=>
     '<option value="'+safe(m.subject)+'">'+safe(m.subject)+'</option>').join("");
   const manage=canManage?'<section class="card"><h2>קאמפיין־איינשטעלונגען</h2>'+
     '<form id="edit-campaign"><label for="edit-title">נאמען</label><input name="title" id="edit-title" required value="'+safe(c.title)+'">'+
@@ -96,7 +99,7 @@ function viewCampaign(){
     '<section class="card"><h2>מאנשאפט ארייננעמען אינעם קאמפיין</h2>'+
     '<p class="hint">ערשט איינלאדן דעם עסקן צו דער ארגאניזאציע. נאכדעם צולייגן צום קאמפיין.</p>'+
     '<form id="attach-campaign-member"><label for="attachSubject">עסקן</label>'+
-    '<select id="attachSubject" name="subject" required>'+memberOptions+'</select>'+
+    '<select id="attachSubject" name="subject" required>'+attachOptions+'</select>'+
     '<label for="teamName">גרופע־נאמען (נישט מחויב)</label>'+
     '<input id="teamName" name="teamName" maxlength="120">'+
     '<button class="btn" type="submit">צולייגן צום קאמפיין</button></form></section>'+
@@ -134,6 +137,8 @@ async function openOrg(id){
 async function openCampaign(id){
   state.campaign=await api("/api/campaigns/"+id);
   state.assignments=await api("/api/campaigns/"+id+"/assignments");
+  state.campaignMembers=["owner","manager"].includes(state.campaign.role)?
+    await api("/api/campaigns/"+id+"/members"):[];
   state.events=["owner","manager"].includes(state.campaign.role)?
     (await api("/api/campaigns/"+id+"/history")).items:[];
   viewCampaign();
