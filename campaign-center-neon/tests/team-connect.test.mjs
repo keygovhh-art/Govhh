@@ -99,6 +99,28 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/team/campaigns/'+c1+'/manager-overview',{user:first})).status,403);
   const manager=await req('/team/campaigns/'+c1+'/manager-overview',{user:owner});
   assert.equal(manager.status,200);assert.equal(manager.data.members.length,3);
+  // Web-only virtual fundraiser room: roles, attendance, announcements and finality.
+  const roomCreate=await req('/rooms/campaigns/'+c1,{user:owner,method:'POST',data:{title:'Test campaign room'}});
+  assert.equal(roomCreate.status,201);assert.equal(roomCreate.data.room_status,'planned');
+  const roomId=roomCreate.data.id;
+  assert.equal((await req('/rooms/'+roomId+'/join',{user:first,method:'POST'})).status,409);
+  assert.equal((await req('/rooms/'+roomId+'/status',{user:first,method:'PATCH',data:{status:'open'}})).status,403);
+  assert.equal((await req('/rooms/'+roomId+'/status',{user:owner,method:'PATCH',data:{status:'open'}})).status,200);
+  assert.equal((await req('/rooms/'+roomId+'/join',{user:first,method:'POST'})).status,201);
+  assert.equal((await req('/rooms/'+roomId+'/join',{user:first,method:'POST'})).status,200);
+  assert.equal((await req('/rooms/'+roomId+'/join',{user:second,method:'POST'})).status,201);
+  assert.equal((await req('/rooms/'+roomId+'/heartbeat',{user:first,method:'POST'})).status,200);
+  const rooms=await req('/rooms/campaigns/'+c1,{user:owner});
+  assert.equal(rooms.data.mode,'web_text_only');
+  assert.equal(rooms.data.rooms[0].recently_connected,2);
+  assert.equal((await req('/rooms/'+roomId+'/announcements',{user:first,method:'POST',data:{message:'Unauthorized'}})).status,403);
+  assert.equal((await req('/rooms/'+roomId+'/announcements',{user:owner,method:'POST',data:{message:'Start with assigned leads only'}})).status,201);
+  assert.equal((await req('/rooms/'+roomId+'/announcements',{user:first})).data.length,1);
+  assert.equal((await req('/rooms/'+roomId+'/leave',{user:first,method:'POST'})).status,200);
+  const countAfterLeave=(await req('/rooms/campaigns/'+c1,{user:owner})).data.rooms[0].recently_connected;
+  assert.equal(countAfterLeave,1);
+  assert.equal((await req('/rooms/'+roomId+'/status',{user:owner,method:'PATCH',data:{status:'ended'}})).status,200);
+  assert.equal((await req('/rooms/'+roomId+'/join',{user:second,method:'POST'})).status,409);
   // Link requires authenticated CC account and authenticated Gavhah service.
   const link=await req('/connect/code',{user:first,method:'POST'});
   assert.equal(link.status,201);assert.equal(link.data.code.length,32);
