@@ -24,3 +24,18 @@ ALTER TABLE public.cc_floor_help_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cc_call_events ADD COLUMN IF NOT EXISTS client_attempt_id uuid;
 CREATE UNIQUE INDEX IF NOT EXISTS cc_call_event_attempt_unique
  ON public.cc_call_events(client_attempt_id) WHERE client_attempt_id IS NOT NULL;
+
+-- Private two-way help desk messages: requester and authorized campaign
+-- manager only; no global chat leakage of donor questions.
+CREATE TABLE IF NOT EXISTS public.cc_floor_help_messages(
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ request_id uuid NOT NULL REFERENCES public.cc_floor_help_requests(id) ON DELETE RESTRICT,
+ authored_by text NOT NULL,
+ body text NOT NULL CHECK(length(body) BETWEEN 1 AND 1000),
+ created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS cc_floor_help_message_idx ON public.cc_floor_help_messages(request_id,created_at ASC);
+ALTER TABLE public.cc_floor_help_messages ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE TRIGGER cc_floor_help_msg_append_only
+ BEFORE UPDATE OR DELETE ON public.cc_floor_help_messages
+ FOR EACH ROW EXECUTE FUNCTION public.cc_prevent_history_mutation();
