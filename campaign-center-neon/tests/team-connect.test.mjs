@@ -84,6 +84,16 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/team/contacts/'+contact+'/claim',{user:second,method:'POST'})).status,409);
   assert.equal((await req('/team/contacts/'+contact+'/release',{user:first,method:'POST'})).status,200);
   assert.equal((await req('/team/contacts/'+contact+'/claim',{user:second,method:'POST'})).status,200);
+  assert.equal((await req('/team/contacts/'+contact+'/release',{user:second,method:'POST'})).status,200);
+  assert.equal((await req('/team/campaigns/'+c1+'/members/'+first+'/team',{user:owner,method:'PATCH',data:{teamName:'Group A'}})).status,200);
+  assert.equal((await req('/team/campaigns/'+c1+'/members/'+second+'/team',{user:owner,method:'PATCH',data:{teamName:'Group B'}})).status,200);
+  assert.equal((await req('/team/campaigns/'+c1+'/contacts/'+contact+'/team',{user:owner,method:'PATCH',data:{teamName:'Group B'}})).status,200);
+  const firstQueue=await req('/team/campaigns/'+c1+'/lead-queue',{user:first});
+  const secondQueue=await req('/team/campaigns/'+c1+'/lead-queue',{user:second});
+  assert.equal(firstQueue.data.length,0,'Other squad cannot list this donor');
+  assert.equal(secondQueue.data.length,1,'Assigned squad sees donor');
+  assert.equal((await req('/team/contacts/'+contact+'/claim',{user:first,method:'POST'})).status,404);
+  assert.equal((await req('/team/contacts/'+contact+'/claim',{user:second,method:'POST'})).status,200);
   assert.equal((await req('/team/campaigns/'+c1+'/manager-overview',{user:first})).status,403);
   const manager=await req('/team/campaigns/'+c1+'/manager-overview',{user:owner});
   assert.equal(manager.status,200);assert.equal(manager.data.members.length,3);
