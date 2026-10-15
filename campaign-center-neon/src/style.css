@@ -72,3 +72,12 @@ textarea{font:inherit;background:#fff;border:1px solid #cedbd6;border-radius:10p
 @media(max-width:550px){.optional-video-dock{inset-inline:4px;width:calc(100vw - 8px);bottom:4px;padding:7px;border-radius:11px}.optional-video-dock video{max-height:35vh}.optional-video-dock .optional-video-head button{font-size:.8rem;padding:7px 10px}}
 
 .requested-hall{border:2px solid #2c8365;background:#f1faf6}.requested-hall small{font-weight:600}
+
+/* Optional small WebRTC audio pilot. Kept OUTSIDE the rerendered app root. */
+.small-audio-dock{position:fixed;z-index:450;inset-inline-start:12px;bottom:12px;background:#fff;
+ border:2px solid #779c8b;border-radius:14px;padding:12px;max-width:min(440px,calc(100vw - 24px));
+ box-shadow:0 8px 32px #183d3130;direction:rtl}
+.small-audio-dock strong{display:block;font-size:.92rem}
+.small-audio-dock p{font-size:.78rem;margin:7px 0}
+.small-audio-dock audio{display:block;width:100%;margin:8px 0}
+@media(max-width:550px){.small-audio-dock{bottom:5px;inset-inline-start:5px;max-width:calc(100vw - 10px);padding:9px}}
