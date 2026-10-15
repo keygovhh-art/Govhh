@@ -117,6 +117,8 @@ async function submit(event){
    case 'signup': {const r=await state.auth.signUp.email({name:d.name,email:d.email,password:d.password});if(r.error)throw new Error(r.error.message);state.notice='אקאונט געשאפן. אויב מען פארלאנגט באשטעטיגונג, קוק דיין בליצפאסט.';break;}
    case 'org': await api('/organizations',{method:'POST',body:JSON.stringify({name:d.name})});break;
    case 'redeem-invite': await api('/team/invitations/redeem',{method:'POST',body:JSON.stringify({invitationCode:d.invitationCode})});break;
+   case 'member-team': await api('/team/campaigns/'+state.campaignId+'/members/'+encodeURIComponent(d.subject)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
+   case 'contact-team': await api('/team/campaigns/'+state.campaignId+'/contacts/'+encodeURIComponent(d.contactId)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
    case 'invite': {
      const r=await api('/team/organizations/'+state.orgId+'/invitations',{method:'POST',
        body:JSON.stringify({role:d.role,campaignId:d.campaignOnly?state.campaignId:null})});
