@@ -418,6 +418,37 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal(attendanceAfter.data.attendance.checked_in,2);
   assert.equal(attendanceAfter.data.attendance.total,3,'Attendance keeps earlier visit history');
 
+  // Optional clock-driven scheduled lunch: managers may choose automation
+  // without cron or a telephone provider. The server must enforce a pause
+  // even for a direct manual-call API request at the boundary.
+  const nowMs=Date.now();
+  const autoPayload={title:'Auto lunch',segmentType:'lunch',autoStart:true,
+    scheduledStart:new Date(nowMs-60000).toISOString(),
+    scheduledEnd:new Date(nowMs+150000).toISOString()};
+  const autoCreated=await req('/floor-program/'+eventId+'/schedule',{user:owner,method:'POST',data:autoPayload});
+  assert.equal(autoCreated.status,201);
+  assert.equal(autoCreated.data.auto_start,true);
+  const conflict=await req('/floor-program/'+eventId+'/schedule',{user:owner,method:'POST',data:{...autoPayload,title:'Overlapping automatic segment'}});
+  assert.equal(conflict.status,409,'Two overlapping clock-driven programs must not silently conflict');
+  const concurrent=await Promise.all([
+   req('/floor-program/'+eventId+'/schedule',{user:first}),
+   req('/floor-program/'+eventId+'/schedule',{user:owner})
+  ]);
+  assert.equal(concurrent[0].data.mode,'break','Clock starts the lunch break without manager button');
+  assert.equal(concurrent[1].data.mode,'break','Simultaneous polling produces same authoritative mode');
+  assert.equal(concurrent[0].data.programs.find(x=>x.id===autoCreated.data.id).status,'live');
+  const autoEvents=await pool.query("SELECT COUNT(*)::int n FROM cc_activity_events WHERE target_id=$1 AND event_type='floor.program_auto_started'",[autoCreated.data.id]);
+  assert.equal(autoEvents.rows[0].n,1,'Idempotent clock start despite concurrent members');
+  const newDonor=(await pool.query("INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy,assigned_team) VALUES($1,$2,$3,'Auto pause donor','3155550909','campaign','Group A') RETURNING id",
+    [org1,c1,owner])).rows[0].id;
+  assert.equal((await req('/team/contacts/'+newDonor+'/claim',{user:first,method:'POST'})).status,200);
+  assert.equal((await req('/floor/'+eventId+'/calls/'+newDonor,{user:first,method:'POST',data:{
+    outcome:'spoke',attemptId:'00000000-0000-4000-8000-000000000908'
+  }})).status,409,'Direct call endpoint respects automatic lunch');
+  await pool.query("UPDATE cc_floor_programs SET scheduled_end=now()-interval '1 second' WHERE id=$1",[autoCreated.data.id]);
+  const afterAuto=await req('/floor-program/'+eventId+'/schedule',{user:first});
+  assert.equal(afterAuto.data.mode,'calling','Clock-driven end resumes the calling floor');
+  assert.equal(afterAuto.data.programs.find(x=>x.id===autoCreated.data.id).status,'completed');
   const nextProgram=await req('/floor-program/'+eventId+'/schedule',{user:owner,method:'POST',data:{
     ...scheduleBody,title:'Final address',segmentType:'closing',
     scheduledStart:'2026-10-16T15:00:00-04:00',scheduledEnd:'2026-10-16T15:20:00-04:00'
