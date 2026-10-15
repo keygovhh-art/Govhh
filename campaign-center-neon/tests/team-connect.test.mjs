@@ -125,7 +125,7 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal(status.data.configured,true);
   assert.ok(!JSON.stringify(status.data).includes(originalToken),'No token in API response');
   assert.equal((await req(ym+'/enabled',{user:first,method:'PATCH',data:{enabled:true}})).status,404);
-  assert.equal((await req(ym+'/enabled',{user:owner,method:'PATCH',data:{enabled:true}})).status,200);
+  assert.equal((await req(ym+'/enabled',{user:owner,method:'PATCH',data:{enabled:true}})).status,409);
   const realFetch=globalThis.fetch;
   let testedYemot=false;
   globalThis.fetch=async(input,init)=>{
@@ -144,6 +144,9 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
    assert.equal(testY.data.templateCount,1);
    assert.ok(testedYemot);
   }finally{globalThis.fetch=realFetch;}
+  assert.equal((await req(ym+'/enabled',{user:owner,method:'PATCH',data:{enabled:true}})).status,200);
+  assert.equal((await req(ym+'/test',{user:owner,method:'POST',data:{}})).status,429);
+  assert.ok((await req(ym,{user:owner})).data.verifiedAt);
   assert.equal((await req(ym,{user:owner,method:'DELETE'})).status,200);
   assert.equal((await req(ym,{user:owner})).data.configured,false);
 
