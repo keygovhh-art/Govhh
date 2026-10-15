@@ -72,3 +72,6 @@ CREATE UNIQUE INDEX IF NOT EXISTS cc_finance_one_max_event ON public.cc_finance_
 -- the separate canonical MAX refund ID. This prevents showing stale gross balances.
 ALTER TABLE public.cc_finance_events ADD COLUMN IF NOT EXISTS related_finance_event_id uuid REFERENCES public.cc_finance_events(id) ON DELETE RESTRICT;
 CREATE INDEX IF NOT EXISTS cc_finance_related_event_idx ON public.cc_finance_events(related_finance_event_id);
+
+-- Prevent two shared entries with the same normalized telephone in one campaign.
+CREATE UNIQUE INDEX IF NOT EXISTS cc_contacts_unique_shared_phone ON public.cc_contacts(campaign_id, (regexp_replace(phone,'[^0-9]','','g'))) WHERE privacy='campaign' AND phone<>'';
