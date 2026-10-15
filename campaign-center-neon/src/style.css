@@ -18,8 +18,8 @@ p{line-height:1.65;margin-bottom:12px}
 .card{background:#fff;border:1px solid #e0e8e3;border-radius:18px;padding:20px;margin:14px 0;box-shadow:0 4px 16px #1a47320c}
 .inline{display:flex;flex-wrap:wrap;align-items:stretch;gap:10px}.inline>*{flex:1 1 130px}
 .inline>button{flex:0 1 130px}
-.stack{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stack>button{grid-column:span 2}
-.tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:14px 0}.tabs button{white-space:nowrap}.tabs button.current{background:#155848;color:#fff}
+textarea{font:inherit;background:#fff;border:1px solid #cedbd6;border-radius:10px;padding:11px;width:100%;min-width:0;color:#16332c}.stack{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stack>button{grid-column:span 2}
+.tabs{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}.tabs button{white-space:nowrap}.tabs button.current{background:#155848;color:#fff}
 .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .metrics>div{background:white;border:1px solid #dce8df;border-radius:16px;padding:16px}
 .metrics span{display:block;color:#6c7e77;font-size:.83rem}.metrics strong{font-size:1.4rem;display:block;margin-top:5px}
@@ -31,4 +31,6 @@ p{line-height:1.65;margin-bottom:12px}
 .auth-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
 .auth-grid form{display:flex;flex-direction:column;gap:14px}.auth-grid h2{margin:0}
 .toast{position:fixed;bottom:14px;left:14px;right:14px;margin:auto;max-width:700px;padding:15px 20px;border-radius:13px;color:white;background:#154b40;box-shadow:0 8px 30px #163f3477;z-index:10}
-@media(max-width:650px){.shell{padding:0 10px 45px}.top{border-radius:0 0 18px 18px;padding:16px}.top h1{font-size:1.45rem}.auth-grid{grid-template-columns:1fr}.selects{grid-template-columns:1fr 1fr}.selects .eyebrow{grid-column:span 2}.metrics strong{font-size:1.05rem}.metrics>div{padding:11px}.card{padding:15px}.stack{grid-template-columns:1fr}.stack>button{grid-column:auto}.tabs{gap:4px}.tabs button{padding:10px 5px;font-size:.85rem}}
+@media(max-width:650px){.shell{padding:0 10px 45px}.top{border-radius:0 0 18px 18px;padding:16px}.top h1{font-size:1.45rem}.auth-grid{grid-template-columns:1fr}.selects{grid-template-columns:1fr 1fr}.selects .eyebrow{grid-column:span 2}.metrics strong{font-size:1.05rem}.metrics>div{padding:11px}.card{padding:15px}.stack{grid-template-columns:1fr}.stack>button{grid-column:auto}.tabs{gap:4px;grid-template-columns:repeat(3,minmax(0,1fr))}.tabs button{padding:10px 5px;font-size:.85rem}}
+
+@media(min-width:740px){.tabs{grid-template-columns:repeat(6,minmax(0,1fr))}}
