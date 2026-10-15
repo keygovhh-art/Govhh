@@ -427,7 +427,7 @@ async function click(event){
     const kind=btn.dataset.kind,roomId=btn.dataset.id;
     if(!['conference','floor'].includes(kind)||!roomId)throw new Error('דער ווידעא־צימער פעלט');
     const allowed=await api('/video/'+kind+'/'+roomId+'/watch');
-    watchOptionalVideo(allowed.url,kind,roomId);
+    await watchOptionalVideo(allowed.url,kind,roomId);
     return;
   }
   if(a==='conference-home'){state.tab='conference';await refresh();return;}
