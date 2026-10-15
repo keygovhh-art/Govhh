@@ -44,6 +44,20 @@ BEGIN
  END IF;
 END $guard$;
 CREATE INDEX IF NOT EXISTS cc_contacts_claim_idx ON public.cc_contacts(campaign_id,claimed_by,claim_expires_at);
+-- Store a canonical reference only. The source MAX follow-up remains authoritative.
+CREATE TABLE IF NOT EXISTS public.cc_shared_followup_links (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ organization_id uuid NOT NULL,
+ campaign_id uuid NOT NULL,
+ member_subject text NOT NULL,
+ max_followup_ref text NOT NULL,
+ share_scope text NOT NULL DEFAULT 'campaign' CHECK(share_scope IN ('campaign','assigned_managers')),
+ created_at timestamptz NOT NULL DEFAULT now(),
+ UNIQUE(organization_id,campaign_id,max_followup_ref),
+ FOREIGN KEY(organization_id,campaign_id) REFERENCES public.cc_campaigns(organization_id,id) ON DELETE CASCADE,
+ FOREIGN KEY(organization_id,member_subject) REFERENCES public.cc_memberships(organization_id,subject)
+);
+ALTER TABLE public.cc_shared_followup_links ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cc_team_invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cc_connect_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cc_external_account_links ENABLE ROW LEVEL SECURITY;
