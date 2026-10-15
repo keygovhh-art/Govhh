@@ -15,6 +15,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
  router.post('/organizations/:oid/invitations',run(async(req,res)=>{
   const role=trim(req.body?.role,20),campaignId=req.body?.campaignId||null;
   if(!['manager','squad_leader','askan','finance','auditor'].includes(role)||(campaignId&&!uuid(campaignId)))throw bad(400,'Invalid invite');
+  if(campaignId&&['manager','finance','auditor'].includes(role))throw bad(400,'Elevated roles are organization-wide; choose an organization invitation, not one campaign');
   const secret=randomBytes(24).toString('base64url');
   const invited=await tx(async db=>{
    const caller=await member(db,req.params.oid,req.userId);need(caller,['owner','manager']);
