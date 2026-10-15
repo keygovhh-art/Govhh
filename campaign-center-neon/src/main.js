@@ -6,7 +6,7 @@ import { hallView } from './hall-view.js';
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -33,8 +33,10 @@ async function refresh() {
       api('/campaigns/'+id+'/contacts'),api('/campaigns/'+id+'/finance')
     ]);
   }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];}
-  state.manager=null;state.members=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];
+  state.manager=null;state.members=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
+    const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
+    state.activity=activity.events||[];state.activityNextOffset=activity.nextOffset;state.activityScope=activity.scope;
     const rooms=await api('/rooms/campaigns/'+state.campaignId).catch(()=>({rooms:[]}));
     state.rooms=rooms.rooms||[];
     if(state.joinedRoomId){
@@ -133,9 +135,46 @@ function finance(){
  <section class="card"><h2>געלט־היסטאריע</h2>${state.finance.length?state.finance.map(x=>`<article class="item"><div><strong>${money(x.amount)}</strong><small>${esc(x.event_kind)} · ${x.verified_at?'באשטעטיגט':'נישט באשטעטיגט'} · ${esc(x.created_at?.slice(0,10)||'')}</small></div></article>`).join(''):'<p class="muted">נאכנישטא קיין פינאנציעלע רעקארדס.</p>'}</section>`;
 }
 function history(){
- return `<section class="card"><h2>היסטאריע בלייבט</h2><p>אויפגאבן, געשפרעכן און פינאנציעלע רעקארדס ווערן נישט אויטאמאטיש אויסגעמעקט ווען א קאמפיין ענדיגט זיך.</p>
- <p class="muted">דער צענטראלער Audit Trail ווערט אנגעפילט פונעם סערווער. די פארגעשריטענע היסטאריע־זוך, פילטערס, צייט־ליניעס און ארכיוו־אויסשטעל בלייבן נאך צו בויען.</p></section>`;
+ const visible=state.activity||[];
+ const names={
+ 'campaign.created':'קאמפיין געשאפן','campaign.settings_changed':'קאמפיין־טויש',
+ 'task.created':'אויפגאבע געשאפן','task.status':'אויפגאבע־מצב',
+ 'invite.created':'עסקן־איינלאדונג','invite.redeemed':'עסקן אנגעשלאסן',
+ 'member.updated':'מיטגליד־רשות','team.member_assigned':'גרופע צוטיילונג',
+ 'contact.assigned_team':'קשר־גרופע','contact.created':'נייער קשר',
+ 'call.logged':'רוף־באריכט','lead.claimed':'קשר געכאפט','lead.released':'קשר צוריקגעגעבן',
+ 'finance.pledge':'צוגעזאגט','finance.receipt':'באקומען מאנועל',
+ 'connect.finance_reported':'MAX געלט־באריכט','connect.manual_reversal':'MAX קארעקטור',
+ 'connect.assignment_status':'MAX אויפגאבע','connect.followup_linked':'MAX נאכפאלג',
+ 'room.created':'וועב־זאל געשאפן','room.joined':'וועב־זאל אריינגיין',
+ 'room.left':'וועב־זאל פארלאזן','room.announcement':'מנהל־אנווייזונג',
+ 'room.status_changed':'וועב־זאל מצב'
+ };
+ return \`<section class="card"><h2>שטענדיגע קאמפיין־היסטאריע</h2>
+ <p class="muted">די ריכטיגע אפגעהיטענע סערווער־געשעענישן. \${state.activityScope==='personal'?'דו זעסט נאר דיין אייגענע געשיכטע.':'דו זעסט די ערלויבטע קאמפיין־געשיכטע.'} פינאנציעלע געשעענישן ווערן נישט אויטאמאטיש אויסגעמעקט.</p>
+ <div class="inline"><button data-action="refresh-history">דערפרישן געשיכטע</button><button data-action="export-contacts">ארויסנעמען קשרים אלס CSV (ביז 1,000 פער בלאט)</button></div>
+ \${visible.length?visible.map(x=>\`<article class="item"><div><strong>\${esc(names[x.event_type]||x.event_type)}</strong>
+ <small>\${esc(x.actor_subject)} · \${esc((x.created_at||'').replace('T',' ').slice(0,16))}</small></div></article>\`).join(''):'<p class="muted">נאכנישטא קיין געשיכטע אינעם אויסגעקליבענעם קאמפיין.</p>'}
+ \${state.activityNextOffset!==null?'<button data-action="more-history">ווייז נאך געשיכטע</button>':''}
+ </section>\`;
 }
+async function exportContactsPage(){
+ if(!state.campaignId)throw new Error('קלייב א קאמפיין');
+ const page=state.csvPage;
+ const jwt=await state.auth.getJWTToken();
+ const url='/api/team/campaigns/'+state.campaignId+'/contacts.csv?page='+page;
+ const response=await fetch(url,{headers:{Authorization:'Bearer '+jwt},cache:'no-store'});
+ if(!response.ok)throw new Error('מען קען יעצט נישט ארויסנעמען די קשרים: '+response.status);
+ const blob=await response.blob();
+ const address=URL.createObjectURL(blob);
+ const a=document.createElement('a');a.href=address;a.download='קאמפיין-קשרים-בלאט-'+page+'.csv';
+ document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(address),5000);
+ const more=response.headers.get('X-Export-Has-More')==='true';
+ state.csvPage=more?page+1:1;
+ say(more?'די ערשטע 1,000 קשרים זענען ארויסגענומען. דרוק נאכאמאל פארן קומענדיגן בלאט.':'די דערלויבטע קשרים פון דעם בלאט זענען ארויסגענומען.');
+}
+
 function draw(){
  $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?campaignSetup():campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc):history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
@@ -203,6 +242,14 @@ async function click(event){
  try {
   if(a==='logout'){await state.auth.signOut();state.user=null;state.notice='';draw();return;}
   if(a==='tab'){state.tab=btn.dataset.tab;draw();return;}
+  if(a==='refresh-history'){await refresh();return;}
+  if(a==='more-history'){
+    if(!state.campaignId||state.activityNextOffset===null)return;
+    const result=await api('/team/campaigns/'+state.campaignId+'/activity?offset='+state.activityNextOffset);
+    state.activity=[...state.activity,...result.events];state.activityNextOffset=result.nextOffset;draw();return;
+  }
+  if(a==='export-contacts'){await exportContactsPage();return;}
+
   if(a==='new-campaign'){state.showCampaignForm=!state.showCampaignForm;draw();return;}
   if(a==='done'){await api('/tasks/'+btn.dataset.id,{method:'PATCH',body:JSON.stringify({status:'done'})});await refresh();return;}
   if(a==='new-connect-code'){const r=await api('/connect/code',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.connectCode=r.code;draw();return;}
@@ -233,8 +280,8 @@ document.addEventListener('submit',submit);
 document.addEventListener('click',click);
 document.addEventListener('change',async e=>{
  try {
-  if(e.target?.dataset?.action==='org-select'){state.orgId=e.target.value;state.campaignId=null;state.joinedRoomId=null;state.showCampaignForm=false;state.invitationCode='';state.connectCode='';await refresh();}
-  if(e.target?.dataset?.action==='campaign-select'){state.campaignId=e.target.value;await refresh();}
+  if(e.target?.dataset?.action==='org-select'){state.orgId=e.target.value;state.campaignId=null;state.joinedRoomId=null;state.showCampaignForm=false;state.invitationCode='';state.connectCode='';state.csvPage=1;await refresh();}
+  if(e.target?.dataset?.action==='campaign-select'){state.campaignId=e.target.value;state.csvPage=1;state.joinedRoomId=null;await refresh();}
  }catch(error){say(error.message);}
 });
 async function boot(){
