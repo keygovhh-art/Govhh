@@ -1,0 +1,46 @@
+name: Campaign Center real backend acceptance
+on:
+  push:
+    branches:
+      - feature/campaign-center-integration-20261014
+    paths:
+      - 'campaign-center-api/**'
+      - 'neon/**'
+      - '.github/workflows/campaign-api-acceptance.yml'
+  pull_request:
+    paths:
+      - 'campaign-center-api/**'
+      - 'neon/**'
+      - '.github/workflows/campaign-api-acceptance.yml'
+jobs:
+  real-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: campaign_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d campaign_test"
+          --health-interval 5s --health-timeout 5s --health-retries 12
+    env:
+      TEST_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/campaign_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install isolated API dependencies
+        working-directory: campaign-center-api
+        run: npm install --no-audit --no-fund
+      - name: Check API syntax
+        working-directory: campaign-center-api
+        run: npm run check
+      - name: Verify cryptographic account identity and real Neon-compatible PostgreSQL operations
+        working-directory: campaign-center-api
+        run: npm test
