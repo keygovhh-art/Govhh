@@ -43,12 +43,12 @@ export default function yemotRouter({pool,authenticate,member,log,bad,uuid}){
  router.get('/organizations/:oid',wrap(async(req,res)=>{
   await gate(pool,req.params.oid,req.userId);
   const row=(await pool.query(
-   'SELECT enabled,updated_at FROM cc_yemot_connections WHERE organization_id=$1',
+   'SELECT enabled,updated_at,last_verified_at FROM cc_yemot_connections WHERE organization_id=$1',
    [req.params.oid])).rows[0];
   res.set('Cache-Control','no-store');
   res.json({configured:Boolean(row),enabled:Boolean(row?.enabled),
    storageReady:(()=>{try{encryptionKey();return true;}catch{return false;}})(),
-   updatedAt:row?.updated_at||null,token:'NEVER_RETURNED'});
+   updatedAt:row?.updated_at||null,verifiedAt:row?.last_verified_at||null,token:'NEVER_RETURNED'});
  }));
  router.put('/organizations/:oid',wrap(async(req,res)=>{
   const raw=req.body?.token;
@@ -59,7 +59,7 @@ export default function yemotRouter({pool,authenticate,member,log,bad,uuid}){
    await gate(db,req.params.oid,req.userId);
    const v=seal(raw,req.params.oid);
    await db.query(
-    "INSERT INTO cc_yemot_connections(organization_id,token_nonce,token_ciphertext,token_tag,enabled,updated_by) VALUES($1,$2,$3,$4,false,$5) ON CONFLICT(organization_id) DO UPDATE SET token_nonce=EXCLUDED.token_nonce,token_ciphertext=EXCLUDED.token_ciphertext,token_tag=EXCLUDED.token_tag,enabled=false,updated_by=EXCLUDED.updated_by,updated_at=now()",
+    "INSERT INTO cc_yemot_connections(organization_id,token_nonce,token_ciphertext,token_tag,enabled,updated_by) VALUES($1,$2,$3,$4,false,$5) ON CONFLICT(organization_id) DO UPDATE SET token_nonce=EXCLUDED.token_nonce,token_ciphertext=EXCLUDED.token_ciphertext,token_tag=EXCLUDED.token_tag,enabled=false,last_verified_at=NULL,last_test_attempt_at=NULL,updated_by=EXCLUDED.updated_by,updated_at=now()",
     [req.params.oid,v.nonce,v.body,v.tag,req.userId]);
    await log(db,req.params.oid,null,req.userId,'integration.yemot_saved',req.params.oid,{provider:'yemot'});
    return true;
@@ -77,9 +77,13 @@ export default function yemotRouter({pool,authenticate,member,log,bad,uuid}){
  router.post('/organizations/:oid/test',wrap(async(req,res)=>{
   await gate(pool,req.params.oid,req.userId);
   const row=(await pool.query(
-   'SELECT token_nonce,token_ciphertext,token_tag FROM cc_yemot_connections WHERE organization_id=$1',
+   "UPDATE cc_yemot_connections SET last_test_attempt_at=now() WHERE organization_id=$1 AND (last_test_attempt_at IS NULL OR last_test_attempt_at<now()-interval '20 seconds') RETURNING token_nonce,token_ciphertext,token_tag",
    [req.params.oid])).rows[0];
-  if(!row)throw bad(404,'Save a Yemot API token first');
+  if(!row){
+   const exists=(await pool.query("SELECT 1 FROM cc_yemot_connections WHERE organization_id=$1",[req.params.oid])).rowCount;
+   if(!exists)throw bad(404,'Save a Yemot API token first');
+   throw bad(429,'Please wait 20 seconds between provider tests');
+  }
   let token;
   try{token=unseal(row,req.params.oid);}catch{
    throw bad(503,'Saved key could not be decrypted; verify server encryption configuration');
@@ -99,14 +103,14 @@ export default function yemotRouter({pool,authenticate,member,log,bad,uuid}){
    if(!result.ok)throw Error('provider rejected');
    const data=await result.json();
    // Do not return or log upstream content; it may include private caller IDs.
-   if(!data||typeof data!=='object'||data.responseStatus==='ERROR'||data.responseStatus==='FORBIDDEN'||
-      data.status==='error'||data.error)throw Error('provider error');
+   if(!data||typeof data!=='object'||data.responseStatus!=='OK'||data.error)throw Error('provider error');
    if(!Array.isArray(data.templates))throw Error('unexpected result');
    templates=data.templates.length;healthy=true;
   }catch{
    // Not include token, HTTP body, user phone or upstream error in logs.
    return res.status(502).json({connected:false,error:'Yemot validation failed. Check the token and provider access.'});
   }finally{token=undefined;}
+  await pool.query('UPDATE cc_yemot_connections SET last_verified_at=now() WHERE organization_id=$1 AND token_ciphertext=$2',[req.params.oid,row.token_ciphertext]);
   res.set('Cache-Control','no-store');
   res.json({connected:healthy,templateCount:templates,readOnly:true});
  }));
@@ -115,9 +119,9 @@ export default function yemotRouter({pool,authenticate,member,log,bad,uuid}){
   const result=await tx(async db=>{
    await gate(db,req.params.oid,req.userId);
    const row=(await db.query(
-    'UPDATE cc_yemot_connections SET enabled=$1,updated_by=$2,updated_at=now() WHERE organization_id=$3 RETURNING enabled',
+    'UPDATE cc_yemot_connections SET enabled=$1,updated_by=$2,updated_at=now() WHERE organization_id=$3 AND ($1=false OR last_verified_at IS NOT NULL) RETURNING enabled',
     [req.body.enabled,req.userId,req.params.oid])).rows[0];
-   if(!row)throw bad(404,'Set up a token first');
+   if(!row)throw bad(409,'Save and successfully test the Yemot token before enabling');
    await log(db,req.params.oid,null,req.userId,'integration.yemot_enabled_changed',req.params.oid,{enabled:row.enabled});
    return row;
   });
