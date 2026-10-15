@@ -7,13 +7,20 @@ export function teamView(state,esc,money) {
  const invited=state.invitationCode;
  const connectCode=state.connectCode;
  const status=state.linkStatus;
- const members=(state.members||[]).map(m=>
-  '<article class="item"><div><strong>'+esc(m.subject)+'</strong><small>'+
-  esc(m.role)+' · '+esc(m.membership_status)+'</small></div></article>').join('');
+ const campaignMembers=manager?.members||[];
+ const members=(state.members||[]).map(m=>{
+  const campaignMember=campaignMembers.find(x=>x.subject===m.subject);
+  return '<article class="item"><div><strong>'+esc(m.subject)+'</strong><small>'+
+   esc(m.role)+' · '+esc(m.membership_status)+' · גרופע: '+esc(campaignMember?.team_name||'נישט צוגעטיילט')+'</small>'+
+   (leader&&campaignMember?'<form data-form="member-team" class="inline"><input type="hidden" name="subject" value="'+esc(m.subject)+'"><input name="teamName" value="'+esc(campaignMember.team_name||'')+'" maxlength="64" placeholder="גרופע־נאמען"><button>אפהיטן גרופע</button></form>':'')+
+   '</div></article>';
+ }).join('');
+ const groups=[...new Set(campaignMembers.map(x=>x.team_name||'').filter(Boolean))];
  const leads=(state.leads||[]).map(p=>
   '<article class="item"><div><strong>'+esc(p.display_name)+'</strong><small>'+
   esc(p.phone)+' · '+(p.do_not_call?'נישט רופן':p.claimed_by?'געכאפט דורך אן עסקן':'פאראן')+
-  '</small></div><div class="actions">'+
+  '</small></div>'+ (leader?'<form data-form="contact-team" class="inline"><input type="hidden" name="contactId" value="'+esc(p.id)+'"><select name="teamName"><option value="">אלע אומצוגעטיילטע</option>'+groups.map(g=>'<option value="'+esc(g)+'" '+(g===p.assigned_team?'selected':'')+'>'+esc(g)+'</option>').join('')+'</select><button>צוטיילן</button></form>':'')+
+  '<div class="actions">'+
   (p.do_not_call?'':p.claimed_by===state.user?.id?
     '<button data-action="release-lead" data-id="'+esc(p.id)+'">צוריקגעבן</button>':
     !p.claimed_by||new Date(p.claim_expires_at).getTime()<Date.now()?
