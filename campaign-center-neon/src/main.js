@@ -164,7 +164,7 @@ function yemotPanel(){
  return '<section class="card"><h2>ימות המשיח — API פארבינדונג</h2>'+
   '<p class="muted">אפארטיילונג צום אריינלייגן א ימות API־טאָקען. דער שליסל ווערט ענקריפטירט אויפן סערווער און קיינמאל נישט צוריק געוויזן.</p>'+
   '<p><strong>שליסל: '+(setting.configured?'אפהיטן ✓':'נאך נישט אריינגעלייגט')+
-   '</strong> · פארבינדונג: '+(setting.enabled?'אנגעצונדן':'אויסגעלאשן')+'</p>'+
+   '</strong> · פארבינדונג: '+(setting.enabled?'אנגעצונדן':'אויסגעלאשן')+' · פראבע: '+(setting.verifiedAt?'באשטעטיגט':'נאכנישט באשטעטיגט')+'</p>'+
   (!setting.storageReady?'<p class="muted">דער סערווער דארף נאך א זיכערע YEMOT_ENCRYPTION_KEY איינשטעלונג אויפן Render סערוויס, פארן אפהיטן א שליסל.</p>':'')+
   '<form data-form="yemot-save" class="stack">'+
     '<label>ימות API טאָקען / Key<input name="token" type="password" autocomplete="new-password" dir="ltr" minlength="12" maxlength="768" required placeholder="API token"></label>'+
@@ -172,7 +172,7 @@ function yemotPanel(){
    '</form>'+
    '<div class="actions">'+
      '<button type="button" data-action="yemot-test" '+(!setting.configured||!setting.storageReady?'disabled':'')+'>פרובירן פארבינדונג — נאר לייענען</button>'+
-     '<button type="button" data-action="yemot-enable" '+(!setting.configured||setting.enabled?'disabled':'')+'>אנצינדן פארבינדונג</button>'+
+     '<button type="button" data-action="yemot-enable" '+(!setting.configured||setting.enabled||!setting.verifiedAt?'disabled':'')+'>אנצינדן פארבינדונג</button>'+
      '<button type="button" data-action="yemot-disable" '+(!setting.enabled?'disabled':'')+'>אויסלעשן פארבינדונג</button>'+
      '<button type="button" data-action="yemot-remove" '+(!setting.configured?'disabled':'')+'>אויסמעקן שליסל</button>'+
    '</div>'+
