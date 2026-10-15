@@ -4,6 +4,7 @@ import teamRouter from './team.js';
 import webHallRouter from './web-hall.js';
 import conferenceRouter from './conferences.js';
 import rtcAudioRouter from './rtc-audio.js';
+import yemotRouter from './yemot.js';
 import videoRouter from './video.js';
 import floorRouter from './floor.js';
 import programRouter from './floor-programs.js';
@@ -119,6 +120,7 @@ app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,lo
 app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/conferences',conferenceRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/rtc',rtcAudioRouter({pool,authenticate,member,campaignAccess,bad,uuid,log}));
+app.use('/api/yemot',yemotRouter({pool,authenticate,member,log,bad,uuid}));
 app.use('/api/video',videoRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/floor',floorRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/floor-program',programRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
