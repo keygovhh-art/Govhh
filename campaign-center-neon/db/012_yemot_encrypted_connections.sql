@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS public.cc_yemot_connections(
  token_tag text NOT NULL,
  provider text NOT NULL DEFAULT 'yemot' CHECK(provider='yemot'),
  enabled boolean NOT NULL DEFAULT false,
+ last_verified_at timestamptz,
+ last_test_attempt_at timestamptz,
  updated_by text NOT NULL,
  updated_at timestamptz NOT NULL DEFAULT now()
 );
