@@ -9,6 +9,7 @@ import campaignAdminRouter from '../server/campaign-admin.js';
 import contactsImportRouter from '../server/contacts-import.js';
 import webHallRouter from '../server/web-hall.js';
 import conferenceRouter from '../server/conferences.js';
+import rtcAudioRouter from '../server/rtc-audio.js';
 import videoRouter from '../server/video.js';
 import floorRouter from '../server/floor.js';
 import programRouter from '../server/floor-programs.js';
@@ -46,7 +47,7 @@ const auth=(req,res,next)=>{req.userId=req.get('x-test-user')||'anonymous';next(
 
 async function prepare(){
  // Disposable Postgres on GitHub Actions only; NEVER any external production database.
- for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql']){
+ for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql']){
   const sql=await readFile(join(import.meta.dirname,'../db',file),'utf8');
   await pool.query(sql);
  }
@@ -57,7 +58,9 @@ async function launch(){
  app.use('/api/campaigns',campaignAdminRouter({pool,authenticate:auth,campaignAccess,need,bad,log,trim}));
  app.use('/api/import',contactsImportRouter({pool,authenticate:auth,campaignAccess,need,bad,log}));
  app.use('/api/rooms',webHallRouter({pool,authenticate:auth,campaignAccess,need,log,bad,uuid,trim}));
+ process.env.CC_EXPERIMENTAL_P2P_AUDIO='true';
  app.use('/api/conferences',conferenceRouter({pool,authenticate:auth,member,campaignAccess,need,log,bad,uuid,trim}));
+ app.use('/api/rtc',rtcAudioRouter({pool,authenticate:auth,member,campaignAccess,bad,uuid,log}));
  app.use('/api/video',videoRouter({pool,authenticate:auth,member,campaignAccess,need,log,bad,uuid,trim}));
  app.use('/api/floor',floorRouter({pool,authenticate:auth,campaignAccess,need,log,bad,uuid,trim}));
  app.use('/api/floor-program',programRouter({pool,authenticate:auth,campaignAccess,need,log,bad,uuid,trim}));
