@@ -17,7 +17,7 @@ const deepLink=new URLSearchParams(window.location.search);
 const deepCampaign=deepLink.get('campaign'),deepHall=deepLink.get('hall');
 if(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(deepCampaign||'') &&
  /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(deepHall||'')){
- state.campaignId=deepCampaign;state.joinedRoomId=deepHall;state.tab='hall';
+ state.campaignId=deepCampaign;state.requestedRoomId=deepHall;state.tab='hall';
 }
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
