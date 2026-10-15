@@ -108,7 +108,7 @@ app.get('/api/health', async (req, res, next) => {
   try { await q('SELECT 1'); res.json({ status:'ok',database:'neon' }); }
   catch (error) { next(error); }
 });
-app.get('/api/config', (_req,res) => res.json({ neonAuthUrl: authBase.toString().replace(/\/$/,'') ,ready: Boolean(pool)}));
+app.get('/api/config', (_req,res) => res.json({ neonAuthUrl: authBase.toString().replace(/\/$/,'') ,ready: Boolean(pool),experimentalAudioEnabled:process.env.CC_EXPERIMENTAL_P2P_AUDIO==='true'}));
 app.use('/api', (req,res,next) => pool ? next() : res.status(503).json({error:'Neon DATABASE_URL configuration required'}));
 // Cross-service endpoint is reachable ONLY with an explicitly configured 32+ byte shared secret.
 app.use('/api/connect/service', (req,res,next)=>pool?next():res.status(503).json({error:'Neon not configured'}));
