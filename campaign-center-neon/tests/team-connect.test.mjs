@@ -222,10 +222,22 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal(waiting.status,200);assert.equal(waiting.data.waiting,true,'Moderated meetings use waiting room');
   const waitingView=await req('/conferences/'+conferenceId+'/snapshot',{user:first});
   assert.equal(waitingView.data.waiting,true);assert.deepEqual(waitingView.data.messages,[],'Waiting attendees cannot read private discussion');
+
+  const feedUrl='https://example.org/secure-conference-lecture.mp3';
+  assert.equal((await req('/conferences/'+conferenceId,{user:owner,method:'PATCH',data:{mediaUrl:'http://localhost:3000/private'}})).status,400,'Internal or insecure media links are rejected');
+  assert.equal((await req('/conferences/'+conferenceId,{user:first,method:'PATCH',data:{mediaUrl:feedUrl}})).status,403,'Attendee cannot replace conference audio');
+  assert.equal((await req('/conferences/'+conferenceId,{user:owner,method:'PATCH',data:{mediaUrl:feedUrl}})).status,200);
+  const waitingWithAudio=await req('/conferences/'+conferenceId+'/snapshot',{user:first});
+  assert.equal(waitingWithAudio.data.conference.media_url,undefined,'Unadmitted attendee cannot discover private audio stream');
+  const orgListing=await req('/conferences/organizations/'+org1,{user:first});
+  assert.equal(orgListing.data.conferences[0].media_url,undefined,'Room directory does not disclose private media URL');
+  assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:owner})).data.conference.media_url,feedUrl,'Admitted manager sees configured lecture stream');
+
   assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'not admitted'}})).status,403);
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:second,method:'POST',data:{action:'admit'}})).status,403);
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'admit'}})).status,200);
   assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:first})).data.you.admitted,true);
+  assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:first})).data.conference.media_url,feedUrl,'Admitted listener may play authorized stream');
   assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'Muted discussion'}})).status,403);
   assert.equal((await req('/conferences/'+conferenceId+'/hand',{user:first,method:'POST',data:{raised:true}})).data.handRaised,true);
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'grant'}})).status,200);
