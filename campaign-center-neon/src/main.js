@@ -4,11 +4,12 @@ import './style.css';
 import { teamView } from './team-view.js';
 import { hallView } from './hall-view.js';
 import { eventView } from './event-view.js';
+import { conferenceView } from './conference-view.js';
 
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferenceCode:''};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -27,6 +28,13 @@ async function refresh() {
   state.orgs=me.organizations;
   if(!state.orgs.some(x=>x.id===state.orgId))state.orgId=state.orgs[0]?.id||null;
   state.campaigns=state.orgId?await api('/organizations/'+state.orgId+'/campaigns'):[];
+  state.conferences=[];
+  if(state.orgId){
+   const rooms=await api('/conferences/organizations/'+state.orgId).catch(()=>({conferences:[]}));
+   state.conferences=rooms.conferences||[];
+  }
+  if(state.conferenceId&&!state.conferences.some(r=>r.id===state.conferenceId))state.conferenceId=null;
+  if(state.conferenceId)state.conferenceSnapshot=await api('/conferences/'+state.conferenceId+'/snapshot').catch(()=>null);
   if(!state.campaigns.some(x=>x.id===state.campaignId))state.campaignId=state.campaigns[0]?.id||null;
   if(state.campaignId){
     const id=state.campaignId;
@@ -113,7 +121,7 @@ function campaignSetup(){
  return `<section class="card"><h2>קאמפיין שאפן</h2><form data-form="campaign" class="inline"><input name="title" required maxlength="160" placeholder="קאמפיין־נאמען"><input name="goalAmount" type="number" min="0" step="0.01" placeholder="ציל אין $"><button class="primary">שאפן קאמפיין</button></form></section>`;
 }
 function campaignNav(){
- return `<nav class="tabs">${[['today','היינט'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
+ return `<nav class="tabs">${[['today','היינט'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל'],['conference','התקבצו אסיפות']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
 }
 function campaignAdminPanel(){
  const campaign=state.overview?.campaign;
@@ -196,7 +204,7 @@ async function exportContactsPage(){
 }
 
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?campaignSetup():campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -229,6 +237,26 @@ async function submit(event){
      });break;
    }
    case 'member-team': await api('/team/campaigns/'+state.campaignId+'/members/'+encodeURIComponent(d.subject)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
+   case 'conference-new': {
+     const created=await api('/conferences/organizations/'+state.orgId,{method:'POST',
+       body:JSON.stringify({title:d.title,category:d.category,accessMode:d.accessMode,
+        speakingMode:d.speakingMode,agenda:d.agenda,campaignId:d.campaignOnly?state.campaignId:null})});
+     state.conferenceId=created.conference.id;state.conferenceCode=created.accessCode||'';state.tab='conference';break;
+   }
+   case 'conference-join': {
+     const joined=await api('/conferences/'+state.conferenceId+'/join',{method:'POST',body:JSON.stringify({accessCode:d.accessCode||''})});
+     state.notice=joined.waiting?'דו ווארטסט פארן מנהל־באשטעטיגונג.':'ביסט אינעם אסיפה־צימער.';
+     break;
+   }
+   case 'conference-settings': {
+     await api('/conferences/'+state.conferenceId,{method:'PATCH',
+       body:JSON.stringify({roomStatus:d.roomStatus,phase:d.phase,speakingMode:d.speakingMode})});
+     break;
+   }
+   case 'conference-message': {
+     await api('/conferences/'+state.conferenceId+'/messages',{method:'POST',body:JSON.stringify({kind:d.kind,body:d.body})});
+     break;
+   }
    case 'program-add': {
      const start=new Date(d.scheduledStart),end=new Date(d.scheduledEnd);
      if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||end<=start)throw new Error('די פראגראם־צייטן זענען נישט ריכטיג');
@@ -332,6 +360,26 @@ async function click(event){
   if(a==='unlink-max'){if(!state.confirmUnlink){state.confirmUnlink=true;say('נאכאמאל דרוקן אויסלעשן פארבינדונג צו באשטעטיגן');return;}await api('/connect/unlink',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.confirmUnlink=false;state.connectCode='';await refresh();return;}
   if(a==='claim-lead'){await api('/team/contacts/'+btn.dataset.id+'/claim',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
   if(a==='release-lead'){await api('/team/contacts/'+btn.dataset.id+'/release',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
+  if(a==='conference-home'){state.tab='conference';await refresh();return;}
+  if(a==='conference-select'){
+    state.conferenceId=btn.dataset.id;state.conferenceCode='';state.tab='conference';
+    await refresh();return;
+  }
+  if(a==='conference-refresh'){await refresh();return;}
+  if(a==='conference-hand'||a==='conference-leave'){
+    const cmd=a==='conference-hand'?'/hand':'/leave';
+    const raised=!state.conferenceSnapshot?.you?.handRaised;
+    await api('/conferences/'+state.conferenceId+cmd,{method:'POST',
+      body:JSON.stringify(a==='conference-hand'?{raised}:{})});
+    await refresh();return;
+  }
+  if(a.startsWith('conference-')&&['admit','remove','ban','restore','mute','unmute','grant','revoke'].includes(a.slice(11))){
+    const action=a.slice(11);
+    if(['ban','remove'].includes(action)&&!confirm('זיכער? דער מענטש וועט ווערן ארויסגענומען פונעם אסיפה־צימער.'))return;
+    await api('/conferences/'+state.conferenceId+'/moderate/'+encodeURIComponent(btn.dataset.subject),
+     {method:'POST',body:JSON.stringify({action})});
+    await refresh();return;
+  }
   if(a==='event-refresh'){await refresh();return;}
   if(a==='event-check-in'||a==='event-check-out'){
     if(!state.joinedRoomId)throw new Error('קודם גיי אריין אין דעם קאמפיין־זאל');
@@ -412,3 +460,15 @@ setInterval(async()=>{
   if(!document.activeElement?.matches?.('input,textarea,select'))draw();
  }catch(e){console.warn('Temporary live hall refresh failed');}
 },7500);
+
+setInterval(async()=>{
+ if(!state.user||!state.conferenceId||state.tab!=='conference'||document.visibilityState!=='visible')return;
+ try{
+  const id=state.conferenceId;
+  const snapshot=await api('/conferences/'+id+'/snapshot');
+  if(id!==state.conferenceId||state.tab!=='conference')return;
+  state.conferenceSnapshot=snapshot;
+  if(!document.activeElement?.matches?.('input,textarea,select'))draw();
+ }catch(e){console.warn('Temporary conference refresh error');}
+},8500);
+
