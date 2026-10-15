@@ -9,7 +9,7 @@ import { conferenceView } from './conference-view.js';
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferenceCode:''};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],conferenceCode:''};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -34,7 +34,14 @@ async function refresh() {
    state.conferences=rooms.conferences||[];
   }
   if(state.conferenceId&&!state.conferences.some(r=>r.id===state.conferenceId))state.conferenceId=null;
-  if(state.conferenceId)state.conferenceSnapshot=await api('/conferences/'+state.conferenceId+'/snapshot').catch(()=>null);
+  state.conferencePolicies=[];
+  if(state.conferenceId){
+    state.conferenceSnapshot=await api('/conferences/'+state.conferenceId+'/snapshot').catch(()=>null);
+    if(state.conferenceSnapshot?.isModerator){
+      const policy=await api('/conferences/'+state.conferenceId+'/policies').catch(()=>({policies:[]}));
+      state.conferencePolicies=policy.policies||[];
+    }
+  }
   if(!state.campaigns.some(x=>x.id===state.campaignId))state.campaignId=state.campaigns[0]?.id||null;
   if(state.campaignId){
     const id=state.campaignId;
@@ -256,6 +263,12 @@ async function submit(event){
      await api('/conferences/'+state.conferenceId,{method:'PATCH',
        body:JSON.stringify({roomStatus:d.roomStatus,phase:d.phase,speakingMode:d.speakingMode,mediaUrl:d.mediaUrl||null})});
      break;
+   }
+   case 'conference-policy': {
+     if(!state.conferenceId)throw new Error('קלייב אן אסיפה');
+     await api('/conferences/'+state.conferenceId+'/policies/'+encodeURIComponent(d.subject.trim()),{
+       method:'PATCH',body:JSON.stringify({rule:d.rule,enabled:d.enabled==='true'})
+     });break;
    }
    case 'conference-message': {
      await api('/conferences/'+state.conferenceId+'/messages',{method:'POST',body:JSON.stringify({kind:d.kind,body:d.body})});
