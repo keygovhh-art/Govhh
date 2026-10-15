@@ -485,17 +485,27 @@ setInterval(async()=>{
  if(!state.user||!state.joinedRoomId||state.tab!=='hall'||document.visibilityState!=='visible')return;
  try{
   const roomId=state.joinedRoomId;
-  const [board,program,messages]=await Promise.all([
+  const [board,program,messages,leads]=await Promise.all([
    api('/floor/'+roomId+'/board'),api('/floor-program/'+roomId+'/schedule'),
-   api('/rooms/'+roomId+'/announcements')
+   api('/rooms/'+roomId+'/announcements'),
+   state.campaignId?api('/team/campaigns/'+state.campaignId+'/lead-queue').catch(()=>[]):Promise.resolve([])
   ]);
   if(roomId!==state.joinedRoomId||state.tab!=='hall')return;
-  state.floorBoard=board;state.floorProgram=program;state.hallAnnouncements=messages;
+  state.floorBoard=board;state.floorProgram=program;state.hallAnnouncements=messages;state.leads=leads;
   if(state.selectedHelpId){
    const thread=await api('/floor/'+roomId+'/help/'+state.selectedHelpId+'/messages').catch(()=>null);
    if(thread)state.helpMessages=thread.messages||[];
   }
-  if(!document.activeElement?.matches?.('input,textarea,select'))draw();
+  const playing=Array.from(document.querySelectorAll('#app audio')).some(a=>!a.paused);
+  if(playing){
+    // Keep audio element mounted while updating live figures.
+    const vals={mode:({calling:'מען רופט מענטשן',program:'לייוו פראגראם',break:'הפסקה',ended:'פארענדיגט'})[program.mode]||program.mode,
+      attendance:program.attendance?.checked_in||0,calls:board.totals?.calls?.reported||0,
+      net:money(board.totals?.financial?.manually_reported_net)};
+    for(const [key,val] of Object.entries(vals)){
+      const el=document.querySelector('[data-live-metric="'+key+'"]');if(el)el.textContent=String(val);
+    }
+  }else if(!document.activeElement?.matches?.('input,textarea,select'))draw();
  }catch(e){console.warn('Temporary live hall refresh failed');}
 },7500);
 
