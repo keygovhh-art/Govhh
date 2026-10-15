@@ -25,6 +25,7 @@ const jwks = createRemoteJWKSet(jwksUrl);
 const pool = process.env.DATABASE_URL ? new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: 10000 }) : null;
 const app = express();
 app.disable('x-powered-by');
+app.use('/api/import', express.json({ limit: '1mb' }));
 app.use(express.json({ limit: '32kb' }));
 app.use((req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
