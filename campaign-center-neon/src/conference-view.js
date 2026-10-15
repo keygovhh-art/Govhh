@@ -6,7 +6,7 @@ const niceTime=t=>t?new Date(t).toLocaleString('en-US',{month:'short',day:'numer
 export function conferenceView(state,esc){
  const elevated=['owner','manager'].includes(state.orgs.find(o=>o.id===state.orgId)?.role);
  const rooms=state.conferences||[],snap=state.conferenceSnapshot;
- const current=rooms.find(c=>c.id===state.conferenceId);
+ const current=snap?.conference?.id===state.conferenceId?snap.conference:rooms.find(c=>c.id===state.conferenceId);
  const creation=elevated?'<section class="card"><h3>א נייע התקבצו־אסיפה</h3>'+
   '<p class="muted">דאס איז א באזונדערער צענטער פאר אסיפות און חיזוק — נישט דער קאמפיין־רוף־זאל.</p>'+
   '<form data-form="conference-new" class="stack"><label>נאמען<input required name="title" maxlength="180" placeholder="אסיפת התעוררות / מנהלים"></label>'+
@@ -43,6 +43,7 @@ export function conferenceView(state,esc){
    '<label>וואס געשעט יעצט?<select name="phase">'+Object.entries(phase).map(([v,t])=>'<option value="'+v+'" '+(current.phase===v?'selected':'')+'>'+t+'</option>').join('')+'</select></label>'+
    '<label>ווער מעג שרייבן/רעדן?<select name="speakingMode">'+Object.entries(speaking).map(([v,t])=>
     '<option value="'+v+'" '+(current.speaking_mode===v?'selected':'')+'>'+t+'</option>').join('')+'</select></label>'+
+   '<label>באשטעטיגטער HTTPS־אודיא־שידור אדער רעקארדירונג<input name="mediaUrl" type="url" placeholder="https://...mp3" value="'+esc(current.media_url||'')+'"></label>'+ 
    '<button '+(current.room_status==='ended'?'disabled':'')+'>אפהיטן מנהל־איינשטעלונגען</button></form>':'';
   const join=!joined&&active?'<form data-form="conference-join" class="inline">'+
    (current.access_mode==='code'&&!m?'<input name="accessCode" dir="ltr" placeholder="צוטריט־קאוד" maxlength="24" required>':'')+
@@ -57,6 +58,7 @@ export function conferenceView(state,esc){
   return '<section class="card"><h2>'+esc(current.title)+'</h2>'+
     '<p>'+esc(types[current.category])+' · '+esc(status[current.room_status])+' · '+esc(phase[current.phase])+'</p>'+
     '<p class="muted">'+esc(current.agenda||'')+'</p>'+
+    ((m||admitted)&&current.media_url?'<audio controls preload="none" src="'+esc(current.media_url)+'" class="event-audio"></audio>':'')+
     '<p>צוהערער: '+esc(online.filter(p=>p.admitted).length)+' | אויפגעהויבענע הענט: '+esc(online.filter(p=>p.hand_raised).length)+'</p>'+
     '<button data-action="conference-refresh">דערפרישן אסיפה</button>'+
     (m?config:'')+join+
