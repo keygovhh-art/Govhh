@@ -67,3 +67,8 @@ ALTER TABLE public.cc_external_account_links ENABLE ROW LEVEL SECURITY;
 
 -- One MAX money event may be attributed to one campaign only across ALL organizations.
 CREATE UNIQUE INDEX IF NOT EXISTS cc_finance_one_max_event ON public.cc_finance_events(source_system,source_event_key) WHERE source_system='gavhah_max';
+
+-- Immutable refunds point to the original Campaign Center receipt while preserving
+-- the separate canonical MAX refund ID. This prevents showing stale gross balances.
+ALTER TABLE public.cc_finance_events ADD COLUMN IF NOT EXISTS related_finance_event_id uuid REFERENCES public.cc_finance_events(id) ON DELETE RESTRICT;
+CREATE INDEX IF NOT EXISTS cc_finance_related_event_idx ON public.cc_finance_events(related_finance_event_id);
