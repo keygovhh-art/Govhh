@@ -83,7 +83,7 @@ export function conferenceView(state,esc){
     (joined&&active?'<div class="actions"><button data-action="conference-hand">'+(me?.handRaised?'אראפנעמען די האנט':'אויפהייבן די האנט')+'</button><button data-action="conference-leave">ארויסגיין</button></div>':'')+
     '</section>'+
     ((m||admitted)?'<section class="card"><h3>עסקנים און רעדן־רעכטן</h3>'+people+'</section>':'')+
-    messages+policies+videoPanel(state.videoStatus.conference,'conference',current.id,state.videoGrants.conference,esc);
+    messages+policies+videoPanel(state.videoStatus.conference,'conference',current.id,state.videoGrants.conference,esc,state.conferenceSnapshot?.online||[]);
  })();
  return '<section class="card"><h2>התקבצו — אסיפות און חיזוק</h2>'+
  '<p class="muted">באזונדער פון דעם קאמפיין־זאל. אסיפות, דברי חיזוק, שאלות־ותשובות, עצות און טעכנישע דיסקוסיעס מיט מנהל־קאנטראל.</p>'+
