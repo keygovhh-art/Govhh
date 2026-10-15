@@ -249,6 +249,59 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}})).status,409);
   assert.equal((await req('/conferences/'+conferenceId,{user:owner,method:'PATCH',data:{roomStatus:'open'}})).status,409,'Ended conference is an archive');
   assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:'stranger'})).status,404,'Other organization has no conference access');
+  // Real virtual fundraiser event, independent of phone carrier: check in,
+  // receive agenda, pause operators for 1:30pm lunch, resume and report calls.
+  const eventCreated=await req('/rooms/campaigns/'+c1,{user:owner,method:'POST',data:{title:'Virtual Fundraising Rally'}});
+  assert.equal(eventCreated.status,201);
+  const eventId=eventCreated.data.id;
+  assert.equal((await req('/rooms/'+eventId+'/status',{user:owner,method:'PATCH',data:{status:'open'}})).status,200);
+  assert.equal((await req('/rooms/'+eventId+'/join',{user:owner,method:'POST'})).status,201);
+  assert.equal((await req('/rooms/'+eventId+'/join',{user:first,method:'POST'})).status,201);
+  assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:'stranger',method:'POST'})).status,404,'Unrelated member cannot check in');
+  assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:first,method:'POST'})).status,201);
+  assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:first,method:'POST'})).data.already,true,'Repeated check-in not counted twice');
+  assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:owner,method:'POST'})).status,201);
+  const eventBoard=await req('/floor/'+eventId+'/board',{user:owner});
+  assert.equal(eventBoard.status,200);assert.equal(eventBoard.data.mode,'web_live_reporting_with_manual_calls');
+  const agenda=await req('/floor-program/'+eventId+'/schedule',{user:first});
+  assert.equal(agenda.status,200);assert.equal(agenda.data.attendance.checked_in,2);
+  const scheduleBody={
+   title:'Lunch and Chizuk',segmentType:'lunch',speaker:'Guest speaker',
+   scheduledStart:'2026-10-16T13:30:00-04:00',scheduledEnd:'2026-10-16T14:00:00-04:00',
+   description:'Pause all fundraising calls for half an hour'
+  };
+  assert.equal((await req('/floor-program/'+eventId+'/schedule',{user:first,method:'POST',data:scheduleBody})).status,403,'Askan cannot schedule a speaker');
+  const programCreated=await req('/floor-program/'+eventId+'/schedule',{user:owner,method:'POST',data:scheduleBody});
+  assert.equal(programCreated.status,201);
+  const programId=programCreated.data.id;
+  const shared=(await pool.query("INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy,assigned_team) VALUES($1,$2,$3,'Fundraiser donor','3155550707','campaign','Group A') RETURNING id",
+    [org1,c1,owner])).rows[0].id;
+  assert.equal((await req('/team/contacts/'+shared+'/claim',{user:first,method:'POST'})).status,200);
+  const attempt='00000000-0000-4000-8000-000000000707';
+  const callBody={outcome:'spoke',note:'manual report from own phone',attemptId:attempt};
+  assert.equal((await req('/floor/'+eventId+'/calls/'+shared,{user:second,method:'POST',data:callBody})).status,409,'Another squad cannot log held call');
+  const help=await req('/floor/'+eventId+'/help',{user:first,method:'POST',data:{category:'technical',summary:'I need setup help'}});
+  assert.equal(help.status,201);
+  assert.equal((await req('/floor/'+eventId+'/help/'+help.data.id,{user:first,method:'PATCH',data:{status:'resolved'}})).status,403);
+  assert.equal((await req('/floor/'+eventId+'/help/'+help.data.id,{user:owner,method:'PATCH',data:{status:'resolved'}})).status,200);
+  const start=await req('/floor-program/'+eventId+'/programs/'+programId+'/status',{user:owner,method:'POST',data:{status:'live'}});
+  assert.equal(start.status,200);
+  const during=await req('/floor-program/'+eventId+'/schedule',{user:first});
+  assert.equal(during.data.mode,'program','Lunch pauses fundraising call floor');
+  assert.equal(during.data.programs.find(x=>x.id===programId).status,'live');
+  assert.equal((await req('/floor/'+eventId+'/calls/'+shared,{user:first,method:'POST',data:callBody})).status,409,'Direct API cannot log a fundraiser-floor call during lunch');
+  assert.equal((await req('/floor-program/'+eventId+'/programs/'+programId+'/status',{user:first,method:'POST',data:{status:'completed'}})).status,403,'Askan cannot end speaker program');
+  assert.equal((await req('/floor-program/'+eventId+'/programs/'+programId+'/status',{user:owner,method:'POST',data:{status:'completed'}})).status,200);
+  assert.equal((await req('/floor-program/'+eventId+'/schedule',{user:first})).data.mode,'calling');
+  const called=await req('/floor/'+eventId+'/calls/'+shared,{user:first,method:'POST',data:callBody});
+  assert.equal(called.status,201,'Fundraiser resumed after lunch and operator saved manual call');
+  assert.equal((await req('/floor/'+eventId+'/calls/'+shared,{user:first,method:'POST',data:callBody})).data.duplicate,true,'Call retry cannot inflate totals');
+  assert.equal((await pool.query('SELECT count(*)::int n FROM cc_call_events WHERE client_attempt_id=$1',[attempt])).rows[0].n,1);
+  assert.equal((await req('/floor-program/'+eventId+'/check-out',{user:first,method:'POST'})).status,200);
+  assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:first,method:'POST'})).status,201,'Late return is new check-in');
+  const attendanceAfter=await req('/floor-program/'+eventId+'/schedule',{user:owner});
+  assert.equal(attendanceAfter.data.attendance.checked_in,2);
+  assert.equal(attendanceAfter.data.attendance.total,3,'Attendance keeps earlier visit history');
   // Link requires authenticated CC account and authenticated Gavhah service.
   const link=await req('/connect/code',{user:first,method:'POST'});
   assert.equal(link.status,201);assert.equal(link.data.code.length,32);
