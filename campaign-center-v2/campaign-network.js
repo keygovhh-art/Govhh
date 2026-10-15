@@ -97,7 +97,9 @@ function bind(){
  $$('[data-network-close]').forEach(b=>b.onclick=close);$$('#leadEditor,#leadOutcome,#dispatchEditor').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)close()}));
 }
 function close(){$$('#leadEditor,#leadOutcome,#dispatchEditor').forEach(m=>m.classList.remove('on'))}
-function patch(){if(typeof renderAll==='function'&&!window.__networkPatched){const old=renderAll;renderAll=function(){old();renderAll()};window.__networkPatched=true}}
+// The network's renderAll is local to this module. Never replace it with
+// a recursive wrapper (the old preview code caused an infinite render loop).
+function patch(){ /* Campaign network renders directly from initData and actions. */ }
 async function initData(){const k=key();if(k===loadedKey)return;loadedKey=k;if(channel&&typeof afClient!=='undefined'){try{await afClient.removeChannel(channel)}catch{}channel=null}loadLocal();renderAll();await loadCloud();renderAll()}
 function init(){inject();patch();renderAll();setInterval(()=>{if(userId()&&key()!==loadedKey)initData()},500);initData()}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();

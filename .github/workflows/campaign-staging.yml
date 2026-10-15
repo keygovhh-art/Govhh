@@ -1,0 +1,22 @@
+name: Campaign Center staging integrity
+on:
+  push:
+    branches:
+      - feature/campaign-center-integration-20261014
+  pull_request:
+    paths:
+      - 'campaign-center-v2/**'
+      - 'neon/**'
+      - 'tests/**'
+      - '.github/workflows/campaign-staging.yml'
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify scripts, page loads and architecture integrity
+        run: node --test tests/campaign-staging-integrity.test.mjs
