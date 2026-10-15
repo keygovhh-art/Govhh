@@ -48,7 +48,7 @@ const auth=(req,res,next)=>{req.userId=req.get('x-test-user')||'anonymous';next(
 
 async function prepare(){
  // Disposable Postgres on GitHub Actions only; NEVER any external production database.
- for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql']){
+ for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql','010_automatic_event_schedule.sql']){
   const sql=await readFile(join(import.meta.dirname,'../db',file),'utf8');
   await pool.query(sql);
  }
