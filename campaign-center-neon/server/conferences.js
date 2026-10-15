@@ -38,7 +38,7 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
   id:r.id,organization_id:r.organization_id,campaign_id:r.campaign_id,
   title:r.title,category:r.category,agenda:r.agenda,room_status:r.room_status,
   access_mode:r.access_mode,speaking_mode:r.speaking_mode,phase:r.phase,
-  scheduled_at:r.scheduled_at,created_at:r.created_at
+  scheduled_at:r.scheduled_at,created_at:r.created_at,media_url:r.media_url||null
  });
  router.get('/organizations/:oid',handle(async(req,res)=>{
   const role=await member(pool,req.params.oid,req.userId);
@@ -146,7 +146,19 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
  router.patch('/:rid',handle(async(req,res)=>{
   const changes=req.body||{};
   const status=changes.roomStatus,phase=changes.phase,speaking=changes.speakingMode,access=changes.accessMode;
-  if(Object.keys(changes).some(k=>!['roomStatus','phase','speakingMode','accessMode','rotateCode'].includes(k))||
+  let media=null;
+  const hasMedia=Object.hasOwn(changes,'mediaUrl');
+  if(hasMedia&&changes.mediaUrl){
+    if(typeof changes.mediaUrl!=='string'||changes.mediaUrl.length>1000)throw bad(400,'Invalid HTTPS conference audio');
+    try{
+      const url=new URL(changes.mediaUrl);
+      if(url.protocol!=='https:'||url.username||url.password||url.hash||url.hostname==='localhost'||
+        /^(?:127\.|10\.|192\.168\.|169\.254\.)/.test(url.hostname))throw Error('not public HTTPS');
+      media=url.href;
+    }catch{throw bad(400,'Conference audio must use authorized HTTPS');}
+  }
+
+  if(Object.keys(changes).some(k=>!['roomStatus','phase','speakingMode','accessMode','rotateCode','mediaUrl'].includes(k))||
    (status!==undefined&&!['open','paused','ended'].includes(status))||
    (phase!==undefined&&!['lecture','qna','discussion'].includes(phase))||
    (speaking!==undefined&&!['listeners','moderated','open'].includes(speaking))||
@@ -157,8 +169,8 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
   const result=await tx(async db=>{
    const {conf,role}=await room(db,req.params.rid,req.userId,true);need(role,privileged);
    if(conf.room_status==='ended')throw bad(409,'Ended conferences are retained as archived records');
-   const updated=(await db.query("UPDATE cc_conference_rooms SET room_status=COALESCE($2,room_status),phase=COALESCE($3,phase),speaking_mode=COALESCE($4,speaking_mode),access_mode=COALESCE($5,access_mode),access_code_hash=CASE WHEN $5='members' THEN NULL WHEN $6::text IS NOT NULL THEN $6 ELSE access_code_hash END,opened_at=CASE WHEN $2='open' THEN COALESCE(opened_at,now()) ELSE opened_at END,closed_at=CASE WHEN $2='ended' THEN now() ELSE closed_at END WHERE id=$1 RETURNING *",
-     [conf.id,status??null,phase??null,speaking??null,access??null,secret?hash(secret):null])).rows[0];
+   const updated=(await db.query("UPDATE cc_conference_rooms SET room_status=COALESCE($2,room_status),phase=COALESCE($3,phase),speaking_mode=COALESCE($4,speaking_mode),access_mode=COALESCE($5,access_mode),access_code_hash=CASE WHEN $5='members' THEN NULL WHEN $6::text IS NOT NULL THEN $6 ELSE access_code_hash END,media_url=CASE WHEN $7::boolean THEN $8 ELSE media_url END,opened_at=CASE WHEN $2='open' THEN COALESCE(opened_at,now()) ELSE opened_at END,closed_at=CASE WHEN $2='ended' THEN now() ELSE closed_at END WHERE id=$1 RETURNING *",
+     [conf.id,status??null,phase??null,speaking??null,access??null,secret?hash(secret):null,hasMedia,media])).rows[0];
    if(status==='ended')await db.query('UPDATE cc_conference_participants SET left_at=now(),hand_raised=false WHERE room_id=$1 AND left_at IS NULL',[conf.id]);
    await log(db,conf.organization_id,conf.campaign_id,req.userId,'conference.settings_changed',conf.id,
     {from:{status:conf.room_status,phase:conf.phase,speaking:conf.speaking_mode},to:{status:updated.room_status,phase:updated.phase,speaking:updated.speaking_mode}});
