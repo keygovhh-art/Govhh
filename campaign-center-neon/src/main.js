@@ -9,7 +9,7 @@ import { conferenceView } from './conference-view.js';
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferenceCode:''};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferenceCode:''};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -43,7 +43,7 @@ async function refresh() {
       api('/campaigns/'+id+'/contacts'),api('/campaigns/'+id+'/finance')
     ]);
   }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];}
-  state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.activity=[];state.activityNextOffset=null;
+  state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.helpMessages=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
     state.activity=activity.events||[];state.activityNextOffset=activity.nextOffset;state.activityScope=activity.scope;
@@ -58,6 +58,10 @@ async function refresh() {
           api('/floor-program/'+room.id+'/schedule').catch(()=>null)
         ]);
         state.hallAnnouncements=msgs;state.floorBoard=board;state.floorProgram=program;
+        if(state.selectedHelpId&&board?.help?.some(h=>h.id===state.selectedHelpId)){
+          const thread=await api('/floor/'+room.id+'/help/'+state.selectedHelpId+'/messages').catch(()=>({messages:[]}));
+          state.helpMessages=thread.messages||[];
+        }else state.selectedHelpId=null;
       }
       else state.joinedRoomId=null;
     }
@@ -265,6 +269,11 @@ async function submit(event){
         description:d.description,mediaUrl:d.mediaUrl||null,
         scheduledStart:start.toISOString(),scheduledEnd:end.toISOString()})});break;
    }
+   case 'help-reply': {
+     if(!state.selectedHelpId||!state.joinedRoomId)throw new Error('קלייב א הילף־שמועס');
+     await api('/floor/'+state.joinedRoomId+'/help/'+state.selectedHelpId+'/messages',{method:'POST',
+       body:JSON.stringify({body:d.body})});break;
+   }
    case 'floor-help': {
      if(!state.floorProgram?.checkedIn)throw new Error('קודם טשעקט זיך אריין צום קאמפיין־אוונט');
      await api('/floor/'+state.joinedRoomId+'/help',{method:'POST',
@@ -410,6 +419,12 @@ async function click(event){
     await api('/floor-program/'+state.joinedRoomId+'/programs/'+encodeURIComponent(btn.dataset.id)+'/status',{method:'POST',body:JSON.stringify({status})});
     await refresh();return;
   }
+  if(a==='help-open'){
+    state.selectedHelpId=btn.dataset.id;
+    const r=await api('/floor/'+state.joinedRoomId+'/help/'+state.selectedHelpId+'/messages');
+    state.helpMessages=r.messages||[];
+    draw();return;
+  }
   if(a==='help-progress'||a==='help-resolve'){
     const status=a==='help-progress'?'in_progress':'resolved';
     await api('/floor/'+state.joinedRoomId+'/help/'+encodeURIComponent(btn.dataset.id),{method:'PATCH',body:JSON.stringify({status})});
@@ -476,6 +491,10 @@ setInterval(async()=>{
   ]);
   if(roomId!==state.joinedRoomId||state.tab!=='hall')return;
   state.floorBoard=board;state.floorProgram=program;state.hallAnnouncements=messages;
+  if(state.selectedHelpId){
+   const thread=await api('/floor/'+roomId+'/help/'+state.selectedHelpId+'/messages').catch(()=>null);
+   if(thread)state.helpMessages=thread.messages||[];
+  }
   if(!document.activeElement?.matches?.('input,textarea,select'))draw();
  }catch(e){console.warn('Temporary live hall refresh failed');}
 },7500);
