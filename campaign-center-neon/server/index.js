@@ -85,6 +85,15 @@ async function campaignAccess(db, id, user) {
 }
 function need(role, allowed) { if (!allowed.includes(role)) throw bad(403,'Insufficient permission'); }
 
+async function ensureContactAccess(db,c,contact,subject){
+  if(contact.privacy==='private'){
+    if(contact.created_by!==subject)throw bad(404,'Contact not found');
+    return;
+  }
+  if(['owner','manager','finance','auditor'].includes(c.role))return;
+  const team=(await db.query('SELECT team_name FROM cc_campaign_members WHERE campaign_id=$1 AND subject=$2',[c.id,subject])).rows[0]?.team_name;
+  if(team===undefined||team!==contact.assigned_team)throw bad(404,'Contact not assigned to your team');
+}
 app.get('/api/health', async (req, res, next) => {
   if (!pool) return res.json({ status:'configuration_required',database:'neon_not_connected' });
   try { await q('SELECT 1'); res.json({ status:'ok',database:'neon' }); }
@@ -186,7 +195,9 @@ app.patch('/api/tasks/:id',async(req,res,next)=>{
 app.get('/api/campaigns/:cid/contacts',async(req,res,next)=>{
   try {
     const c=await campaignAccess(pool,req.params.cid,req.userId);
-    const r=await q("SELECT id,display_name,phone,notes,privacy,do_not_call,status,next_followup_at,created_at FROM cc_contacts WHERE campaign_id=$1 AND organization_id=$2 AND (privacy='campaign' OR created_by=$3) ORDER BY created_at DESC LIMIT 200",[c.id,c.organization_id,req.userId]);
+    const elevated=['owner','manager','finance','auditor'].includes(c.role);
+    const r=await q("SELECT id,display_name,phone,notes,privacy,do_not_call,status,assigned_team,next_followup_at,created_at FROM cc_contacts WHERE campaign_id=$1 AND organization_id=$2 AND ((privacy='private' AND created_by=$3) OR (privacy='campaign' AND ($4::boolean OR assigned_team=(SELECT team_name FROM cc_campaign_members WHERE campaign_id=$1 AND subject=$3)))) ORDER BY created_at DESC LIMIT 200",
+     [c.id,c.organization_id,req.userId,elevated]);
     res.json(r.rows);
   } catch(error){next(error);}
 });
@@ -197,7 +208,10 @@ app.post('/api/campaigns/:cid/contacts',async(req,res,next)=>{
     const result=await transaction(async db=>{
       const c=await campaignAccess(db,req.params.cid,req.userId);
       need(c.role,['owner','manager','squad_leader','askan']);
-      const row=(await db.query('INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,notes,privacy) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,display_name,phone,notes,privacy,status,do_not_call,created_at',[c.organization_id,c.id,req.userId,name,phone,notes,privacy])).rows[0];
+      const team=['owner','manager'].includes(c.role)?'':
+        (await db.query('SELECT team_name FROM cc_campaign_members WHERE campaign_id=$1 AND subject=$2',[c.id,req.userId])).rows[0]?.team_name;
+      if(team===undefined)throw bad(403,'Team membership required for contacts');
+      const row=(await db.query('INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,notes,privacy,assigned_team) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,display_name,phone,notes,privacy,status,assigned_team,do_not_call,created_at',[c.organization_id,c.id,req.userId,name,phone,notes,privacy,team])).rows[0];
       await log(db,c.organization_id,c.id,req.userId,'contact.created',row.id,{privacy});
       return row;
     });res.status(201).json(result);
@@ -208,8 +222,9 @@ app.get('/api/contacts/:id/calls',async(req,res,next)=>{
     if(!uuid(req.params.id))throw bad(400,'Invalid contact');
     const contact=(await q('SELECT * FROM cc_contacts WHERE id=$1',[req.params.id])).rows[0];
     if(!contact)throw bad(404,'Contact not found');
-    await campaignAccess(pool,contact.campaign_id,req.userId);
-    if(contact.privacy==='private' && contact.created_by!==req.userId)throw bad(404,'Contact not found');
+    const c=await campaignAccess(pool,contact.campaign_id,req.userId);
+    if(c.organization_id!==contact.organization_id)throw bad(404,'Contact not found');
+    await ensureContactAccess(pool,c,contact,req.userId);
     const r=await q('SELECT id,member_subject,outcome,note,created_at FROM cc_call_events WHERE contact_id=$1 AND organization_id=$2 ORDER BY created_at DESC LIMIT 200',[contact.id,contact.organization_id]);
     res.json(r.rows);
   } catch(error){next(error);}
@@ -224,7 +239,8 @@ app.post('/api/contacts/:id/calls',async(req,res,next)=>{
       if(!t)throw bad(404,'Contact not found');
       const c=await campaignAccess(db,t.campaign_id,req.userId);
       need(c.role,['owner','manager','squad_leader','askan']);
-      if(t.organization_id!==c.organization_id || (t.privacy==='private'&&t.created_by!==req.userId))throw bad(404,'Contact not found');
+      if(t.organization_id!==c.organization_id)throw bad(404,'Contact not found');
+      await ensureContactAccess(db,c,t,req.userId);
       if(t.do_not_call)throw bad(409,'Do not call: this contact is restricted');
       if(t.claimed_by&&t.claimed_by!==req.userId&&new Date(t.claim_expires_at).getTime()>Date.now())throw bad(409,'This shared contact is currently claimed by another team member');
       const e=(await db.query('INSERT INTO cc_call_events(organization_id,campaign_id,contact_id,member_subject,outcome,note) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[c.organization_id,c.id,t.id,req.userId,outcome,note])).rows[0];
