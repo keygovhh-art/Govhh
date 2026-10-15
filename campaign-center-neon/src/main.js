@@ -11,7 +11,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]}};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -38,6 +38,10 @@ async function refresh() {
   state.orgs=me.organizations;
   if(!state.orgs.some(x=>x.id===state.orgId))state.orgId=state.orgs[0]?.id||null;
   state.campaigns=state.orgId?await api('/organizations/'+state.orgId+'/campaigns'):[];
+  state.yemot=null;
+  if(state.orgId&&state.orgs.find(o=>o.id===state.orgId)?.role==='owner'){
+    state.yemot=await api('/yemot/organizations/'+state.orgId).catch(()=>({configured:false,enabled:false,storageReady:false}));
+  }
   state.conferences=[];
   if(state.orgId){
    const rooms=await api('/conferences/organizations/'+state.orgId).catch(()=>({conferences:[]}));
@@ -152,7 +156,28 @@ function campaignSetup(){
  return `<section class="card"><h2>קאמפיין שאפן</h2><form data-form="campaign" class="inline"><input name="title" required maxlength="160" placeholder="קאמפיין־נאמען"><input name="goalAmount" type="number" min="0" step="0.01" placeholder="ציל אין $"><button class="primary">שאפן קאמפיין</button></form></section>`;
 }
 function campaignNav(){
- return `<nav class="tabs">${[['today','היינט'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל'],['conference','התקבצו אסיפות']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
+ return `<nav class="tabs">${[['today','היינט'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל'],['conference','התקבצו אסיפות'],['yemot','ימות API']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
+}
+function yemotPanel(){
+ if(state.orgs.find(o=>o.id===state.orgId)?.role!=='owner')return '<section class="card"><h2>ימות המשיח API</h2><p>דער API־שליסל קען נאר דער בעל־הבית פון מוסד פארוואלטן.</p></section>';
+ const setting=state.yemot||{configured:false,enabled:false,storageReady:false};
+ return '<section class="card"><h2>ימות המשיח — API פארבינדונג</h2>'+
+  '<p class="muted">אפארטיילונג צום אריינלייגן א ימות API־טאָקען. דער שליסל ווערט ענקריפטירט אויפן סערווער און קיינמאל נישט צוריק געוויזן.</p>'+
+  '<p><strong>שליסל: '+(setting.configured?'אפהיטן ✓':'נאך נישט אריינגעלייגט')+
+   '</strong> · פארבינדונג: '+(setting.enabled?'אנגעצונדן':'אויסגעלאשן')+'</p>'+
+  (!setting.storageReady?'<p class="muted">דער סערווער דארף נאך א זיכערע YEMOT_ENCRYPTION_KEY איינשטעלונג אויפן Render סערוויס, פארן אפהיטן א שליסל.</p>':'')+
+  '<form data-form="yemot-save" class="stack">'+
+    '<label>ימות API טאָקען / Key<input name="token" type="password" autocomplete="new-password" dir="ltr" minlength="12" maxlength="768" required placeholder="API token"></label>'+
+    '<button type="submit" '+(!setting.storageReady?'disabled':'')+'>אפהיטן ענקריפטירטן שליסל</button>'+
+   '</form>'+
+   '<div class="actions">'+
+     '<button type="button" data-action="yemot-test" '+(!setting.configured||!setting.storageReady?'disabled':'')+'>פרובירן פארבינדונג — נאר לייענען</button>'+
+     '<button type="button" data-action="yemot-enable" '+(!setting.configured||setting.enabled?'disabled':'')+'>אנצינדן פארבינדונג</button>'+
+     '<button type="button" data-action="yemot-disable" '+(!setting.enabled?'disabled':'')+'>אויסלעשן פארבינדונג</button>'+
+     '<button type="button" data-action="yemot-remove" '+(!setting.configured?'disabled':'')+'>אויסמעקן שליסל</button>'+
+   '</div>'+
+   '<p class="muted">דאס שיקט נישט קיין רופן און טוט נישט אויטאמאטיש אנהייבן קיין ימות־קאמפיין. טעלעפאן־פונקציעס דארפן זייערע אייגענע ערלויבעניש, קאסטן־און־זיכערהייט־טעסטן.</p>'+
+   '</section>';
 }
 function campaignAdminPanel(){
  const campaign=state.overview?.campaign;
@@ -235,7 +260,7 @@ async function exportContactsPage(){
 }
 
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -254,6 +279,12 @@ async function submit(event){
      state.orgId=joined.organizationId;state.campaignId=joined.campaignId||null;
      state.invitationCode='';state.connectCode='';state.joinedRoomId=null;state.showCampaignForm=false;
      state.tab='today';break;
+   }
+   case 'yemot-save': {
+     if(!state.orgId)throw new Error('קלייב א מוסד');
+     await api('/yemot/organizations/'+state.orgId,{method:'PUT',body:JSON.stringify({token:d.token})});
+     state.notice='שליסל איז פארשפארט אפגעהיטן. פרוביר יעצט די פארבינדונג.';
+     form.reset();break;
    }
    case 'campaign-settings': {
      if(!state.campaignId)throw new Error('קלייב א קאמפיין');
@@ -418,6 +449,20 @@ async function click(event){
   }
 
 
+  if(['yemot-test','yemot-enable','yemot-disable','yemot-remove'].includes(a)){
+    if(!state.orgId)throw new Error('קלייב א מוסד');
+    const path='/yemot/organizations/'+state.orgId;
+    if(a==='yemot-test'){
+      const result=await api(path+'/test',{method:'POST',body:'{}'});
+      await refresh();say('ימות פארבינדונג באשטעטיגט! '+result.templateCount+' פארלאגן. קיין רוף נישט ארויסגעשיקט.');
+      return;
+    }
+    if(a==='yemot-remove'){
+      if(!confirm('זיכער אויסמעקן דעם פארשפארטן ימות API שליסל?'))return;
+      await api(path,{method:'DELETE'});
+    }else await api(path+'/enabled',{method:'PATCH',body:JSON.stringify({enabled:a==='yemot-enable'})});
+    await refresh();return;
+  }
   if(a==='new-campaign'){state.showCampaignForm=!state.showCampaignForm;draw();return;}
   if(a==='done'){await api('/tasks/'+btn.dataset.id,{method:'PATCH',body:JSON.stringify({status:'done'})});await refresh();return;}
   if(a==='new-connect-code'){const r=await api('/connect/code',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.connectCode=r.code;draw();return;}
