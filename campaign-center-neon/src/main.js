@@ -318,7 +318,7 @@ async function submit(event){
      if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||end<=start)throw new Error('די פראגראם־צייטן זענען נישט ריכטיג');
      await api('/floor-program/'+state.joinedRoomId+'/schedule',{method:'POST',
        body:JSON.stringify({title:d.title,speaker:d.speaker,segmentType:d.segmentType,
-        description:d.description,mediaUrl:d.mediaUrl||null,
+        description:d.description,mediaUrl:d.mediaUrl||null,autoStart:d.autoStart==='on',
         scheduledStart:start.toISOString(),scheduledEnd:end.toISOString()})});break;
    }
    case 'help-reply': {
