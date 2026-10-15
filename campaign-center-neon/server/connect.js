@@ -99,6 +99,34 @@ export function connectServiceRouter({pool,bad,uuid,log}) {
   const r=await pool.query('SELECT id,title,kind,priority,status,due_at FROM cc_assignments WHERE campaign_id=$1 AND organization_id=$2 AND assignee_subject=$3 ORDER BY created_at DESC LIMIT 200',[c.id,c.organization_id,subject]);
   res.json(r.rows);
  }));
+ router.post('/followups',wrap(async(req,res)=>{
+  const {gavhahUserId,campaignId,followupId,shareScope}=req.body||{};
+  if(!numericUser(gavhahUserId)||!numericUser(followupId)||!['campaign','assigned_managers'].includes(shareScope))throw bad(400,'Invalid shared follow-up');
+  const result=await transaction(pool,async db=>{
+   const subject=await linked(db,gavhahUserId);
+   const c=await campaign(db,subject,campaignId);
+   if(c.role==='auditor')throw bad(403,'Read-only role');
+   // A foreign key ID reference, not a second copy of the follow-up's private body.
+   const ref='gavhah_max:'+gavhahUserId+':'+followupId;
+   const saved=await db.query("INSERT INTO cc_shared_followup_links(organization_id,campaign_id,member_subject,max_followup_ref,share_scope) VALUES($1,$2,$3,$4,$5) ON CONFLICT(organization_id,campaign_id,max_followup_ref) DO NOTHING RETURNING id",[c.organization_id,c.id,subject,ref,shareScope]);
+   if(saved.rowCount){
+    await log(db,c.organization_id,c.id,subject,'connect.followup_linked',saved.rows[0].id,{source:'gavhah_max',followupRef:ref});
+    return {id:saved.rows[0].id,duplicate:false};
+   }
+   const prior=(await db.query('SELECT id,member_subject,share_scope FROM cc_shared_followup_links WHERE organization_id=$1 AND campaign_id=$2 AND max_followup_ref=$3',[c.organization_id,c.id,ref])).rows[0];
+   if(!prior||prior.member_subject!==subject||prior.share_scope!==shareScope)throw bad(409,'Conflicting link already exists');
+   return {id:prior.id,duplicate:true};
+  });
+  res.status(result.duplicate?200:201).json(result);
+ }));
+ router.get('/followups',wrap(async(req,res)=>{
+  const gavhahUserId=Number(req.query.gavhahUserId);
+  const campaignId=String(req.query.campaignId||'');
+  const subject=await linked(pool,gavhahUserId);
+  const c=await campaign(pool,subject,campaignId);
+  const r=await pool.query("SELECT id,max_followup_ref,share_scope,created_at FROM cc_shared_followup_links WHERE campaign_id=$1 AND member_subject=$2 ORDER BY created_at DESC LIMIT 200",[c.id,subject]);
+  res.json(r.rows);
+ }));
  router.post('/finance-events',wrap(async(req,res)=>{
   const {gavhahUserId,campaignId,kind,amount,sourceEventKey}=req.body||{};
   if(!numericUser(gavhahUserId)||!['pledge','receipt'].includes(kind)||!money(amount)||typeof sourceEventKey!=='string'||!/^(?:pledge|receipt):[1-9]\d{0,15}$/.test(sourceEventKey))
