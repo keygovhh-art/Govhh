@@ -97,6 +97,15 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const campaigns=await req('/connect/service/campaigns?gavhahUserId=7',{service:true});
   assert.equal(campaigns.status,200);assert.deepEqual(campaigns.data.campaigns.map(c=>c.id),[c1]);
   assert.equal((await req('/connect/service/campaigns?gavhahUserId=8',{service:true})).status,403);
+  const followup={gavhahUserId:7,campaignId:c1,followupId:913,shareScope:'assigned_managers'};
+  const linkedFollowup=await req('/connect/service/followups',{service:true,method:'POST',data:followup});
+  assert.equal(linkedFollowup.status,201);
+  assert.equal((await req('/connect/service/followups',{service:true,method:'POST',data:followup})).data.duplicate,true);
+  const seenFollowups=await req('/connect/service/followups?gavhahUserId=7&campaignId='+c1,{service:true});
+  assert.equal(seenFollowups.status,200);
+  assert.equal(seenFollowups.data.length,1);
+  assert.equal(seenFollowups.data[0].max_followup_ref,'gavhah_max:7:913');
+  assert.equal('note' in seenFollowups.data[0],false,'No private source text copied');
   const body={gavhahUserId:7,campaignId:c1,kind:'receipt',amount:'20.00',sourceEventKey:'receipt:123'};
   const saved=await req('/connect/service/finance-events',{service:true,method:'POST',data:body});
   assert.equal(saved.status,201);assert.equal(saved.data.verification,'manually_reported');
