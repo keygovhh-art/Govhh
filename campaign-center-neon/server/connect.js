@@ -107,10 +107,10 @@ export function connectServiceRouter({pool,bad,uuid,log}) {
    const subject=await linked(db,gavhahUserId);
    const c=await campaign(db,subject,campaignId);
    if(['auditor'].includes(c.role))throw bad(403,'Read only role');
-   const r=await db.query("INSERT INTO cc_finance_events(organization_id,campaign_id,credited_member_subject,source_system,source_event_key,event_kind,amount,currency,verified_at) VALUES($1,$2,$3,'gavhah_max',$4,$5,$6,'USD',NULL) ON CONFLICT(organization_id,source_system,source_event_key) DO NOTHING RETURNING *",[c.organization_id,c.id,subject,sourceEventKey,kind,amount]);
+   const r=await db.query("INSERT INTO cc_finance_events(organization_id,campaign_id,credited_member_subject,source_system,source_event_key,event_kind,amount,currency,verified_at) VALUES($1,$2,$3,'gavhah_max',$4,$5,$6,'USD',NULL) ON CONFLICT DO NOTHING RETURNING *",[c.organization_id,c.id,subject,sourceEventKey,kind,amount]);
    if(!r.rowCount){
-    const old=(await db.query("SELECT id,campaign_id,credited_member_subject,event_kind,amount FROM cc_finance_events WHERE organization_id=$1 AND source_system='gavhah_max' AND source_event_key=$2",[c.organization_id,sourceEventKey])).rows[0];
-    if(!old||old.campaign_id!==c.id||old.credited_member_subject!==subject||old.event_kind!==kind||Number(old.amount).toFixed(2)!==amount)throw bad(409,'Conflicting duplicate source event');
+    const old=(await db.query("SELECT id,organization_id,campaign_id,credited_member_subject,event_kind,amount FROM cc_finance_events WHERE source_system='gavhah_max' AND source_event_key=$1",[sourceEventKey])).rows[0];
+    if(!old||old.organization_id!==c.organization_id||old.campaign_id!==c.id||old.credited_member_subject!==subject||old.event_kind!==kind||Number(old.amount).toFixed(2)!==amount)throw bad(409,'Source event already attributed to a different campaign or with conflicting details');
     return {id:old.id,duplicate:true,verification:'manually_reported'};
    }
    await log(db,c.organization_id,c.id,subject,'connect.finance_reported',r.rows[0].id,{kind,sourceEventKey,verification:'manually_reported'});
