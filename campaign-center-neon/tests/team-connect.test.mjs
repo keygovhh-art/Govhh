@@ -225,6 +225,20 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const waitingView=await req('/conferences/'+conferenceId+'/snapshot',{user:first});
   assert.equal(waitingView.data.waiting,true);assert.deepEqual(waitingView.data.messages,[],'Waiting attendees cannot read private discussion');
 
+  // Internet video is OPTIONAL, server-disabled by default and requires the
+  // human viewer to be admitted and actively permitted, regardless of URL knowledge.
+  const videoConf='/video/conference/'+conferenceId;
+  const externalVideo='https://media.example.org/approved-chizuk-live.m3u8';
+  assert.equal((await req(videoConf+'/status',{user:first})).data.enabled,false,'Video defaults OFF');
+  assert.equal((await req(videoConf+'/watch',{user:owner})).status,403,'Even manager cannot watch disabled video');
+  assert.equal((await req(videoConf+'/config',{user:first,method:'PATCH',data:{enabled:true,accessMode:'admitted',sourceUrl:externalVideo}})).status,403,'No volunteer may configure stream');
+  assert.equal((await req(videoConf+'/config',{user:owner,method:'PATCH',data:{enabled:true,accessMode:'approved_only'}})).status,409,'Cannot enable without approved external source');
+  assert.equal((await req(videoConf+'/config',{user:owner,method:'PATCH',data:{enabled:true,accessMode:'approved_only',sourceUrl:externalVideo}})).status,200);
+  assert.equal((await req(videoConf+'/watch',{user:first})).status,403,'Waiting attendee never sees video link');
+  assert.equal((await req(videoConf+'/watch',{user:owner})).data.url,externalVideo,'Manager can preview configured video');
+  assert.equal((await req(videoConf+'/status',{user:first})).data.configuredUrl,undefined,'Viewer never receives admin source setup');
+
+
   const feedUrl='https://example.org/secure-conference-lecture.mp3';
   assert.equal((await req('/conferences/'+conferenceId,{user:owner,method:'PATCH',data:{mediaUrl:'http://localhost:3000/private'}})).status,400,'Internal or insecure media links are rejected');
   assert.equal((await req('/conferences/'+conferenceId,{user:first,method:'PATCH',data:{mediaUrl:feedUrl}})).status,403,'Attendee cannot replace conference audio');
@@ -239,6 +253,18 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:second,method:'POST',data:{action:'admit'}})).status,403);
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'admit'}})).status,200);
   assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:first})).data.you.admitted,true);
+
+  assert.equal((await req(videoConf+'/watch',{user:first})).status,403,'Admission alone insufficient for approved-only video');
+  assert.equal((await req(videoConf+'/allow/'+first,{user:second,method:'PATCH',data:{allowed:true}})).status,403,'Other member cannot grant video');
+  assert.equal((await req(videoConf+'/allow/'+first,{user:owner,method:'PATCH',data:{allowed:true}})).status,200);
+  assert.equal((await req(videoConf+'/watch',{user:first})).data.url,externalVideo,'Explicitly approved attendee may open stream on user click');
+  assert.equal((await req(videoConf+'/allow/'+first,{user:owner,method:'PATCH',data:{allowed:false}})).status,200);
+  assert.equal((await req(videoConf+'/watch',{user:first})).status,403,'Revoked viewer permission is immediately enforced');
+  assert.equal((await req(videoConf+'/config',{user:owner,method:'PATCH',data:{enabled:true,accessMode:'admitted'}})).status,200);
+  assert.equal((await req(videoConf+'/watch',{user:first})).status,200,'Manager can allow all admitted viewers');
+  assert.equal((await req(videoConf+'/config',{user:owner,method:'PATCH',data:{enabled:false,accessMode:'admitted'}})).status,200);
+  assert.equal((await req(videoConf+'/watch',{user:first})).status,403,'Live video OFF blocks all viewers');
+
   assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:first})).data.conference.media_url,feedUrl,'Admitted listener may play authorized stream');
   assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'Muted discussion'}})).status,403);
   assert.equal((await req('/conferences/'+conferenceId+'/hand',{user:first,method:'POST',data:{raised:true}})).data.handRaised,true);
@@ -292,6 +318,19 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:first,method:'POST'})).status,201);
   assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:first,method:'POST'})).data.already,true,'Repeated check-in not counted twice');
   assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:owner,method:'POST'})).status,201);
+
+  const videoFloor='/video/floor/'+eventId;
+  assert.equal((await req(videoFloor+'/status',{user:first})).data.enabled,false,'Fundraiser floor video is opt-in and OFF');
+  assert.equal((await req(videoFloor+'/config',{user:owner,method:'PATCH',data:{enabled:true,accessMode:'checked_in',sourceUrl:'https://media.example.org/live-campaign.m3u8'}})).status,200);
+  assert.equal((await req(videoFloor+'/watch',{user:first})).data.url,'https://media.example.org/live-campaign.m3u8','Checked-in operator can choose to watch video');
+  assert.equal((await req(videoFloor+'/watch',{user:second})).status,403,'Un-checked-in operator is not a viewer');
+  assert.equal((await req(videoFloor+'/config',{user:owner,method:'PATCH',data:{enabled:true,accessMode:'approved_only'}})).status,200);
+  assert.equal((await req(videoFloor+'/watch',{user:first})).status,403,'Approved-only mode never auto-grants everyone');
+  assert.equal((await req(videoFloor+'/allow/'+first,{user:owner,method:'PATCH',data:{allowed:true}})).status,200);
+  assert.equal((await req(videoFloor+'/watch',{user:first})).status,200,'Manager-approved operator can watch');
+  assert.equal((await req(videoFloor+'/config',{user:owner,method:'PATCH',data:{enabled:false,accessMode:'approved_only'}})).status,200);
+  assert.equal((await req(videoFloor+'/watch',{user:first})).status,403,'Fundraiser video OFF takes effect immediately');
+
   const eventBoard=await req('/floor/'+eventId+'/board',{user:owner});
   assert.equal(eventBoard.status,200);assert.equal(eventBoard.data.mode,'web_live_reporting_with_manual_calls');
   const agenda=await req('/floor-program/'+eventId+'/schedule',{user:first});
