@@ -92,6 +92,32 @@ export default function floorRouter({pool,authenticate,campaignAccess,need,log,b
    return r;
   });res.status(201).json(saved);
  }));
+ async function supportAccess(db,rid,hid,subject){
+  if(!uuid(hid))throw bad(400,'Invalid help ticket');
+  const {room,campaign:c,manager}=await context(db,rid,subject);
+  const ticket=(await db.query('SELECT * FROM cc_floor_help_requests WHERE id=$1 AND room_id=$2 AND organization_id=$3',
+   [hid,room.id,c.organization_id])).rows[0];
+  if(!ticket||(ticket.requested_by!==subject&&!manager))throw bad(404,'Help ticket not found');
+  return {room,c,manager,ticket};
+ }
+ router.get('/:rid/help/:hid/messages',handle(async(req,res)=>{
+  const {ticket}=await supportAccess(pool,req.params.rid,req.params.hid,req.userId);
+  const r=await pool.query('SELECT id,authored_by,body,created_at FROM cc_floor_help_messages WHERE request_id=$1 ORDER BY created_at ASC LIMIT 200',[ticket.id]);
+  res.set('Cache-Control','no-store');
+  res.json({ticketId:ticket.id,status:ticket.status,messages:r.rows});
+ }));
+ router.post('/:rid/help/:hid/messages',handle(async(req,res)=>{
+  const body=trim(req.body?.body,1001);
+  if(body.length<1||body.length>1000)throw bad(400,'Invalid support message');
+  const created=await tx(async db=>{
+   const {room,c,ticket}=await supportAccess(db,req.params.rid,req.params.hid,req.userId);
+   if(ticket.status==='resolved')throw bad(409,'The support ticket is resolved');
+   const m=(await db.query('INSERT INTO cc_floor_help_messages(request_id,authored_by,body) VALUES($1,$2,$3) RETURNING id,authored_by,body,created_at',
+     [ticket.id,req.userId,body])).rows[0];
+   await log(db,c.organization_id,c.id,req.userId,'floor.help_reply',ticket.id,{roomId:room.id});
+   return m;
+  });res.status(201).json(created);
+ }));
  router.patch('/:rid/help/:hid',handle(async(req,res)=>{
   const status=trim(req.body?.status,18);
   if(!uuid(req.params.hid)||!['in_progress','resolved','open'].includes(status))throw bad(400,'Invalid help status');
