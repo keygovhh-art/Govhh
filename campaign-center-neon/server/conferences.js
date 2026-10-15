@@ -71,8 +71,10 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
  router.get('/:rid/snapshot',handle(async(req,res)=>{
   const {conf,role,isModerator}=await room(pool,req.params.rid,req.userId);
   const self=await participant(pool,conf.id,req.userId);
-  if(!isModerator && conf.access_mode==='code' && !self?.admitted)
-    throw bad(403,'A conference access code is required');
+  if(!isModerator&&(!self||!self.admitted||self.banned||self.left_at)){
+    return res.json({conference:view(conf),you:self?{admitted:false,banned:self.banned,joined:!self.left_at}:null,
+      isModerator:false,online:[],messages:[],waiting:true,mode:'web_discussion_only',pollAfterMs:8500});
+  }
   const online=await pool.query("SELECT subject,admitted,banned,moderator_muted,speaking_granted,hand_raised,joined_at,last_seen_at FROM cc_conference_participants WHERE room_id=$1 AND left_at IS NULL AND last_seen_at>now()-interval '45 seconds' AND ($2::boolean OR admitted) AND (NOT banned OR $2::boolean) ORDER BY hand_raised DESC,joined_at ASC LIMIT 300",[conf.id,isModerator]);
   const messages=await pool.query("SELECT id,authored_by,message_kind,body,created_at FROM cc_conference_messages WHERE room_id=$1 ORDER BY created_at DESC,id DESC LIMIT 80",[conf.id]);
   res.json({conference:view(conf),you:self?{admitted:self.admitted,banned:self.banned,moderatorMuted:self.moderator_muted,speakingGranted:self.speaking_granted,handRaised:self.hand_raised,joined:!self.left_at}:null,
