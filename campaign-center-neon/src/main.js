@@ -1,11 +1,12 @@
 import { createAuthClient } from '@neondatabase/auth';
 import './style.css';
 import { teamView } from './team-view.js';
+import { hallView } from './hall-view.js';
 
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],leads:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false};
+const state = {auth:null,user:null,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],leads:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -31,7 +32,16 @@ async function refresh() {
       api('/campaigns/'+id+'/contacts'),api('/campaigns/'+id+'/finance')
     ]);
   }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];}
-  state.manager=null;state.members=[];state.leads=[];
+  state.manager=null;state.members=[];state.leads=[];state.rooms=[];state.hallAnnouncements=[];
+  if(state.campaignId){
+    const rooms=await api('/rooms/campaigns/'+state.campaignId).catch(()=>({rooms:[]}));
+    state.rooms=rooms.rooms||[];
+    if(state.joinedRoomId){
+      const room=state.rooms.find(r=>r.id===state.joinedRoomId&&r.room_status==='open');
+      if(room)state.hallAnnouncements=await api('/rooms/'+room.id+'/announcements').catch(()=>[]);
+      else state.joinedRoomId=null;
+    }
+  }
   if(state.orgId){
     const role=state.orgs.find(x=>x.id===state.orgId)?.role;
     const calls=[
@@ -76,7 +86,7 @@ function campaignSetup(){
  return `<section class="card"><h2>קאמפיין שאפן</h2><form data-form="campaign" class="inline"><input name="title" required maxlength="160" placeholder="קאמפיין־נאמען"><input name="goalAmount" type="number" min="0" step="0.01" placeholder="ציל אין $"><button class="primary">שאפן קאמפיין</button></form></section>`;
 }
 function campaignNav(){
- return `<nav class="tabs">${[['today','היינט'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
+ return `<nav class="tabs">${[['today','היינט'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
 }
 function today(){
  const f=Object.fromEntries((state.overview?.finance||[]).map(x=>[x.event_kind,Number(x.amount)]));
@@ -102,7 +112,7 @@ function history(){
  <p class="muted">דער צענטראלער Audit Trail ווערט אנגעפילט פונעם סערווער. די פארגעשריטענע היסטאריע־זוך, פילטערס, צייט־ליניעס און ארכיוו־אויסשטעל בלייבן נאך צו בויען.</p></section>`;
 }
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?campaignSetup():campaignNav()+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?campaignSetup():campaignNav()+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc):history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -118,6 +128,8 @@ async function submit(event){
    case 'org': await api('/organizations',{method:'POST',body:JSON.stringify({name:d.name})});break;
    case 'redeem-invite': await api('/team/invitations/redeem',{method:'POST',body:JSON.stringify({invitationCode:d.invitationCode})});break;
    case 'member-team': await api('/team/campaigns/'+state.campaignId+'/members/'+encodeURIComponent(d.subject)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
+   case 'hall-new': await api('/rooms/campaigns/'+state.campaignId,{method:'POST',body:JSON.stringify({title:d.title})});break;
+   case 'hall-message': await api('/rooms/'+state.joinedRoomId+'/announcements',{method:'POST',body:JSON.stringify({message:d.message})});break;
    case 'contact-team': await api('/team/campaigns/'+state.campaignId+'/contacts/'+encodeURIComponent(d.contactId)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
    case 'invite': {
      const r=await api('/team/organizations/'+state.orgId+'/invitations',{method:'POST',
@@ -149,6 +161,21 @@ async function click(event){
   if(a==='unlink-max'){if(!state.confirmUnlink){state.confirmUnlink=true;say('נאכאמאל דרוקן אויסלעשן פארבינדונג צו באשטעטיגן');return;}await api('/connect/unlink',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.confirmUnlink=false;state.connectCode='';await refresh();return;}
   if(a==='claim-lead'){await api('/team/contacts/'+btn.dataset.id+'/claim',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
   if(a==='release-lead'){await api('/team/contacts/'+btn.dataset.id+'/release',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
+  if(a==='hall-refresh'){await refresh();return;}
+  if(a==='hall-open'||a==='hall-pause'||a==='hall-end'){
+    const status=a==='hall-open'?'open':a==='hall-pause'?'paused':'ended';
+    await api('/rooms/'+btn.dataset.id+'/status',{method:'PATCH',body:JSON.stringify({status})});
+    if(status==='ended'&&state.joinedRoomId===btn.dataset.id)state.joinedRoomId=null;
+    await refresh();return;
+  }
+  if(a==='hall-join'){
+    await api('/rooms/'+btn.dataset.id+'/join',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});
+    state.joinedRoomId=btn.dataset.id;await refresh();return;
+  }
+  if(a==='hall-leave'){
+    await api('/rooms/'+btn.dataset.id+'/leave',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});
+    state.joinedRoomId=null;await refresh();return;
+  }
   if(a==='calls'){const c=state.contacts.find(x=>x.id===btn.dataset.id);const calls=await api('/contacts/'+btn.dataset.id+'/calls');say((c?.display_name||'')+' — '+(calls.length?calls.map(x=>x.outcome+' '+x.created_at.slice(0,10)).join(' | '):'נאך קיין רופן'));return;}
   if(a==='org-select'){return;}
   if(a==='campaign-select'){return;}
@@ -174,3 +201,12 @@ async function boot(){
  }catch(error){$('#app').textContent='סיסטעם־פארבינדונג: '+error.message;}
 }
 boot();
+// Heartbeat is sent only while the participant is viewing the page.
+// The count is not fake attendance: backend expires stale participants after 45 seconds.
+setInterval(async()=>{
+ if(!state.joinedRoomId||!state.user||document.visibilityState!=='visible')return;
+ try{await api('/rooms/'+state.joinedRoomId+'/heartbeat',{
+  method:'POST',body:'{}',headers:{'Content-Type':'application/json'}
+ });}
+ catch{state.joinedRoomId=null;state.hallAnnouncements=[];}
+},30000);
