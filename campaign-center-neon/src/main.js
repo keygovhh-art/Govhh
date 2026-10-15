@@ -5,12 +5,13 @@ import { teamView } from './team-view.js';
 import { hallView } from './hall-view.js';
 import { eventView } from './event-view.js';
 import { conferenceView } from './conference-view.js';
+import { startSmallAudio,stopSmallAudio } from './browser-audio.js';
 import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContext } from './video-view.js';
 
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]}};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]}};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -392,7 +393,7 @@ async function click(event){
  const btn=event.target.closest('[data-action]');if(!btn)return;
  const a=btn.dataset.action;
  try {
-  if(a==='logout'){stopOptionalVideo();await state.auth.signOut();state.user=null;state.notice='';draw();return;}
+  if(a==='logout'){await stopSmallAudio();stopOptionalVideo();await state.auth.signOut();state.user=null;state.notice='';draw();return;}
   if(a==='tab'){state.tab=btn.dataset.tab;draw();return;}
   if(a==='refresh-history'){await refresh();return;}
   if(a==='more-history'){
@@ -444,7 +445,15 @@ async function click(event){
     await refresh();return;
   }
   if(a==='conference-refresh'){await refresh();return;}
+  if(a==='rtc-speak'||a==='rtc-listen'){
+    if(!state.experimentalAudioEnabled||!state.conferenceId||!state.subject)throw new Error('דער קליינער מייקראפאן־פרואוו איז נאך נישט ערלויבט');
+    const mode=a==='rtc-speak'?'speaker':'listener';
+    await startSmallAudio({roomId:state.conferenceId,mode,subject:state.subject,api});
+    draw();return;
+  }
+  if(a==='rtc-stop'){await stopSmallAudio();draw();return;}
   if(a==='conference-hand'||a==='conference-leave'){
+    if(a==='conference-leave')await stopSmallAudio();
     const cmd=a==='conference-hand'?'/hand':'/leave';
     const raised=!state.conferenceSnapshot?.you?.handRaised;
     await api('/conferences/'+state.conferenceId+cmd,{method:'POST',
@@ -528,6 +537,7 @@ async function boot(){
  try{
   const cfg=await fetch('/api/config').then(r=>r.json());
   if(!cfg.neonAuthUrl)throw new Error('Neon Auth איז נאכנישט קאנפיגורירט');
+  state.experimentalAudioEnabled=cfg.experimentalAudioEnabled===true;
   if(!cfg.ready){$('#app').innerHTML='<main class="auth-wrap"><section class="card"><h1>גבהה קאמפיין סענטער</h1><p>דער Render־סערוויס איז צוגעגרייט. פארן אמתן ארבעטן דארף מען נאך אריינלייגן די געהיימע Neon DATABASE_URL אין Render Environment.</p><p class="muted">קיין דאטן זענען נישט אריבערגעפירט געווארן און קיין קאמפיין איז נאך נישט פארעפנטליכט.</p></section></main>';return;}
   state.auth=createAuthClient(cfg.neonAuthUrl);
   const s=await state.auth.getSession();
