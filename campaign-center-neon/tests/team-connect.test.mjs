@@ -151,6 +151,21 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const campaigns=await req('/connect/service/campaigns?gavhahUserId=7',{service:true});
   assert.equal(campaigns.status,200);assert.deepEqual(campaigns.data.campaigns.map(c=>c.id),[c1]);
   assert.equal((await req('/connect/service/campaigns?gavhahUserId=8',{service:true})).status,403);
+  // Personal MAX updates only its own canonical campaign task; retries are inert.
+  const memberTask=(await pool.query("INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,kind) VALUES($1,$2,$3,'Call assigned contacts','task') RETURNING id",[org1,c1,first])).rows[0].id;
+  const otherTask=(await pool.query("INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,kind) VALUES($1,$2,$3,'Private task','task') RETURNING id",[org1,c1,second])).rows[0].id;
+  const assignedPath='/connect/service/assignments/'+memberTask+'/status';
+  const change={gavhahUserId:7,campaignId:c1,status:'done'};
+  assert.equal((await req(assignedPath,{method:'POST',data:change})).status,403,'No shared secret');
+  assert.equal((await req('/connect/service/assignments/'+otherTask+'/status',{service:true,method:'POST',data:change})).status,404,'Cannot update another team member task');
+  const completed=await req(assignedPath,{service:true,method:'POST',data:change});
+  assert.equal(completed.status,200);assert.equal(completed.data.status,'done');assert.equal(completed.data.unchanged,false);
+  const repeatedDone=await req(assignedPath,{service:true,method:'POST',data:change});
+  assert.equal(repeatedDone.status,200);assert.equal(repeatedDone.data.unchanged,true);
+  const statusEvents=(await pool.query("SELECT COUNT(*)::int n FROM cc_activity_events WHERE event_type='connect.assignment_status' AND target_id=$1",[memberTask])).rows[0].n;
+  assert.equal(statusEvents,1,'Retries must not produce a second completion event');
+  assert.equal((await req(assignedPath,{service:true,method:'POST',data:{...change,gavhahUserId:8}})).status,403,'Unknown MAX user cannot update task');
+  assert.equal((await req(assignedPath,{service:true,method:'POST',data:{...change,status:'open'}})).data.status,'open','MAX reopens same task');
   const followup={gavhahUserId:7,campaignId:c1,followupId:913,shareScope:'assigned_managers'};
   const linkedFollowup=await req('/connect/service/followups',{service:true,method:'POST',data:followup});
   assert.equal(linkedFollowup.status,201);
