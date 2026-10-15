@@ -309,6 +309,20 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const attendanceAfter=await req('/floor-program/'+eventId+'/schedule',{user:owner});
   assert.equal(attendanceAfter.data.attendance.checked_in,2);
   assert.equal(attendanceAfter.data.attendance.total,3,'Attendance keeps earlier visit history');
+
+  const nextProgram=await req('/floor-program/'+eventId+'/schedule',{user:owner,method:'POST',data:{
+    ...scheduleBody,title:'Final address',segmentType:'closing',
+    scheduledStart:'2026-10-16T15:00:00-04:00',scheduledEnd:'2026-10-16T15:20:00-04:00'
+  }});
+  assert.equal(nextProgram.status,201);
+  assert.equal((await req('/floor-program/'+eventId+'/programs/'+nextProgram.data.id+'/status',{user:owner,method:'POST',data:{status:'live'}})).status,200);
+  assert.equal((await req('/rooms/'+eventId+'/status',{user:owner,method:'PATCH',data:{status:'ended'}})).status,200);
+  const afterClose=await req('/floor-program/'+eventId+'/schedule',{user:owner});
+  assert.equal(afterClose.data.mode,'ended');
+  assert.equal(afterClose.data.attendance.checked_in,0,'Closing event checks everyone out');
+  assert.equal(afterClose.data.programs.find(x=>x.id===nextProgram.data.id).status,'completed','Active speaker event is closed and archived');
+  assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:first,method:'POST'})).status,409);
+
   // Link requires authenticated CC account and authenticated Gavhah service.
   const link=await req('/connect/code',{user:first,method:'POST'});
   assert.equal(link.status,201);assert.equal(link.data.code.length,32);
