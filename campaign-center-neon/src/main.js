@@ -1,10 +1,11 @@
 import { createAuthClient } from '@neondatabase/auth';
 import './style.css';
+import { teamView } from './team-view.js';
 
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false};
+const state = {auth:null,user:null,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],leads:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -30,6 +31,25 @@ async function refresh() {
       api('/campaigns/'+id+'/contacts'),api('/campaigns/'+id+'/finance')
     ]);
   }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];}
+  state.manager=null;state.members=[];state.leads=[];
+  if(state.orgId){
+    const role=state.orgs.find(x=>x.id===state.orgId)?.role;
+    const calls=[
+      api('/connect/status').then(v=>state.linkStatus=v),
+      ...(state.campaignId&&['owner','manager','finance','auditor'].includes(role)?[
+        api('/team/campaigns/'+state.campaignId+'/manager-overview').then(v=>state.manager=v)
+      ]:[]),
+      ...(state.campaignId&&['owner','manager','squad_leader','askan'].includes(role)?[
+        api('/team/campaigns/'+state.campaignId+'/lead-queue').then(v=>state.leads=v)
+      ]:[]),
+      ...(['owner','manager'].includes(role)?[
+        api('/team/organizations/'+state.orgId+'/members').then(v=>state.members=v)
+      ]:[])
+    ];
+    await Promise.allSettled(calls);
+  }else{
+    try{state.linkStatus=await api('/connect/status');}catch{}
+  }
   draw();
 }
 function authView(){
@@ -50,13 +70,13 @@ function toolbar() {
 }
 function orgSetup() {
  return `<section class="card"><h2>דער ערשטער שריט</h2><p>שאף א מוסד. דו וועסט זיין דער אייגנטימער; אן אנדער מוסד קען נישט לייענען דיינע דאטן.</p>
- <form data-form="org" class="inline"><input name="name" required maxlength="120" placeholder="נאמען פונעם מוסד"><button class="primary">שאפן מוסד</button></form></section>`;
+ <form data-form="org" class="inline"><input name="name" required maxlength="120" placeholder="נאמען פונעם מוסד"><button class="primary">שאפן מוסד</button></form><h3>איינלאדונג פון א מנהל</h3><form class="inline" data-form="redeem-invite"><input name="invitationCode" required dir="ltr" maxlength="32" placeholder="איינלאדונגס־קאוד"><button>זיך אנשליסן</button></form></section>`;
 }
 function campaignSetup(){
  return `<section class="card"><h2>קאמפיין שאפן</h2><form data-form="campaign" class="inline"><input name="title" required maxlength="160" placeholder="קאמפיין־נאמען"><input name="goalAmount" type="number" min="0" step="0.01" placeholder="ציל אין $"><button class="primary">שאפן קאמפיין</button></form></section>`;
 }
 function campaignNav(){
- return `<nav class="tabs">${[['today','היינט'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
+ return `<nav class="tabs">${[['today','היינט'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
 }
 function today(){
  const f=Object.fromEntries((state.overview?.finance||[]).map(x=>[x.event_kind,Number(x.amount)]));
@@ -82,7 +102,7 @@ function history(){
  <p class="muted">דער צענטראלער Audit Trail ווערט אנגעפילט פונעם סערווער. די פארגעשריטענע היסטאריע־זוך, פילטערס, צייט־ליניעס און ארכיוו־אויסשטעל בלייבן נאך צו בויען.</p></section>`;
 }
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?campaignSetup():campaignNav()+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?campaignSetup():campaignNav()+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -96,6 +116,13 @@ async function submit(event){
    case 'signin': {const r=await state.auth.signIn.email({email:d.email,password:d.password});if(r.error)throw new Error(r.error.message);break;}
    case 'signup': {const r=await state.auth.signUp.email({name:d.name,email:d.email,password:d.password});if(r.error)throw new Error(r.error.message);state.notice='אקאונט געשאפן. אויב מען פארלאנגט באשטעטיגונג, קוק דיין בליצפאסט.';break;}
    case 'org': await api('/organizations',{method:'POST',body:JSON.stringify({name:d.name})});break;
+   case 'redeem-invite': await api('/team/invitations/redeem',{method:'POST',body:JSON.stringify({invitationCode:d.invitationCode})});break;
+   case 'invite': {
+     const r=await api('/team/organizations/'+state.orgId+'/invitations',{method:'POST',
+       body:JSON.stringify({role:d.role,campaignId:d.campaignOnly?state.campaignId:null})});
+     state.invitationCode=r.invitationCode;
+     break;
+   }
    case 'campaign': await api('/organizations/'+state.orgId+'/campaigns',{method:'POST',body:JSON.stringify({title:d.title,goalAmount:d.goalAmount})});break;
    case 'task': await api('/campaigns/'+state.campaignId+'/tasks',{method:'POST',body:JSON.stringify({title:d.title,priority:d.priority,kind:d.kind})});break;
    case 'contact': await api('/campaigns/'+state.campaignId+'/contacts',{method:'POST',body:JSON.stringify({name:d.name,phone:d.phone,notes:d.notes,privacy:d.privacy})});break;
@@ -116,6 +143,10 @@ async function click(event){
   if(a==='logout'){await state.auth.signOut();state.user=null;state.notice='';draw();return;}
   if(a==='tab'){state.tab=btn.dataset.tab;draw();return;}
   if(a==='done'){await api('/tasks/'+btn.dataset.id,{method:'PATCH',body:JSON.stringify({status:'done'})});await refresh();return;}
+  if(a==='new-connect-code'){const r=await api('/connect/code',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.connectCode=r.code;draw();return;}
+  if(a==='unlink-max'){if(!state.confirmUnlink){state.confirmUnlink=true;say('נאכאמאל דרוקן אויסלעשן פארבינדונג צו באשטעטיגן');return;}await api('/connect/unlink',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.confirmUnlink=false;state.connectCode='';await refresh();return;}
+  if(a==='claim-lead'){await api('/team/contacts/'+btn.dataset.id+'/claim',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
+  if(a==='release-lead'){await api('/team/contacts/'+btn.dataset.id+'/release',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
   if(a==='calls'){const c=state.contacts.find(x=>x.id===btn.dataset.id);const calls=await api('/contacts/'+btn.dataset.id+'/calls');say((c?.display_name||'')+' — '+(calls.length?calls.map(x=>x.outcome+' '+x.created_at.slice(0,10)).join(' | '):'נאך קיין רופן'));return;}
   if(a==='org-select'){return;}
   if(a==='campaign-select'){return;}
