@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import express from 'express';
 import pg from 'pg';
+import {spawnSync} from 'node:child_process';
 import teamRouter from '../server/team.js';
 import campaignAdminRouter from '../server/campaign-admin.js';
 import contactsImportRouter from '../server/contacts-import.js';
@@ -47,7 +48,7 @@ const auth=(req,res,next)=>{req.userId=req.get('x-test-user')||'anonymous';next(
 
 async function prepare(){
  // Disposable Postgres on GitHub Actions only; NEVER any external production database.
- for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql','009_experimental_browser_audio.sql']){
+ for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql']){
   const sql=await readFile(join(import.meta.dirname,'../db',file),'utf8');
   await pool.query(sql);
  }
@@ -72,6 +73,21 @@ async function launch(){
 }
 test('signed team invitations, lead locks, private linking and exactly-once cross-org ledger',async()=>{
  await prepare();
+ // Run the EXACT reviewed release runner against disposable PostgreSQL.
+ // A fully migrated schema must produce a no-op, and a 'production' invocation
+ // without owner approval must fail even on localhost.
+ const migrated=spawnSync(process.execPath,[join(import.meta.dirname,'../scripts/apply-reviewed-schema.mjs')],{
+  env:{...process.env,DATABASE_URL:connection,CC_EXPECTED_DB_HOST:new URL(connection).hostname,CC_MIGRATION_MODE:'staging'},
+  encoding:'utf8',timeout:30000
+ });
+ assert.equal(migrated.status,0,'Read-only already-migrated schema check must pass: '+migrated.stderr);
+ assert.match(migrated.stdout,/Already migrated: 29 CC tables/);
+ const unapproved=spawnSync(process.execPath,[join(import.meta.dirname,'../scripts/apply-reviewed-schema.mjs')],{
+  env:{...process.env,DATABASE_URL:connection,CC_EXPECTED_DB_HOST:new URL(connection).hostname,
+   CC_MIGRATION_MODE:'production',CC_PRODUCTION_MIGRATION_APPROVED:'no',CC_PRODUCTION_BACKUP_BRANCH_ID:''},
+  encoding:'utf8',timeout:30000
+ });
+ assert.notEqual(unapproved.status,0,'Production runner must fail closed without owner approval');
  const {server,url}=await launch();
  async function req(path,{user,method='GET',data,service=false}={}){
   const r=await fetch(url+'/api'+path,{method,headers:{
