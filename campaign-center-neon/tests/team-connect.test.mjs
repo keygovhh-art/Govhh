@@ -8,6 +8,7 @@ import teamRouter from '../server/team.js';
 import campaignAdminRouter from '../server/campaign-admin.js';
 import contactsImportRouter from '../server/contacts-import.js';
 import webHallRouter from '../server/web-hall.js';
+import conferenceRouter from '../server/conferences.js';
 import {connectUserRouter,connectServiceRouter} from '../server/connect.js';
 
 const connection=process.env.TEST_DATABASE_URL;
@@ -42,7 +43,7 @@ const auth=(req,res,next)=>{req.userId=req.get('x-test-user')||'anonymous';next(
 
 async function prepare(){
  // Disposable Postgres on GitHub Actions only; NEVER any external production database.
- for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql']){
+ for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql']){
   const sql=await readFile(join(import.meta.dirname,'../db',file),'utf8');
   await pool.query(sql);
  }
@@ -53,6 +54,7 @@ async function launch(){
  app.use('/api/campaigns',campaignAdminRouter({pool,authenticate:auth,campaignAccess,need,bad,log,trim}));
  app.use('/api/import',contactsImportRouter({pool,authenticate:auth,campaignAccess,need,bad,log}));
  app.use('/api/rooms',webHallRouter({pool,authenticate:auth,campaignAccess,need,log,bad,uuid,trim}));
+ app.use('/api/conferences',conferenceRouter({pool,authenticate:auth,member,campaignAccess,need,log,bad,uuid,trim}));
  app.use('/api/connect/service',connectServiceRouter({pool,bad,uuid,log}));
  app.use('/api/connect',connectUserRouter({pool,authenticate:auth,log,bad}));
  app.use((err,req,res,next)=>res.status(err.status||500).json({error:err.message}));
