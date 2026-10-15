@@ -145,6 +145,10 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
    const sets=Object.keys(change).map((key,i)=>key+'=$'+(i+3));
    const r=(await db.query('UPDATE cc_conference_participants SET '+sets.join(',')+' WHERE room_id=$1 AND subject=$2 RETURNING subject,admitted,banned,moderator_muted,speaking_granted,hand_raised',
     [conf.id,req.params.subject,...Object.values(change)])).rows[0];
+   if(['ban','remove','mute','revoke'].includes(action)){
+     await db.query('DELETE FROM cc_conference_rtc_peers WHERE room_id=$1 AND subject=$2',[conf.id,req.params.subject]);
+     await db.query('DELETE FROM cc_conference_rtc_signals WHERE room_id=$1 AND (sender_subject=$2 OR recipient_subject=$2)',[conf.id,req.params.subject]);
+   }
    await log(db,conf.organization_id,conf.campaign_id,req.userId,'conference.moderation',conf.id,{subject:req.params.subject,action});
    return r;
   });res.json(result);
@@ -213,7 +217,11 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
    if(conf.room_status==='ended')throw bad(409,'Ended conferences are retained as archived records');
    const updated=(await db.query("UPDATE cc_conference_rooms SET room_status=COALESCE($2,room_status),phase=COALESCE($3,phase),speaking_mode=COALESCE($4,speaking_mode),access_mode=COALESCE($5,access_mode),access_code_hash=CASE WHEN $5='members' THEN NULL WHEN $6::text IS NOT NULL THEN $6 ELSE access_code_hash END,media_url=CASE WHEN $7::boolean THEN $8 ELSE media_url END,opened_at=CASE WHEN $2='open' THEN COALESCE(opened_at,now()) ELSE opened_at END,closed_at=CASE WHEN $2='ended' THEN now() ELSE closed_at END WHERE id=$1 RETURNING *",
      [conf.id,status??null,phase??null,speaking??null,access??null,secret?hash(secret):null,hasMedia,media])).rows[0];
-   if(status==='ended')await db.query('UPDATE cc_conference_participants SET left_at=now(),hand_raised=false WHERE room_id=$1 AND left_at IS NULL',[conf.id]);
+   if(status==='ended'){
+     await db.query('UPDATE cc_conference_participants SET left_at=now(),hand_raised=false WHERE room_id=$1 AND left_at IS NULL',[conf.id]);
+     await db.query('DELETE FROM cc_conference_rtc_signals WHERE room_id=$1',[conf.id]);
+     await db.query('DELETE FROM cc_conference_rtc_peers WHERE room_id=$1',[conf.id]);
+   }
    await log(db,conf.organization_id,conf.campaign_id,req.userId,'conference.settings_changed',conf.id,
     {from:{status:conf.room_status,phase:conf.phase,speaking:conf.speaking_mode},to:{status:updated.room_status,phase:updated.phase,speaking:updated.speaking_mode}});
    return updated;
