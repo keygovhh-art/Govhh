@@ -28,7 +28,7 @@ export function conferenceView(state,esc){
   const people=online.map(p=>'<article class="item"><div><strong>'+esc(p.subject)+'</strong>'+
     '<small>'+esc(p.hand_raised?'הייבט די האנט':'')+' · '+esc(p.speaking_granted?'האט רעדן־רשות':'צוהערער')+
     (p.moderator_muted?' · געשטילט':'')+'</small></div>'+
-    (m?'<div class="actions">'+(!p.admitted?'<button data-action="conference-admit" data-subject="'+esc(p.subject)+'">אריינלאזן</button>':'')+
+    (m&&p.subject!==state.subject?'<div class="actions">'+(!p.admitted?'<button data-action="conference-admit" data-subject="'+esc(p.subject)+'">אריינלאזן</button>':'')+
      (p.admitted&&!p.speaking_granted?'<button data-action="conference-grant" data-subject="'+esc(p.subject)+'">געבן רעדן־רשות</button>':'')+
      (p.speaking_granted?'<button data-action="conference-revoke" data-subject="'+esc(p.subject)+'">אוועקנעמען רשות</button>':'')+
      '<button data-action="'+(p.moderator_muted?'conference-unmute':'conference-mute')+'" data-subject="'+esc(p.subject)+'">'+(p.moderator_muted?'אויפמאכן':'שטיל מאכן')+'</button>'+
@@ -44,8 +44,8 @@ export function conferenceView(state,esc){
    '<label>ווער מעג שרייבן/רעדן?<select name="speakingMode">'+Object.entries(speaking).map(([v,t])=>
     '<option value="'+v+'" '+(current.speaking_mode===v?'selected':'')+'>'+t+'</option>').join('')+'</select></label>'+
    '<button '+(current.room_status==='ended'?'disabled':'')+'>אפהיטן מנהל־איינשטעלונגען</button></form>':'';
-  const join=!joined&&!m&&active?'<form data-form="conference-join" class="inline">'+
-   (current.access_mode==='code'?'<input name="accessCode" dir="ltr" placeholder="צוטריט־קאוד" maxlength="24" required>':'')+
+  const join=!joined&&active?'<form data-form="conference-join" class="inline">'+
+   (current.access_mode==='code'&&!m?'<input name="accessCode" dir="ltr" placeholder="צוטריט־קאוד" maxlength="24" required>':'')+
    '<button class="primary">אריינגיין / ווארטן אויף באשטעטיגונג</button></form>':'';
   const messages=active&&(admitted||m)?'<section class="card"><h3>שאלות, עצות און אנווייזונגען</h3>'+
    '<p class="muted">די רעדן־רעכטן אין דער וועב־ווערסיע קאנטראלירן די טעקסטן און שאלות. אמתע מייקראפאן־אודיא דארף נאך א באשטעטיגטן וועב־אודיא־שידור.</p>'+
