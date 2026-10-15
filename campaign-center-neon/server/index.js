@@ -1,6 +1,7 @@
 import express from 'express';
 import pg from 'pg';
 import teamRouter from './team.js';
+import webHallRouter from './web-hall.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { randomUUID } from 'node:crypto';
@@ -107,6 +108,7 @@ app.use('/api/connect/service', connectServiceRouter({pool,bad,uuid,log}));
 app.use('/api', authenticate);
 app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
 app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
+app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.get('/api/me', async (req,res,next) => {
   try {
     const result = await q("SELECT o.id,o.name,m.role FROM cc_organizations o JOIN cc_memberships m ON m.organization_id=o.id WHERE m.subject=$1 AND m.membership_status='active' ORDER BY o.created_at DESC",[req.userId]);
