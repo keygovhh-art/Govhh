@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "vite build",
     "start": "node server/index.js",
-    "check": "node --check server/index.js && node --check server/team.js && node --check server/connect.js && node --check src/main.js && node --check src/team-view.js && node --check server/web-hall.js"
+    "check": "node --check server/index.js && node --check server/team.js && node --check server/connect.js && node --check src/main.js && node --check src/team-view.js && node --check server/web-hall.js && node --check src/hall-view.js"
   },
   "dependencies": {
     "@neondatabase/auth": "0.6.0-beta",
