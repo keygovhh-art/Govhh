@@ -73,6 +73,25 @@ export function eventView(state,esc,money){
    (selected.status!=='resolved'?'<form data-form="help-reply" class="stack">'+
     '<textarea name="body" rows="3" maxlength="1000" required placeholder="שרייב א תשובה אדער נאך א פראגע"></textarea>'+
     '<button>שיקן פריוואטע ענטפער</button></form>':'')+'</section>':'';
+ const eventsMap={
+  'floor.program_scheduled':'נייער פראגראם אינעם לוח','floor.program_status':'פראגראם־טויש',
+  'floor.checked_in':'עסקן אריינגעטשעקט','floor.checked_out':'עסקן ארויסגעטשעקט',
+  'call.logged':'רוף־רעזולטאט באריכטעט','lead.claimed':'עסקן האט גענומען א קשר',
+  'lead.released':'קשר איז צוריק אויפן ליסטע','room.announcement':'מנהל־אנווייזונג',
+  'floor.help_requested':'נייַע הילף־בקשה','floor.help_status':'הילף־מצב געענדערט',
+  'floor.help_reply':'מנהל/עסקן האט געענטפערט'
+ };
+ const recent=(board?.feed||[]).slice(0,16).map(e=>'<article class="item"><div><strong>'+
+  esc(eventsMap[e.event_type]||e.event_type)+'</strong><small>'+esc(e.actor_subject)+' · '+esc(localTime(e.created_at))+
+  '</small></div></article>').join('');
+ const online=(board?.online||[]).map(x=>'<article class="item"><div><strong>'+
+  esc(x.member_subject)+'</strong><small>'+esc(x.team_name||'')+' · לעצטנס געווען אינעם זאל</small></div></article>').join('');
+ const liveFeed='<section class="card"><h2>לעבעדיגע קאמפיין־אפדעיטס</h2>'+
+  '<p class="muted">ווער עס קומט אריין שפעט, קען זען וואס עס האט זיך לעצטנס געטון. די אפדעיטס ווערן כסדר דערהיינטיגט פונעם סערווער.</p>'+
+  (recent||'<p class="muted">נאך קיין נייע געשעענישן.</p>')+'</section>';
+ const workforce=manager?'<section class="card"><h2>מאנשאפט יעצט אינעם וועב־זאל</h2>'+
+  '<p class="muted">נאר לעצטנס פארבונדענע וועב־באנוצער, נישט טעלעפאן־קאלס.</p>'+
+  (online||'<p class="muted">נאכנישטא קיין איצט פארבונדענע עסקנים.</p>')+'</section>':'';
  const programNotice=live?'<section class="card event-current"><h2>יעצט: '+esc(live.title)+'</h2>'+
    '<p>'+esc(names[live.segment_type]||live.segment_type)+(live.speaker?' · '+esc(live.speaker):'')+'</p>'+
    (live.media_url?'<audio controls preload="none" src="'+esc(live.media_url)+'" class="event-audio"></audio>':
@@ -81,7 +100,7 @@ export function eventView(state,esc,money){
  return '<section class="card event-status"><h2>קאמפיין־זאל — לעבעדיגע ארבעט</h2>'+
    '<p class="muted">מען קען סיי ווען אריינקומען, און אלע נייע ציפערן און פראגראמען דערהיינטיגן זיך.</p>'+
    '<div class="metrics"><div><span>מצב</span><strong data-live-metric="mode">'+esc(names[event?.mode]||event?.mode||'...')+'</strong></div>'+
-   '<div><span>איינגעטשעקט</span><strong data-live-metric="attendance">'+esc(event?.attendance?.checked_in||0)+'</strong></div>'+
+   '<div><span>איינגעטשעקט (טעגליך)</span><strong data-live-metric="attendance">'+esc(event?.attendance?.checked_in||0)+'</strong></div>'+
    '<div><span>רופן באריכטעט</span><strong data-live-metric="calls">'+esc(metrics.calls?.reported||0)+'</strong></div>'+
    '<div><span>נעטא באריכטעט</span><strong data-live-metric="net">'+money(metrics.financial?.manually_reported_net)+'</strong></div></div>'+
    (!isChecked?'<button data-action="event-check-in" class="primary">איך בין אנגעקומען — אריינטשעקן</button>':
@@ -90,7 +109,7 @@ export function eventView(state,esc,money){
    programNotice+
    '<section class="card"><h2>פראגראם־לוח און אנזאגן</h2>'+
      (segments||'<p class="muted">דער מנהל האט נאך נישט באשטימט קיין פראגראמען.</p>')+
-   '</section>'+segmentForm+
+   '</section>'+segmentForm+liveFeed+workforce+
    (isChecked?'<section class="card"><h2>מיין רוף־ארבעטס־טיש</h2>'+
     (isCalling?'<p class="muted">נעם איין קשר, רוף אויף דיין אייגענעם טעלעפאן און שרייב דעם רעזולטאט. דעם זעלבן קשר קען נישט אן אנדערער עסקן כאפן.</p>':
     '<p class="muted">יעצט איז א פראגראם/הפסקה. די רוף־ארבעטס־טיש ווערט נישט אויסגעמעקט; דער מנהל קען נאך דער הפסקה צוריקשטעלן צום רופן.</p>')+
