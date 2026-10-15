@@ -175,6 +175,29 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.ok(managerCsv.body.includes(privateOwner),'Manager sees own private record');
   assert.ok(!managerCsv.body.includes('private donor note'),'Manager must not export other creator private notes');
   assert.equal((await csv('stranger')).status,404);
+  // Import is a dry run first, owner/manager only. A retry never duplicates
+  // contacts or overwrites opt-outs and historical notes.
+  const importPath='/import/campaigns/'+c1+'/contacts/import';
+  const contactRows=[
+    {name:'New Donor One',phone:'+1 (315) 555-0200',notes:'Imported by manager'},
+    {name:'Duplicate Format',phone:'13155550200',notes:'Should not duplicate'},
+    {name:'New Donor Two',phone:'315-555-0201',notes:''},
+  ];
+  assert.equal((await req(importPath,{user:first,method:'POST',data:{rows:contactRows,dryRun:true}})).status,403,'Askan cannot import whole campaign contact lists');
+  assert.equal((await req(importPath,{user:owner,method:'POST',data:{rows:[{name:'X',phone:'123'}],dryRun:true}})).status,422,'Invalid phone must fail closed');
+  const beforePreview=(await pool.query('SELECT count(*)::int n FROM cc_contacts WHERE campaign_id=$1',[c1])).rows[0].n;
+  const preview=await req(importPath,{user:owner,method:'POST',data:{rows:contactRows,dryRun:true}});
+  assert.equal(preview.status,200);assert.equal(preview.data.importable,2);
+  assert.equal(preview.data.inFileDuplicates,1);
+  assert.equal((await pool.query('SELECT count(*)::int n FROM cc_contacts WHERE campaign_id=$1',[c1])).rows[0].n,beforePreview,'Preview writes nothing');
+  const imported=await req(importPath,{user:owner,method:'POST',data:{rows:contactRows,dryRun:false}});
+  assert.equal(imported.status,201);assert.equal(imported.data.created,2);
+  const twice=await req(importPath,{user:owner,method:'POST',data:{rows:contactRows,dryRun:false}});
+  assert.equal(twice.status,201);assert.equal(twice.data.created,0);
+  const normalized=(await pool.query("SELECT count(*)::int n FROM cc_contacts WHERE campaign_id=$1 AND regexp_replace(phone,'[^0-9]','','g')='13155550200'",[c1])).rows[0].n;
+  assert.equal(normalized,1,'Phone normalization deduplicates spreadsheet variants');
+  const importedHistory=(await pool.query("SELECT count(*)::int n FROM cc_activity_events WHERE campaign_id=$1 AND event_type='contacts.csv_import'",[c1])).rows[0].n;
+  assert.equal(importedHistory,2,'Both first submission and retry keep audit events');
   // Link requires authenticated CC account and authenticated Gavhah service.
   const link=await req('/connect/code',{user:first,method:'POST'});
   assert.equal(link.status,201);assert.equal(link.data.code.length,32);
