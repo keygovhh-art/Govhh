@@ -161,8 +161,9 @@ app.get('/api/campaigns/:cid/overview', async(req,res,next)=>{
 app.get('/api/campaigns/:cid/tasks', async(req,res,next)=>{
   try {
     const c=await campaignAccess(pool,req.params.cid,req.userId);
-    const managers=['owner','manager','finance','auditor','squad_leader'].includes(c.role);
-    const r=await q('SELECT id,title,kind,priority,status,due_at,assignee_subject,created_at FROM cc_assignments WHERE organization_id=$1 AND campaign_id=$2 AND ($3::boolean OR assignee_subject=$4) ORDER BY created_at DESC LIMIT 200',[c.organization_id,c.id,managers,req.userId]);
+    const managers=['owner','manager','finance','auditor'].includes(c.role);
+    const r=await q("SELECT a.id,a.title,a.kind,a.priority,a.status,a.due_at,a.assignee_subject,a.created_at FROM cc_assignments a WHERE a.organization_id=$1 AND a.campaign_id=$2 AND ($3::boolean OR a.assignee_subject=$4 OR ($5::boolean AND EXISTS (SELECT 1 FROM cc_campaign_members my INNER JOIN cc_campaign_members peer ON peer.campaign_id=my.campaign_id AND peer.team_name=my.team_name WHERE my.campaign_id=$2 AND my.subject=$4 AND peer.subject=a.assignee_subject))) ORDER BY a.created_at DESC LIMIT 200",
+      [c.organization_id,c.id,managers,req.userId,c.role==='squad_leader']);
     res.json(r.rows);
   } catch(error){next(error);}
 });
@@ -173,6 +174,10 @@ app.post('/api/campaigns/:cid/tasks',async(req,res,next)=>{
     const result=await transaction(async db=>{
       const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,['owner','manager','squad_leader']);
       const assignee=trim(req.body?.assigneeSubject,128)||req.userId;
+      if(c.role==='squad_leader'){
+        const scope=await db.query('SELECT 1 FROM cc_campaign_members leader JOIN cc_campaign_members assigned ON assigned.campaign_id=leader.campaign_id AND assigned.team_name=leader.team_name WHERE leader.campaign_id=$1 AND leader.subject=$2 AND assigned.subject=$3 LIMIT 1',[c.id,req.userId,assignee]);
+        if(!scope.rowCount)throw bad(403,'Cannot assign work outside your team');
+      }
       const a=(await db.query('INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,kind) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[c.organization_id,c.id,assignee,title,priority,kind])).rows[0];
       await log(db,c.organization_id,c.id,req.userId,'task.created',a.id,{assignee});
       return a;
@@ -187,7 +192,13 @@ app.patch('/api/tasks/:id',async(req,res,next)=>{
       if(!t)throw bad(404,'Task not found');
       const c=await campaignAccess(db,t.campaign_id,req.userId);
       if(t.organization_id!==c.organization_id)throw bad(404,'Task not found');
-      if(t.assignee_subject!==req.userId)need(c.role,['owner','manager','squad_leader']);
+      if(t.assignee_subject!==req.userId){
+        need(c.role,['owner','manager','squad_leader']);
+        if(c.role==='squad_leader'){
+          const linked=await db.query('SELECT 1 FROM cc_campaign_members leader JOIN cc_campaign_members assigned ON assigned.campaign_id=leader.campaign_id AND assigned.team_name=leader.team_name WHERE leader.campaign_id=$1 AND leader.subject=$2 AND assigned.subject=$3 LIMIT 1',[c.id,req.userId,t.assignee_subject]);
+          if(!linked.rowCount)throw bad(403,'Task belongs to another team');
+        }
+      }
       const done=(await db.query('UPDATE cc_assignments SET status=$1 WHERE id=$2 RETURNING *',[req.body.status,t.id])).rows[0];
       await log(db,c.organization_id,c.id,req.userId,'task.status',t.id,{from:t.status,to:done.status});
       return done;
