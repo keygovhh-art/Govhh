@@ -24,7 +24,12 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
    const assigned=await campaignAccess(db,conf.campaign_id,subject);
    if(assigned.organization_id!==conf.organization_id)throw bad(404,'Conference not found');
   }
-  return {conf,role,isModerator:privileged.includes(role)};
+  const isModerator=privileged.includes(role);
+  const ruleRows=isModerator?[]:(await db.query(
+   'SELECT rule FROM cc_conference_access_rules WHERE room_id=$1 AND subject=$2 AND enabled=true',[conf.id,subject])).rows;
+  const rules=new Set(ruleRows.map(r=>r.rule));
+  if(rules.has('deny_entry'))throw bad(403,'Access denied by current conference policy');
+  return {conf,role,isModerator,rules};
  }
  async function participant(db,roomId,subject,lock=false){
   const r=await db.query('SELECT * FROM cc_conference_participants WHERE room_id=$1 AND subject=$2'+(lock?' FOR UPDATE':''),[roomId,subject]);
@@ -43,7 +48,7 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
  router.get('/organizations/:oid',handle(async(req,res)=>{
   const role=await member(pool,req.params.oid,req.userId);
   const elevated=privileged.includes(role)||role==='finance'||role==='auditor';
-  const r=await pool.query("SELECT c.*, (SELECT COUNT(*)::int FROM cc_conference_participants p WHERE p.room_id=c.id AND p.admitted AND NOT p.banned AND p.left_at IS NULL AND p.last_seen_at>now()-interval '45 seconds') AS online FROM cc_conference_rooms c WHERE c.organization_id=$1 AND ($2::boolean OR c.campaign_id IS NULL OR EXISTS (SELECT 1 FROM cc_campaign_members cm WHERE cm.campaign_id=c.campaign_id AND cm.subject=$3)) ORDER BY c.created_at DESC LIMIT 80",
+  const r=await pool.query("SELECT c.*, (SELECT COUNT(*)::int FROM cc_conference_participants p WHERE p.room_id=c.id AND p.admitted AND NOT p.banned AND p.left_at IS NULL AND p.last_seen_at>now()-interval '45 seconds') AS online FROM cc_conference_rooms c WHERE c.organization_id=$1 AND ($2::boolean OR c.campaign_id IS NULL OR EXISTS (SELECT 1 FROM cc_campaign_members cm WHERE cm.campaign_id=c.campaign_id AND cm.subject=$3)) AND ($2::boolean OR NOT EXISTS(SELECT 1 FROM cc_conference_access_rules pr WHERE pr.room_id=c.id AND pr.subject=$3 AND pr.rule='deny_entry' AND pr.enabled=true)) ORDER BY c.created_at DESC LIMIT 80",
    [req.params.oid,elevated,req.userId]);
   res.json({conferences:r.rows.map(row=>{const {media_url,...visible}=view(row);return {...visible,online:row.online};})});
  }));
@@ -84,7 +89,7 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
  router.post('/:rid/join',handle(async(req,res)=>{
   const provided=typeof req.body?.accessCode==='string'?req.body.accessCode:'';
   const result=await tx(async db=>{
-   const {conf,role,isModerator}=await room(db,req.params.rid,req.userId,true);
+   const {conf,role,isModerator,rules}=await room(db,req.params.rid,req.userId,true);
    if(conf.room_status!=='open')throw bad(409,'Conference is not open');
    let prev=await participant(db,conf.id,req.userId,true);
    if(prev?.banned)throw bad(403,'Banned participant cannot rejoin');
@@ -92,7 +97,7 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
    const valid=conf.access_mode==='members'||isModerator||prev?.admitted|| (provided.length===24&&hash(provided)===conf.access_code_hash);
    if(!valid)throw bad(403,'Invalid conference access code');
    const automatic=isModerator||conf.speaking_mode==='open';
-   const admit=isModerator||prev?.admitted||conf.speaking_mode==='open';
+   const admit=isModerator||prev?.admitted||conf.speaking_mode==='open'||rules.has('skip_waiting');
    // Moderated/listener rooms place new members into a waiting room.
    const row=(await db.query("INSERT INTO cc_conference_participants(room_id,subject,admitted,joined_at,last_seen_at,left_at) VALUES($1,$2,$3,now(),now(),NULL) ON CONFLICT(room_id,subject) DO UPDATE SET admitted=EXCLUDED.admitted,last_seen_at=now(),joined_at=COALESCE(cc_conference_participants.joined_at,now()),left_at=NULL RETURNING *",
      [conf.id,req.userId,admit])).rows[0];
@@ -144,6 +149,42 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
    return r;
   });res.json(result);
  }));
+ router.get('/:rid/policies',handle(async(req,res)=>{
+  const {conf,role}=await room(pool,req.params.rid,req.userId);
+  need(role,privileged);
+  const r=await pool.query("SELECT subject,rule,enabled,changed_by,changed_at FROM cc_conference_access_rules WHERE room_id=$1 ORDER BY subject,rule LIMIT 400",[conf.id]);
+  res.set('Cache-Control','no-store');
+  res.json({policies:r.rows});
+ }));
+ router.patch('/:rid/policies/:subject',handle(async(req,res)=>{
+  const {rule,enabled}=req.body||{};
+  const subject=req.params.subject;
+  if(typeof subject!=='string'||subject.length<1||subject.length>128||
+    !['deny_entry','skip_waiting','deny_messages'].includes(rule)||typeof enabled!=='boolean')
+    throw bad(400,'Invalid conference policy');
+  const result=await tx(async db=>{
+   const {conf,role}=await room(db,req.params.rid,req.userId,true);
+   need(role,privileged);
+   if(conf.room_status==='ended')throw bad(409,'Archived conference policies cannot change');
+   const target=(await db.query("SELECT role FROM cc_memberships WHERE organization_id=$1 AND subject=$2 AND membership_status='active'",[conf.organization_id,subject])).rows[0];
+   if(!target)throw bad(404,'Target is not an active member');
+   if(privileged.includes(target.role)||subject===req.userId)throw bad(403,'Cannot override conference managers');
+   const row=(await db.query("INSERT INTO cc_conference_access_rules(room_id,subject,rule,enabled,changed_by) VALUES($1,$2,$3,$4,$5) ON CONFLICT(room_id,subject,rule) DO UPDATE SET enabled=$4,changed_by=$5,changed_at=now() RETURNING subject,rule,enabled,changed_at",
+     [conf.id,subject,rule,enabled,req.userId])).rows[0];
+   if(enabled&&rule==='deny_entry'){
+    await db.query("UPDATE cc_conference_participants SET admitted=false,left_at=now(),hand_raised=false WHERE room_id=$1 AND subject=$2",[conf.id,subject]);
+   } else if(enabled&&rule==='skip_waiting'){
+    // A deny-entry list always takes precedence.
+    const blocked=await db.query("SELECT 1 FROM cc_conference_access_rules WHERE room_id=$1 AND subject=$2 AND rule='deny_entry' AND enabled=true",[conf.id,subject]);
+    if(!blocked.rowCount){
+     await db.query("UPDATE cc_conference_participants SET admitted=true WHERE room_id=$1 AND subject=$2 AND banned=false AND left_at IS NULL",[conf.id,subject]);
+    }
+   }
+   await log(db,conf.organization_id,conf.campaign_id,req.userId,'conference.policy_changed',conf.id,{subject,rule,enabled});
+   return row;
+  });
+  res.json(result);
+ }));
  router.patch('/:rid',handle(async(req,res)=>{
   const changes=req.body||{};
   const status=changes.roomStatus,phase=changes.phase,speaking=changes.speakingMode,access=changes.accessMode;
@@ -183,8 +224,9 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
   const body=trim(req.body?.body,1201),kind=trim(req.body?.kind,16)||'discussion';
   if(!body||body.length>1200||!['discussion','question','announcement'].includes(kind))throw bad(400,'Invalid conference message');
   const result=await tx(async db=>{
-   const {conf,role,isModerator}=await room(db,req.params.rid,req.userId,true);
+   const {conf,role,isModerator,rules}=await room(db,req.params.rid,req.userId,true);
    if(conf.room_status!=='open')throw bad(409,'Conference not open');
+   if(rules.has('deny_messages'))throw bad(403,'Current conference policy denies messages');
    const p=await participant(db,conf.id,req.userId);admitted(p,isModerator);
    if(kind==='announcement')need(role,privileged);
    if(!isModerator&&kind==='discussion'){
