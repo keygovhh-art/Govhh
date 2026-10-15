@@ -90,6 +90,12 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/team/campaigns/'+c1+'/members/'+first+'/team',{user:owner,method:'PATCH',data:{teamName:'Group A'}})).status,200);
   assert.equal((await req('/team/campaigns/'+c1+'/members/'+second+'/team',{user:owner,method:'PATCH',data:{teamName:'Group B'}})).status,200);
   assert.equal((await req('/team/campaigns/'+c1+'/contacts/'+contact+'/team',{user:owner,method:'PATCH',data:{teamName:'Group B'}})).status,200);
+  const firstAssignees=await req('/team/campaigns/'+c1+'/assignees',{user:first});
+  const managerAssignees=await req('/team/campaigns/'+c1+'/assignees',{user:owner});
+  assert.equal(firstAssignees.status,200);
+  assert.equal(firstAssignees.data.length,1,'Askan sees only own assignee ID');
+  assert.equal(firstAssignees.data[0].subject,first);
+  assert.equal(managerAssignees.data.length,3,'Manager has all active campaign members');
   const firstQueue=await req('/team/campaigns/'+c1+'/lead-queue',{user:first});
   const secondQueue=await req('/team/campaigns/'+c1+'/lead-queue',{user:second});
   assert.equal(firstQueue.data.length,0,'Other squad cannot list this donor');
