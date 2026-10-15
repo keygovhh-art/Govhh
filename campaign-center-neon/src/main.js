@@ -1,4 +1,5 @@
 import { createAuthClient } from '@neondatabase/auth';
+import Papa from 'papaparse';
 import './style.css';
 import { teamView } from './team-view.js';
 import { hallView } from './hall-view.js';
@@ -6,7 +7,7 @@ import { hallView } from './hall-view.js';
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -122,7 +123,17 @@ function today(){
  <section class="card"><h2>אויפגאבן <span class="count">${state.tasks.length}</span></h2>${state.tasks.length?state.tasks.map(t=>`<article class="item"><div><strong>${esc(t.title)}</strong><small>${esc(t.kind)} · ${esc(t.priority)} · ${esc(t.status)}</small></div><div class="actions">${t.status!=='done'?`<button data-action="done" data-id="${esc(t.id)}">פארענדיגט</button>`:''}</div></article>`).join(''):'<p class="muted">נאך קיין אויפגאבן.</p>'}</section>`;
 }
 function people(){
- return `<section class="card"><h2>נייער קשר</h2><form class="stack" data-form="contact"><input name="name" required placeholder="נאמען"><input name="phone" type="tel" placeholder="טעלעפאן"><input name="notes" maxlength="2000" placeholder="נאטיץ"><label>פריוואטקייט <select name="privacy"><option value="campaign">קאמפיין־מיטגלידער</option><option value="private">נאר איך</option></select></label><button>אפהיטן קשר</button></form></section>
+ const role=state.overview?.campaign?.role;
+ const manager=['owner','manager'].includes(role);
+ const preview=state.importPreview;
+ const importer=manager?'<section class="card"><h2>קשרים אימפארטירן פון CSV</h2>'+
+  '<p class="muted">בלויז פאר דער קאמפיין־הנהלה. קודם פרובירט מען אָן אפהיטן; מען קען נישט איבערשרייבן אלטע קשרים אדער נישט־רופן־צייכענונגען. איין פייל קען האבן ביז 500 שורות.</p>'+
+  '<form data-form="import-preview" class="stack"><label>CSV־פייל (name,phone,notes)<input type="file" accept=".csv,text/csv" name="csvFile" required></label><button>פאראויסבליק אן שרייבן</button></form>'+
+  (preview?'<p><strong>גאנצע שורות: '+esc(preview.received)+' | נייע: '+esc(preview.importable)+' | שוין פאראן אדער דאבל: '+esc(preview.duplicates)+'</strong></p>'+
+    (preview.preview||[]).map(r=>'<p class="muted">'+esc(r.name)+' · '+esc(r.phone)+'</p>').join('')+
+    '<button data-action="import-confirm" class="primary">באשטעטיגן און אריינלייגן בלויז די נייע קשרים</button>':'')+
+ '</section>':'';
+ return `${importer}<section class="card"><h2>נייער קשר</h2><form class="stack" data-form="contact"><input name="name" required placeholder="נאמען"><input name="phone" type="tel" placeholder="טעלעפאן"><input name="notes" maxlength="2000" placeholder="נאטיץ"><label>פריוואטקייט <select name="privacy"><option value="campaign">קאמפיין־מיטגלידער</option><option value="private">נאר איך</option></select></label><button>אפהיטן קשר</button></form></section>
  <section class="card"><h2>קשרים <span class="count">${state.contacts.length}</span></h2>
  ${state.contacts.length?state.contacts.map(c=>`<article class="item"><div><strong>${esc(c.display_name)}</strong><small>${esc(c.phone)} · ${esc(c.privacy)} ${c.do_not_call?'· נישט רופן':''}</small></div><button data-action="calls" data-id="${esc(c.id)}">רוף־היסטאריע</button></article>`).join(''):'<p class="muted">נאכנישטא קיין קשרים.</p>'}</section>
  <section class="card"><h2>רוף־רעזולטאט איינשרייבן</h2><p class="muted">דאס רעקארדירט בלויז אן איינגעגעבן רעזולטאט; דער סיסטעם רופט נאכנישט אליין.</p>
@@ -225,6 +236,23 @@ async function submit(event){
      state.tab='today';break;
    }
    case 'task': await api('/campaigns/'+state.campaignId+'/tasks',{method:'POST',body:JSON.stringify({title:d.title,priority:d.priority,kind:d.kind,assigneeSubject:d.assigneeSubject||undefined})});break;
+   case 'import-preview': {
+     const file=form.querySelector('input[type=file]')?.files?.[0];
+     if(!file||file.size>1024*1024)throw new Error('CSV פייל דארף זיין קלענער ווי 1MB');
+     const parsed=Papa.parse(await file.text(),{header:true,skipEmptyLines:'greedy',dynamicTyping:false});
+     if(parsed.errors.length)throw new Error('CSV־פארמאט איז נישט ריכטיג: '+parsed.errors[0].message);
+     const columns=(parsed.meta.fields||[]).map(x=>x.trim().toLowerCase());
+     if(!columns.includes('name')||!columns.includes('phone'))throw new Error('CSV דארף האבן name און phone שפאלטן');
+     if(parsed.data.length<1||parsed.data.length>500)throw new Error('ביטע קלייב 1 ביז 500 קשרים פער אימפארט');
+     const rows=parsed.data.map(row=>{
+       const cols=Object.fromEntries(Object.entries(row).map(([k,v])=>[k.trim().toLowerCase(),v]));
+       return {name:cols.name||'',phone:cols.phone||'',notes:cols.notes||''};
+     });
+     const preview=await api('/import/campaigns/'+state.campaignId+'/contacts/import',{
+       method:'POST',body:JSON.stringify({rows,dryRun:true})
+     });
+     state.importRows=rows;state.importPreview=preview;break;
+   }
    case 'contact': await api('/campaigns/'+state.campaignId+'/contacts',{method:'POST',body:JSON.stringify({name:d.name,phone:d.phone,notes:d.notes,privacy:d.privacy})});break;
    case 'call': await api('/contacts/'+d.contactId+'/calls',{method:'POST',body:JSON.stringify({outcome:d.outcome,note:d.note})});break;
    case 'finance': await api('/campaigns/'+state.campaignId+'/finance',{method:'POST',body:JSON.stringify({kind:d.kind,amount:d.amount,verificationReference:d.verificationReference})});break;
@@ -249,6 +277,21 @@ async function click(event){
     state.activity=[...state.activity,...result.events];state.activityNextOffset=result.nextOffset;draw();return;
   }
   if(a==='export-contacts'){await exportContactsPage();return;}
+  if(a==='import-confirm'){
+    if(!state.importRows||!state.importPreview)throw new Error('קודם מאך א פאראויסבליק');
+    if(state.busy)return;
+    state.busy=true;
+    try{
+      const r=await api('/import/campaigns/'+state.campaignId+'/contacts/import',{
+        method:'POST',body:JSON.stringify({rows:state.importRows,dryRun:false})
+      });
+      state.importRows=null;state.importPreview=null;
+      await refresh();
+      say('אריינגעלייגט '+r.created+' נייע קשרים. אויסגעלאזט '+r.duplicates+' דאבליקאטן.');
+    }finally{state.busy=false;}
+    return;
+  }
+
 
   if(a==='new-campaign'){state.showCampaignForm=!state.showCampaignForm;draw();return;}
   if(a==='done'){await api('/tasks/'+btn.dataset.id,{method:'PATCH',body:JSON.stringify({status:'done'})});await refresh();return;}
@@ -280,7 +323,7 @@ document.addEventListener('submit',submit);
 document.addEventListener('click',click);
 document.addEventListener('change',async e=>{
  try {
-  if(e.target?.dataset?.action==='org-select'){state.orgId=e.target.value;state.campaignId=null;state.joinedRoomId=null;state.showCampaignForm=false;state.invitationCode='';state.connectCode='';state.csvPage=1;await refresh();}
+  if(e.target?.dataset?.action==='org-select'){state.orgId=e.target.value;state.campaignId=null;state.joinedRoomId=null;state.showCampaignForm=false;state.invitationCode='';state.connectCode='';state.csvPage=1;state.importRows=null;state.importPreview=null;await refresh();}
   if(e.target?.dataset?.action==='campaign-select'){state.campaignId=e.target.value;state.csvPage=1;state.joinedRoomId=null;await refresh();}
  }catch(error){say(error.message);}
 });
