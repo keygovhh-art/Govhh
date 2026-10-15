@@ -35,8 +35,12 @@ export default function webHallRouter({pool,authenticate,campaignAccess,need,log
   const updated=await tx(async db=>{
    const {room:r,campaign:c}=await room(db,req.params.rid,req.userId,true);need(c.role,['owner','manager']);
    if(r.room_status==='ended')throw bad(409,'Completed room remains archived; create a new one');
-   const update=(await db.query("UPDATE cc_live_rooms SET room_status=$1,opened_at=CASE WHEN $1='open' THEN COALESCE(opened_at,now()) ELSE opened_at END,closed_at=CASE WHEN $1='ended' THEN now() ELSE closed_at END WHERE id=$2 RETURNING id,title,room_status,opened_at,closed_at",[status,r.id])).rows[0];
-   if(status==='ended')await db.query('UPDATE cc_live_room_participation SET left_at=now() WHERE room_id=$1 AND left_at IS NULL',[r.id]);
+   const update=(await db.query("UPDATE cc_live_rooms SET room_status=$1,floor_mode=CASE WHEN $1='ended' THEN 'ended' ELSE floor_mode END,opened_at=CASE WHEN $1='open' THEN COALESCE(opened_at,now()) ELSE opened_at END,closed_at=CASE WHEN $1='ended' THEN now() ELSE closed_at END WHERE id=$2 RETURNING id,title,room_status,floor_mode,opened_at,closed_at",[status,r.id])).rows[0];
+   if(status==='ended'){
+     await db.query('UPDATE cc_live_room_participation SET left_at=now() WHERE room_id=$1 AND left_at IS NULL',[r.id]);
+     await db.query('UPDATE cc_floor_checkins SET checked_out_at=now() WHERE room_id=$1 AND checked_out_at IS NULL',[r.id]);
+     await db.query("UPDATE cc_floor_programs SET status='completed',completed_at=now() WHERE room_id=$1 AND status='live'",[r.id]);
+   }
    await log(db,c.organization_id,c.id,req.userId,'room.status_changed',r.id,{from:r.room_status,to:status});
    return update;
   });res.json(updated);
