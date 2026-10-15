@@ -12,6 +12,7 @@ import webHallRouter from '../server/web-hall.js';
 import conferenceRouter from '../server/conferences.js';
 import rtcAudioRouter from '../server/rtc-audio.js';
 import videoRouter from '../server/video.js';
+import yemotRouter from '../server/yemot.js';
 import floorRouter from '../server/floor.js';
 import programRouter from '../server/floor-programs.js';
 import {connectUserRouter,connectServiceRouter} from '../server/connect.js';
@@ -21,6 +22,7 @@ if(!connection)throw new Error('TEST_DATABASE_URL required. Never point this tes
 if(!/localhost|127\.0\.0\.1/.test(new URL(connection).hostname))throw new Error('Refusing nonlocal database for test');
 const secret='local-ci-shared-test-secret-not-a-production-token-1234';
 process.env.GAVHAH_CONNECT_SHARED_SECRET=secret;
+process.env.YEMOT_ENCRYPTION_KEY=Buffer.alloc(32,5).toString('base64'); // disposable CI fixture ONLY
 const pool=new pg.Pool({connectionString:connection,max:4});
 const bad=(status,message)=>Object.assign(new Error(message),{status});
 const uuid=x=>typeof x==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(x);
@@ -48,7 +50,7 @@ const auth=(req,res,next)=>{req.userId=req.get('x-test-user')||'anonymous';next(
 
 async function prepare(){
  // Disposable Postgres on GitHub Actions only; NEVER any external production database.
- for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql','010_automatic_event_schedule.sql','011_sponsored_max_seats.sql']){
+ for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql','010_automatic_event_schedule.sql','011_sponsored_max_seats.sql','012_yemot_encrypted_connections.sql']){
   const sql=await readFile(join(import.meta.dirname,'../db',file),'utf8');
   await pool.query(sql);
  }
@@ -63,6 +65,7 @@ async function launch(){
  app.use('/api/conferences',conferenceRouter({pool,authenticate:auth,member,campaignAccess,need,log,bad,uuid,trim}));
  app.use('/api/rtc',rtcAudioRouter({pool,authenticate:auth,member,campaignAccess,bad,uuid,log}));
  app.use('/api/video',videoRouter({pool,authenticate:auth,member,campaignAccess,need,log,bad,uuid,trim}));
+ app.use('/api/yemot',yemotRouter({pool,authenticate:auth,member,log,bad,uuid}));
  app.use('/api/floor',floorRouter({pool,authenticate:auth,campaignAccess,need,log,bad,uuid,trim}));
  app.use('/api/floor-program',programRouter({pool,authenticate:auth,campaignAccess,need,log,bad,uuid,trim}));
  app.use('/api/connect/service',connectServiceRouter({pool,bad,uuid,log}));
@@ -79,7 +82,7 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
    CC_MIGRATION_MODE:'staging'},encoding:'utf8',timeout:45000
  });
  assert.equal(firstMigration.status,0,'Fresh DB transactional release migration failed: '+firstMigration.stderr);
- assert.match(firstMigration.stdout,/PASS staging: 29 protected tables/);
+ assert.match(firstMigration.stdout,/PASS staging: 30 protected tables/);
  // Run the EXACT reviewed release runner against disposable PostgreSQL.
  // A fully migrated schema must produce a no-op, and a 'production' invocation
  // without owner approval must fail even on localhost.
@@ -88,7 +91,7 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   encoding:'utf8',timeout:30000
  });
  assert.equal(migrated.status,0,'Read-only already-migrated schema check must pass: '+migrated.stderr);
- assert.match(migrated.stdout,/Already migrated: 29 CC tables/);
+ assert.match(migrated.stdout,/Already migrated: 30 CC tables/);
  const unapproved=spawnSync(process.execPath,[join(import.meta.dirname,'../scripts/apply-reviewed-schema.mjs')],{
   env:{...process.env,DATABASE_URL:connection,CC_EXPECTED_DB_HOST:new URL(connection).hostname,
    CC_MIGRATION_MODE:'production',CC_PRODUCTION_MIGRATION_APPROVED:'no',CC_PRODUCTION_BACKUP_BRANCH_ID:''},
