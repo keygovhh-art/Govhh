@@ -93,6 +93,13 @@ function viewCampaign(){
     '<label for="edit-status">מצב</label><select name="status" id="edit-status">'+
     ["draft","active","paused","closed"].map(x=>'<option value="'+x+'" '+(c.status===x?"selected":"")+'>'+x+'</option>').join("")+
     '</select><button class="btn" type="submit">אפהיטן</button></form></section>'+
+    '<section class="card"><h2>מאנשאפט ארייננעמען אינעם קאמפיין</h2>'+
+    '<p class="hint">ערשט איינלאדן דעם עסקן צו דער ארגאניזאציע. נאכדעם צולייגן צום קאמפיין.</p>'+
+    '<form id="attach-campaign-member"><label for="attachSubject">עסקן</label>'+
+    '<select id="attachSubject" name="subject" required>'+memberOptions+'</select>'+
+    '<label for="teamName">גרופע־נאמען (נישט מחויב)</label>'+
+    '<input id="teamName" name="teamName" maxlength="120">'+
+    '<button class="btn" type="submit">צולייגן צום קאמפיין</button></form></section>'+
     '<section class="card"><h2>צוטיילן אן אויפגאבע</h2><form id="create-assignment">'+
     formRows([["אויפגאבע","assignmentTitle"]])+
     '<label for="assigneeSubject">עסקן</label><select id="assigneeSubject" name="assigneeSubject" required>'+memberOptions+'</select>'+
@@ -199,6 +206,11 @@ root.addEventListener("submit",async event=>{
     }else if(form.id==="edit-campaign"){
       await api("/api/campaigns/"+state.campaign.id,"PATCH",data);
       state.notice="קאמפיין אפגעהיטן";await openCampaign(state.campaign.id);
+    }else if(form.id==="attach-campaign-member"){
+      await api("/api/campaigns/"+state.campaign.id+"/members","POST",{
+        subject:data.subject,teamName:data.teamName||"",
+      });
+      state.notice="דער עסקן איז צוגעלייגט צום קאמפיין";await openCampaign(state.campaign.id);
     }else if(form.id==="create-assignment"){
       await api("/api/campaigns/"+state.campaign.id+"/assignments","POST",{
         title:data.assignmentTitle,assigneeSubject:data.assigneeSubject,
