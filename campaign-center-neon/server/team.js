@@ -90,6 +90,14 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    return row;
   });res.json(result);
  }));
+ router.get('/campaigns/:cid/assignees',run(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);
+  need(c.role,['owner','manager','squad_leader','askan']);
+  const elevated=['owner','manager'].includes(c.role);
+  const squad=c.role==='squad_leader';
+  const q=await pool.query("SELECT cm.subject,cm.team_name,m.role FROM cc_campaign_members cm JOIN cc_memberships m ON m.organization_id=cm.organization_id AND m.subject=cm.subject AND m.membership_status='active' WHERE cm.campaign_id=$1 AND ($2::boolean OR ($3::boolean AND cm.team_name=(SELECT team_name FROM cc_campaign_members WHERE campaign_id=$1 AND subject=$4)) OR cm.subject=$4) ORDER BY cm.team_name,cm.subject",[c.id,elevated,squad,req.userId]);
+  res.json(q.rows);
+ }));
  router.get('/campaigns/:cid/lead-queue',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,['owner','manager','squad_leader','askan']);
   const isManager=['owner','manager'].includes(c.role);
