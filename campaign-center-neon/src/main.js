@@ -103,9 +103,19 @@ function campaignSetup(){
 function campaignNav(){
  return `<nav class="tabs">${[['today','היינט'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
 }
+function campaignAdminPanel(){
+ const campaign=state.overview?.campaign;
+ if(!campaign||!['owner','manager'].includes(campaign.role))return '';
+ const statuses=[['draft','אין צוגרייטונג'],['active','אקטיוו'],['paused','אויפגעהאלטן'],['closed','פארענדיגט']];
+ return `<section class="card"><h2>קאמפיין־פארוואלטונג</h2><p class="muted">טוישן דעם ציל אדער מצב וועט ווערן אפגעהיטן אינעם אודיט. פארענדיקן מעקט נישט אויס קיין היסטאריע.</p>
+ <form data-form="campaign-settings" class="inline"><label>ציל אין דאלארן<input name="goalAmount" type="number" min="0" max="1000000000000" step="0.01" value="${esc(campaign.goal_amount)}" required></label>
+ <label>קאמפיין־מצב<select name="status">${statuses.map(([v,n])=>`<option value="${v}" ${campaign.status===v?'selected':''}>${n}</option>`).join('')}</select></label>
+ <button type="submit">אפהיטן קאמפיין־טויש</button></form></section>`;
+}
 function today(){
  const f=Object.fromEntries((state.overview?.finance||[]).map(x=>[x.event_kind,Number(x.amount)]));
  return `<div class="metrics"><div><span>ציל</span><strong>${money(state.overview?.campaign?.goal_amount)}</strong></div><div><span>צוגעזאגט</span><strong>${money(f.pledge)}</strong></div><div><span>באריכטעט באקומען (נעטא)</span><strong>${money(Math.max(0,(f.receipt||0)-(f.refund||0)))}</strong></div></div>
+ ${campaignAdminPanel()}
  <section class="card"><h2>נייע אויפגאבע</h2><form data-form="task" class="inline"><input name="title" required placeholder="וואס דארף געטון ווערן?"><select name="priority"><option value="normal">נארמאל</option><option value="high">וויכטיג</option><option value="critical">קריטיש</option></select><select name="kind"><option value="task">אויפגאבע</option><option value="followup">נאכפאלג</option><option value="call_lead">רופן</option></select><select name="assigneeSubject"><option value="">פאר מיר</option>${state.assignees.map(m=>`<option value="${esc(m.subject)}">${esc(m.subject)} — ${esc(m.team_name||"אנדערע")}</option>`).join("")}</select><button>צולייגן</button></form></section>
  <section class="card"><h2>אויפגאבן <span class="count">${state.tasks.length}</span></h2>${state.tasks.length?state.tasks.map(t=>`<article class="item"><div><strong>${esc(t.title)}</strong><small>${esc(t.kind)} · ${esc(t.priority)} · ${esc(t.status)}</small></div><div class="actions">${t.status!=='done'?`<button data-action="done" data-id="${esc(t.id)}">פארענדיגט</button>`:''}</div></article>`).join(''):'<p class="muted">נאך קיין אויפגאבן.</p>'}</section>`;
 }
@@ -146,6 +156,10 @@ async function submit(event){
      state.orgId=joined.organizationId;state.campaignId=joined.campaignId||null;
      state.invitationCode='';state.connectCode='';state.joinedRoomId=null;state.showCampaignForm=false;
      state.tab='today';break;
+   }
+   case 'campaign-settings': {
+     if(!state.campaignId)throw new Error('קלייב א קאמפיין');
+     await api('/campaigns/'+state.campaignId,{method:'PATCH',body:JSON.stringify({goalAmount:d.goalAmount,status:d.status})});break;
    }
    case 'member-permission': {
      if(d.confirm!=='on')throw new Error('באשטעטיג דעם רשות־טויש');
