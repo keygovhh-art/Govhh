@@ -49,7 +49,7 @@ try{
   cc_conference_rooms:['media_url','video_url','video_enabled','video_access_mode'],
   cc_live_rooms:['floor_mode','video_url','video_enabled','video_access_mode'],
   cc_call_events:['client_attempt_id'],
-  cc_floor_programs:['scheduled_start','scheduled_end','status']
+  cc_floor_programs:['scheduled_start','scheduled_end','status','auto_start']
  };
  for(const [table,fields] of Object.entries(needed)){
   for(const field of fields)if(!byTable.get(table)?.has(field))fail('Missing required '+table+'.'+field);
