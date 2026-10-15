@@ -119,8 +119,9 @@ app.post('/api/organizations', async (req,res,next) => {
 });
 app.get('/api/organizations/:oid/campaigns', async(req,res,next) => {
   try {
-    await member(pool,req.params.oid,req.userId);
-    const result=await q('SELECT id,title,currency,goal_amount,status,created_at FROM cc_campaigns WHERE organization_id=$1 ORDER BY created_at DESC',[req.params.oid]);
+    const role=await member(pool,req.params.oid,req.userId);
+    const result=await q("SELECT id,title,currency,goal_amount,status,created_at FROM cc_campaigns c WHERE organization_id=$1 AND ($2::boolean OR EXISTS (SELECT 1 FROM cc_campaign_members cm WHERE cm.campaign_id=c.id AND cm.subject=$3)) ORDER BY created_at DESC",
+      [req.params.oid,['owner','manager','finance','auditor'].includes(role),req.userId]);
     res.json(result.rows);
   } catch(error) {next(error);}
 });
@@ -225,6 +226,7 @@ app.post('/api/contacts/:id/calls',async(req,res,next)=>{
       need(c.role,['owner','manager','squad_leader','askan']);
       if(t.organization_id!==c.organization_id || (t.privacy==='private'&&t.created_by!==req.userId))throw bad(404,'Contact not found');
       if(t.do_not_call)throw bad(409,'Do not call: this contact is restricted');
+      if(t.claimed_by&&t.claimed_by!==req.userId&&new Date(t.claim_expires_at).getTime()>Date.now())throw bad(409,'This shared contact is currently claimed by another team member');
       const e=(await db.query('INSERT INTO cc_call_events(organization_id,campaign_id,contact_id,member_subject,outcome,note) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[c.organization_id,c.id,t.id,req.userId,outcome,note])).rows[0];
       if(outcome==='do_not_call')await db.query("UPDATE cc_contacts SET do_not_call=true,status='do_not_call' WHERE id=$1",[t.id]);
       await log(db,c.organization_id,c.id,req.userId,'call.logged',e.id,{contactId:t.id,outcome});
