@@ -40,6 +40,14 @@ export function teamView(state,esc,money) {
     !p.claimed_by||new Date(p.claim_expires_at).getTime()<Date.now()?
     '<button data-action="claim-lead" data-id="'+esc(p.id)+'">איך נעם עס</button>':'')+
   '</div></article>').join('');
+ const progress=(state.memberProgress||[]).map(m=>
+  '<article class="item"><div><strong>'+esc(m.subject)+'</strong><small>'+
+  esc(m.team_name||'נישט צוגעטיילט')+' · '+esc(m.role)+'</small>'+
+  '<div class="progress-stats"><span>אויפגאבן: '+esc(m.completed_tasks)+' / '+esc(m.assigned_tasks)+'</span>'+
+  '<span>מאנועלע רוף־באריכטן: '+esc(m.manual_call_reports)+'</span>'+
+  '<span>התחייבויות: '+money(m.pledged)+'</span>'+
+  '<span>נעטא באריכטעט: '+money(m.manually_reported_net)+'</span></div></div></article>'
+ ).join('');
  const stats=manager?'<div class="metrics"><div><span>צוגעזאגט</span><strong>'+
   money(manager.financial.promised)+'</strong></div><div><span>מאנועל באריכטעט</span><strong>'+
   money(manager.financial.net_manual_received)+'</strong></div><div><span>געלט־פארוואלטער באשטעטיגט</span><strong>'+
@@ -47,6 +55,7 @@ export function teamView(state,esc,money) {
  return '<section class="card"><h2>מיין קאמפיין־מאנשאפט</h2>'+
   '<p class="muted">קאמפיין־רעכטן ווערן באשטעטיגט אויפן סערווער. פערזענליכע MAX־דאטן ווערן נישט אוטאמאטיש מיטגעטיילט.</p>'+
   stats+
+  (manager?'<h3>מאנשאפט־פארשריט — אמתע סערווער־ציפערן</h3><p class="muted">רוף־באריכטן זענען מאנועל. די נדבות זענען נישט באשטעטיגט דורך א באנק אדער קארטל־פראוויידער.</p>'+(progress||'<p class="muted">נאך קיין מאנשאפט־ציפערן.</p>'):'')+
   (leader?'<h3>נייע עסקנים איינלאדונג</h3><form data-form="invite" class="inline">'+
    '<select name="role"><option value="askan">עסקן</option><option value="squad_leader">גרופע־פירער</option><option value="finance">געלט־פארוואלטער</option><option value="manager">מנהל</option><option value="auditor">אודיט</option></select>'+
    '<label><input type="checkbox" name="campaignOnly" checked> בלויז דעם קאמפיין</label><button>שאפן איין־מאליגן קאוד</button></form>'+
