@@ -92,6 +92,21 @@ export function connectServiceRouter({pool,bad,uuid,log}) {
   const r=await pool.query("SELECT c.id,c.title,c.goal_amount,c.status,m.role FROM cc_campaigns c JOIN cc_memberships m ON m.organization_id=c.organization_id AND m.subject=$1 AND m.membership_status='active' WHERE m.role IN ('owner','manager','finance','auditor') OR EXISTS (SELECT 1 FROM cc_campaign_members cm WHERE cm.campaign_id=c.id AND cm.subject=$1) ORDER BY c.created_at DESC",[subject]);
   res.json({linked:true,campaigns:r.rows});
  }));
+ // Personal MAX receives only its linked member's campaign event program,
+ // NEVER a donor list or private call note. Joining still requires Neon Auth.
+ router.get('/rooms',wrap(async(req,res)=>{
+  const gavhahUserId=Number(req.query.gavhahUserId),campaignId=String(req.query.campaignId||'');
+  const subject=await linked(pool,gavhahUserId);
+  const c=await campaign(pool,subject,campaignId);
+  const rows=await pool.query(
+   "SELECT r.id,r.title,r.room_status,r.floor_mode,"+
+   " (SELECT p.title FROM cc_floor_programs p WHERE p.room_id=r.id AND p.status='live' ORDER BY p.started_at DESC LIMIT 1) AS live_program,"+
+   " (SELECT p.scheduled_start FROM cc_floor_programs p WHERE p.room_id=r.id AND p.status='scheduled' ORDER BY p.scheduled_start ASC LIMIT 1) AS next_program_at"+
+   " FROM cc_live_rooms r WHERE r.campaign_id=$1 AND r.organization_id=$2 AND r.room_status IN('planned','open','paused') ORDER BY r.created_at DESC LIMIT 30",
+   [c.id,c.organization_id]);
+  res.set('Cache-Control','no-store');
+  res.json({rooms:rows.rows,mode:'web_campaign_event_only'});
+ }));
  router.get('/assignments',wrap(async(req,res)=>{
   const gavhahUserId=Number(req.query.gavhahUserId),campaignId=req.query.campaignId,subject=await linked(pool,gavhahUserId);
   const c=await campaign(pool,subject,campaignId);
