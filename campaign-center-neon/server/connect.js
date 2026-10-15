@@ -68,7 +68,12 @@ export function connectServiceRouter({pool,bad,uuid,log}) {
    if(!found||found.redeemed_at||new Date(found.expires_at).getTime()<Date.now())throw bad(404,'Link code expired or used');
    const other=(await db.query("SELECT subject,external_user_id FROM cc_external_account_links WHERE revoked_at IS NULL AND ((subject=$1 AND external_system='gavhah_max') OR (external_user_id=$2 AND external_system='gavhah_max')) FOR UPDATE",[found.subject,gavhahUserId])).rows[0];
    if(other&&(other.subject!==found.subject||Number(other.external_user_id)!==gavhahUserId))throw bad(409,'Either account is already connected elsewhere');
-   if(!other)await db.query("INSERT INTO cc_external_account_links(subject,external_system,external_user_id) VALUES($1,'gavhah_max',$2)",[found.subject,gavhahUserId]);
+   if(!other){
+    // Re-link the same previously disconnected identity without conflicting
+    // with historical UNIQUE constraints. Separate audit events keep the full timeline.
+    const restored=await db.query("UPDATE cc_external_account_links SET revoked_at=NULL,linked_at=now() WHERE id=(SELECT id FROM cc_external_account_links WHERE subject=$1 AND external_system='gavhah_max' AND external_user_id=$2 AND revoked_at IS NOT NULL ORDER BY linked_at DESC LIMIT 1) RETURNING id",[found.subject,gavhahUserId]);
+    if(!restored.rowCount)await db.query("INSERT INTO cc_external_account_links(subject,external_system,external_user_id) VALUES($1,'gavhah_max',$2)",[found.subject,gavhahUserId]);
+   }
    await db.query('UPDATE cc_connect_codes SET redeemed_at=now() WHERE id=$1',[found.id]);
    // Activity log without storing code/secret/Gavhah private records.
    await db.query("INSERT INTO cc_activity_events(organization_id,actor_subject,event_type,details) SELECT organization_id,$1,'connect.linked',$2 FROM cc_memberships WHERE subject=$1 AND membership_status='active'",[found.subject,JSON.stringify({source:'gavhah_max'})]);
