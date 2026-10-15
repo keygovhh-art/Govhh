@@ -17,7 +17,7 @@ export function eventView(state,esc,money){
    const active=p.status==='live',type=names[p.segment_type]||p.segment_type;
    return '<article class="item event-segment"><div>'+
     '<strong>'+esc(p.title)+'</strong><small>'+esc(localTime(p.scheduled_start))+' – '+esc(localTime(p.scheduled_end))+
-    ' · '+esc(type)+' · '+esc(p.status)+'</small>'+
+    ' · '+esc(type)+' · '+esc(p.status)+(p.auto_start?' · אויטאמאטיש':'')+'</small>'+
     (p.speaker?'<p>רעדנער: '+esc(p.speaker)+'</p>':'')+
     (p.description?'<p class="muted">'+esc(p.description)+'</p>':'')+
     (active&&p.media_url?'<audio controls preload="none" src="'+esc(p.media_url)+'" class="event-audio">דיין בראוזער שטיצט נישט אודיא.</audio>':'')+
@@ -27,7 +27,7 @@ export function eventView(state,esc,money){
        '</div>':'')+'</article>';
  }).join('');
  const segmentForm=manager?'<section class="card"><h3>פראגראם־לוח: לאנטש, דרשות און חיזוק</h3>'+
-   '<p class="muted">לייג אריין די ארטיגע צייט פון די באשטימטע פראגראמען. דער מנהל הייבט אָן דעם פראגראם מיט א באשטעטיגונג; די צייטן אליין געבן פאראויס ידיעות.</p>'+
+   '<p class="muted">א פראגראם קען אנהייבן אויטאמאטיש לויטן זייגער, אדער בלויז ווען דער מנהל דרוקט אנהייבן. דאס שטעלט אויך אפ די רוף־ארבעט אינעם זעלבן זאל.</p>'+
    '<button type="button" data-action="program-lunch-preset">איינשטעלן לאנטש 1:30–2:00</button>'+ 
    '<form data-form="program-add" class="stack">'+
    '<label>פראגראם־נאמען<input name="title" required maxlength="180" placeholder="למשל: לאנטש און דברי חיזוק"></label>'+
@@ -36,6 +36,7 @@ export function eventView(state,esc,money){
    '<label>אנהייב<input name="scheduledStart" type="datetime-local" required></label>'+
    '<label>ענדע<input name="scheduledEnd" type="datetime-local" required></label>'+
    '<label>פרטים<textarea name="description" maxlength="1000" rows="2"></textarea></label>'+
+   '<label class="confirm-check"><input name="autoStart" type="checkbox">אנהייבן און פארענדיקן אויטאמאטיש לויטן פראגראם־לוח</label>'+
    '<label>אודיא־אדרעס (אויב שוין פאראן)<input name="mediaUrl" type="url" placeholder="https://...mp3"></label>'+
    '<button type="submit">אפהיטן אינעם פראגראם־לוח</button></form></section>':'';
  const contacts=(state.leads||[]).filter(p=>!p.do_not_call).slice(0,80).map(p=>{
