@@ -28,8 +28,8 @@ export function teamView(state,esc,money) {
   '</div></article>').join('');
  const stats=manager?'<div class="metrics"><div><span>צוגעזאגט</span><strong>'+
   money(manager.financial.promised)+'</strong></div><div><span>מאנועל באריכטעט</span><strong>'+
-  money(manager.financial.manually_reported)+'</strong></div><div><span>באשטעטיגט</span><strong>'+
-  money(manager.financial.verified_received)+'</strong></div></div>':'';
+  money(manager.financial.net_manual_received)+'</strong></div><div><span>געלט־פארוואלטער באשטעטיגט</span><strong>'+
+  money(manager.financial.treasurer_confirmed)+'</strong></div></div>':'';
  return '<section class="card"><h2>מיין קאמפיין־מאנשאפט</h2>'+
   '<p class="muted">קאמפיין־רעכטן ווערן באשטעטיגט אויפן סערווער. פערזענליכע MAX־דאטן ווערן נישט אוטאמאטיש מיטגעטיילט.</p>'+
   stats+
