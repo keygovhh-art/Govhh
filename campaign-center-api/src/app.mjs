@@ -5,7 +5,7 @@ import { buildTokenVerifier } from "./auth.mjs";
 const isUUID=v=>typeof v==="string"&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 const validText=(v,max)=>typeof v==="string"&&v.trim().length>0&&v.trim().length<=max;
 const fail=(status,message)=>{const e=Error(message);e.status=status;throw e};
-const asyncRoute=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
+const asyncRoute=fn=>(req,res,next)=>Promise.resolve(fn(req,res,next)).catch(next);
 const managerial=new Set(["owner","manager"]);
 const roles=new Set(["manager","squad_leader","askan","finance","auditor"]);
 const statuses=new Set(["draft","active","paused","closed"]);
