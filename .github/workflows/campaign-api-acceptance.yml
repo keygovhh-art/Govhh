@@ -5,11 +5,13 @@ on:
       - feature/campaign-center-integration-20261014
     paths:
       - 'campaign-center-api/**'
+      - 'campaign-center-next/**'
       - 'neon/**'
       - '.github/workflows/campaign-api-acceptance.yml'
   pull_request:
     paths:
       - 'campaign-center-api/**'
+      - 'campaign-center-next/**'
       - 'neon/**'
       - '.github/workflows/campaign-api-acceptance.yml'
 jobs:
@@ -38,6 +40,12 @@ jobs:
       - name: Install isolated API dependencies
         working-directory: campaign-center-api
         run: npm install --no-audit --no-fund
+      - name: Build new real-data mobile Campaign Center UI
+        working-directory: campaign-center-next
+        env:
+          VITE_CC_AUTH_URL: https://staging-neon-auth.example/neondb/auth
+          VITE_CC_API_URL: https://staging-campaign-api.example
+        run: npm install --no-audit --no-fund && npm run build
       - name: Check API syntax
         working-directory: campaign-center-api
         run: npm run check
