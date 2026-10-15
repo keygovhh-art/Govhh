@@ -68,13 +68,19 @@ async function poll(session){
    const p=peer(who,session);
    if(msg.kind==='offer'&&session.mode==='listener'){
     await p.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
+    for(const candidate of session.waitingIce.get(who)||[])await p.addIceCandidate(new RTCIceCandidate(candidate)).catch(()=>{});
+    session.waitingIce.delete(who);
     const answer=await p.createAnswer();await p.setLocalDescription(answer);
     await send(session,who,'answer',{sdp:p.localDescription.toJSON()});
    } else if(msg.kind==='answer'&&session.mode==='speaker'){
     await p.setRemoteDescription(new RTCSessionDescription(msg.payload.sdp));
+    for(const candidate of session.waitingIce.get(who)||[])await p.addIceCandidate(new RTCIceCandidate(candidate)).catch(()=>{});
+    session.waitingIce.delete(who);
    }else if(msg.kind==='ice'&&msg.payload.candidate){
-    try{await p.addIceCandidate(new RTCIceCandidate(msg.payload.candidate));}
-    catch{ /* Candidates can precede remote SDP; next negotiation may recover */ }
+    if(!p.remoteDescription){
+     const queue=session.waitingIce.get(who)||[];
+     if(queue.length<40){queue.push(msg.payload.candidate);session.waitingIce.set(who,queue);}
+    }else await p.addIceCandidate(new RTCIceCandidate(msg.payload.candidate)).catch(()=>{});
    }
   }
  }catch(e){
@@ -107,7 +113,7 @@ export async function startSmallAudio({roomId,mode,subject,api}){
  }
  try{
   await api('/rtc/'+roomId+'/join',{method:'POST',body:JSON.stringify({mode})});
-  const s={roomId,mode,subject,api,stream,after:0,peers:new Map(),polling:false,timer:null};
+  const s={roomId,mode,subject,api,stream,after:0,peers:new Map(),waitingIce:new Map(),polling:false,timer:null};
   active=s;dock();await poll(s);
   if(active===s)s.timer=setInterval(()=>void poll(s),1800);
  }catch(e){stream?.getTracks().forEach(t=>t.stop());throw e;}
