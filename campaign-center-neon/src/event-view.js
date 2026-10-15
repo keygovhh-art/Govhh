@@ -62,8 +62,17 @@ export function eventView(state,esc,money){
  }).join('');
  const help=(board?.help||[]).map(h=>'<article class="item"><div><strong>'+esc(h.category)+'</strong><small>'+
   esc(h.requested_by)+' · '+esc(h.status)+'</small><p>'+esc(h.summary)+'</p></div>'+
-  (manager&&h.status!=='resolved'?'<div class="actions"><button data-action="help-progress" data-id="'+esc(h.id)+'">איך באהאנדל עס</button>'+
-  '<button data-action="help-resolve" data-id="'+esc(h.id)+'">פארטיג</button></div>':'')+'</article>').join('');
+  '<div class="actions"><button data-action="help-open" data-id="'+esc(h.id)+'">עפענען פריוואטן הילף־שמועס</button>'+
+  (manager&&h.status!=='resolved'?'<button data-action="help-progress" data-id="'+esc(h.id)+'">איך באהאנדל עס</button>'+
+  '<button data-action="help-resolve" data-id="'+esc(h.id)+'">פארטיג</button>':'')+'</div></article>').join('');
+ const selected=board?.help?.find(h=>h.id===state.selectedHelpId);
+ const privateChat=selected?'<section class="card"><h3>פריוואטע הילף־שמועס מיטן מנהל</h3><p>'+
+    esc(selected.category)+' · '+esc(selected.status)+'</p>'+
+   (state.helpMessages||[]).map(m=>'<article class="item"><div><strong>'+esc(m.authored_by)+'</strong>'+
+     '<small>'+esc(localTime(m.created_at))+'</small><p>'+esc(m.body)+'</p></div></article>').join('')+
+   (selected.status!=='resolved'?'<form data-form="help-reply" class="stack">'+
+    '<textarea name="body" rows="3" maxlength="1000" required placeholder="שרייב א תשובה אדער נאך א פראגע"></textarea>'+
+    '<button>שיקן פריוואטע ענטפער</button></form>':'')+'</section>':'';
  const programNotice=live?'<section class="card event-current"><h2>יעצט: '+esc(live.title)+'</h2>'+
    '<p>'+esc(names[live.segment_type]||live.segment_type)+(live.speaker?' · '+esc(live.speaker):'')+'</p>'+
    (live.media_url?'<audio controls preload="none" src="'+esc(live.media_url)+'" class="event-audio"></audio>':
@@ -93,5 +102,5 @@ export function eventView(state,esc,money){
     '<option value="manager">איך דארף א מנהל</option><option value="motivation">חיזוק</option><option value="other">אנדערע</option></select>'+
     '<textarea name="summary" maxlength="500" required rows="2" placeholder="שרייב א קורצע פראגע — נישט קיין פריוואטע נדבן־נומערן"></textarea>'+
     '<button '+(!isChecked?'disabled':'')+'>שיקן הילף־בקשה</button></form>'+
-    (help||'<p class="muted">נאך קיין הילף־בקשות.</p>')+'</section>';
+    (help||'<p class="muted">נאך קיין הילף־בקשות.</p>')+'</section>'+privateChat;
 }
