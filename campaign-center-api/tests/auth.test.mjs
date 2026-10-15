@@ -12,7 +12,11 @@ test("cryptographic login rejects forged, expired and wrong-audience accounts",a
   const jwks=createServer((_req,res)=>{
     res.setHeader("content-type","application/json");
     res.end(JSON.stringify({keys:[jwk]}));
-  }).listen(0,"127.0.0.1");
+  });
+  await new Promise((resolve,reject)=>{
+    jwks.once("error",reject);
+    jwks.listen(0,"127.0.0.1",resolve);
+  });
   const jwksUrl="http://127.0.0.1:"+jwks.address().port+"/keys";
   const issuer="http://127.0.0.1:"+jwks.address().port;
   const verify=buildTokenVerifier({issuer,audience:"gavhah-campaign-center",jwksUrl});
