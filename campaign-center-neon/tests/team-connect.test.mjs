@@ -412,7 +412,7 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.ok(maxRooms.data.rooms.some(x=>x.id===visibleToMax),'Linked MAX can see its own active event');
   assert.ok(!JSON.stringify(maxRooms.data).includes('phone'),'Only event name, room and schedule are shared with MAX');
   assert.equal((await req('/connect/service/rooms?gavhahUserId=8&campaignId='+c1,{service:true})).status,403,'Unlinked MAX identity cannot inspect rooms');
-  assert.equal((await req('/connect/service/rooms?gavhahUserId=7&campaignId='+c2,{service:true})).status,403,'Linked MAX cannot inspect another organization');
+  assert.equal((await req('/connect/service/rooms?gavhahUserId=7&campaignId=00000000-0000-4000-8000-000000000099',{service:true})).status,403,'Linked MAX cannot inspect another organization');
 
   // Personal MAX updates only its own canonical campaign task; retries are inert.
   const memberTask=(await pool.query("INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,kind) VALUES($1,$2,$3,'Call assigned contacts','task') RETURNING id",[org1,c1,first])).rows[0].id;
