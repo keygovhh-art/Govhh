@@ -18,3 +18,9 @@ CREATE TABLE IF NOT EXISTS public.cc_floor_help_requests (
 );
 CREATE INDEX IF NOT EXISTS cc_floor_help_room_idx ON public.cc_floor_help_requests(room_id,status,created_at DESC);
 ALTER TABLE public.cc_floor_help_requests ENABLE ROW LEVEL SECURITY;
+
+-- Single-flight idempotency for a browser-reported call outcome. A retry of a
+-- successful call does not duplicate the immutable ledger or the fundraiser KPI.
+ALTER TABLE public.cc_call_events ADD COLUMN IF NOT EXISTS client_attempt_id uuid;
+CREATE UNIQUE INDEX IF NOT EXISTS cc_call_event_attempt_unique
+ ON public.cc_call_events(client_attempt_id) WHERE client_attempt_id IS NOT NULL;
