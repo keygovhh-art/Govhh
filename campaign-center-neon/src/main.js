@@ -254,7 +254,7 @@ async function submit(event){
    }
    case 'conference-settings': {
      await api('/conferences/'+state.conferenceId,{method:'PATCH',
-       body:JSON.stringify({roomStatus:d.roomStatus,phase:d.phase,speakingMode:d.speakingMode})});
+       body:JSON.stringify({roomStatus:d.roomStatus,phase:d.phase,speakingMode:d.speakingMode,mediaUrl:d.mediaUrl||null})});
      break;
    }
    case 'conference-message': {
@@ -516,7 +516,9 @@ setInterval(async()=>{
   const snapshot=await api('/conferences/'+id+'/snapshot');
   if(id!==state.conferenceId||state.tab!=='conference')return;
   state.conferenceSnapshot=snapshot;
-  if(!document.activeElement?.matches?.('input,textarea,select'))draw();
+  // Streaming HTML5 audio must not restart every 8.5s.
+  const playing=Array.from(document.querySelectorAll('#app audio')).some(a=>!a.paused);
+  if(!playing&&!document.activeElement?.matches?.('input,textarea,select'))draw();
  }catch(e){console.warn('Temporary conference refresh error');}
 },8500);
 
