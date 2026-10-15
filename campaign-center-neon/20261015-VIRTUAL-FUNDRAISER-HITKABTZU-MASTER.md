@@ -28,3 +28,19 @@ A telecom hotline provider is NOT a prerequisite for the web workflow. Neither u
 דער אסיפה־מנהל קען דריי באזונדערע כללים אנצינדן אדער אויסלעשן פאר באשטעטיגטע מוסד־אקאונטס: פארשפארן דעם איינגאנג, דורכלאזן דעם ווארט־צימער, און אפשטעלן טעקסט־מעסעדזשעס. די סערווער־רשות ארבעט אויך קעגן דירעקטע API־פרואוון. דער צוטריט־קאוד קען נישט איבערגיין א פארשפארונג; בעל־הבית און מנהל קענען נישט ווערן פארשפארט דורך די ליסטעס. יעדע ענדערונג ווערט אודיטירט. דער פרישער Schema איז db/007_conference_policy_lists.sql און איז אויפגעשטעלט בלויז אין Neon Staging.
 
 וויכטיג: די ליסטעס זענען געבונדן צו באשטעטיגטע וועב־אקאונטס, נישט בלויז איינגעשריבענע טעלעפאן־נומערן. די מייקראפאן־רשות איז נאכנישט פארבונדן צו אן עכטן וועב־מעדיע־סערווער. א GitHub CI Build איז נאך נישט קיין אמתער Render־לייוו־טעסט.
+
+
+## 6. 2026-10-15 — optional Internet livestream video (new staged feature)
+- OFF by default for both independent room types: fundraising hall and Hitkabtzu conference.
+- A manager may supply an approved external HTTPS video source (MP4 or HLS .m3u8), and select either explicitly approved users or the eligible checked-in/admitted room audience.
+- User must press the explicit "I want to watch live" button. Never load or autoplay a stream merely because a user joined. Users without bandwidth or interest use all other room features normally.
+- The player remains docked outside the main app DOM, so refreshing campaign totals or updating tasks does not interrupt voluntary viewing; HLS.js downloads only after an explicit opt-in, saving mobile bandwidth.
+- The app API checks current active organization and campaign membership, session admission/check-in, live room status, manager policy, and explicit video grant if necessary. Unadmitted/banned/no-check-in/disabled members cannot obtain the video URL via this API.
+- Administrators can revoke individual viewing grants; active player closes on the next authenticated status check (~12 s while app visible). The permission list and changes are kept in PostgreSQL and audit.
+- The external video source itself is NOT hosted, signed or transmitted by Campaign Center. Provider-side signed short-lived playback URLs/DRM are needed to prevent users from forwarding a copied URL. Video recording, camera broadcast, full-duplex WebRTC, provider load guarantees and large-audience testing remain unimplemented.
+- Migration db/008_opt_in_video.sql applied ONLY to Neon staging branch br-sparkling-term-b5dqbtco. New routes server/video.js and media UI src/video-view.js. Two database-backed auth scenarios covered by disposable PostgreSQL CI.
+
+## 7. MAX ↔ virtual fundraiser handoff
+- MAX account-linked user can see the currently planned/open/paused Campaign Center fundraising room titles and current scheduled program, from a scoped authenticated server-to-server endpoint; no private donor/contact/call notes copied.
+- MAX offers a browser link to the corresponding hall. Campaign Center validates its own Neon Auth membership and requires explicit event join/check-in. MAX authentication never automatically logs the user into Campaign Center.
+- No background auto-refresh in MAX is promised; this is a read-only room summary with a separate link. All newer code stays in separate draft branches until a proper audited release.
