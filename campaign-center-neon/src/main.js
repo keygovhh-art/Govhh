@@ -7,7 +7,7 @@ import { hallView } from './hall-view.js';
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -34,7 +34,7 @@ async function refresh() {
       api('/campaigns/'+id+'/contacts'),api('/campaigns/'+id+'/finance')
     ]);
   }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];}
-  state.manager=null;state.members=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.activity=[];state.activityNextOffset=null;
+  state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
     state.activity=activity.events||[];state.activityNextOffset=activity.nextOffset;state.activityScope=activity.scope;
@@ -54,7 +54,8 @@ async function refresh() {
         api('/team/campaigns/'+state.campaignId+'/assignees').then(v=>state.assignees=v)
       ]:[]),
       ...(state.campaignId&&['owner','manager','finance','auditor'].includes(role)?[
-        api('/team/campaigns/'+state.campaignId+'/manager-overview').then(v=>state.manager=v)
+        api('/team/campaigns/'+state.campaignId+'/manager-overview').then(v=>state.manager=v),
+        api('/team/campaigns/'+state.campaignId+'/member-progress').then(v=>state.memberProgress=v.memberProgress||[])
       ]:[]),
       ...(state.campaignId&&['owner','manager','squad_leader','askan'].includes(role)?[
         api('/team/campaigns/'+state.campaignId+'/lead-queue').then(v=>state.leads=v)
