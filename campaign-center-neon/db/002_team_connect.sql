@@ -48,3 +48,6 @@ ALTER TABLE public.cc_team_invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cc_connect_codes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cc_external_account_links ENABLE ROW LEVEL SECURITY;
 -- No policies intentionally: direct unprivileged Data API access remains denied.
+
+-- One MAX money event may be attributed to one campaign only across ALL organizations.
+CREATE UNIQUE INDEX IF NOT EXISTS cc_finance_one_max_event ON public.cc_finance_events(source_system,source_event_key) WHERE source_system='gavhah_max';
