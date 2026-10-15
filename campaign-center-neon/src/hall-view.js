@@ -6,7 +6,7 @@ export function hallView(state,esc){
  const active=rooms.find(x=>x.id===state.joinedRoomId);
  const entries=rooms.map(r=>{
   const joined=state.joinedRoomId===r.id;
-  return '<article class="item"><div><strong>'+esc(r.title)+'</strong>'+
+  return '<article class="item '+(state.requestedRoomId===r.id?'requested-hall':'')+'"><div><strong>'+esc(r.title)+'</strong>'+ (state.requestedRoomId===r.id?'<small>דאס איז דער קאמפיין־זאל וואס דו האסט געעפנט פון MAX. דרוק אריינגיין — א לינק אליין גיט נישט קיין צוטריט.</small>':'')+
     '<small>'+esc(r.room_status)+' · לעצטנס פארבונדענע: '+esc(r.recently_connected)+' (וועב בלויז)</small></div>'+
     '<div class="actions">'+
     (r.room_status==='open'?
