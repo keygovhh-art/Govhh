@@ -1,4 +1,5 @@
 import { videoPanel } from './video-view.js';
+import {smallAudioState} from './browser-audio.js';
 const types={assembly:'אסיפה',inspiration:'דברי חיזוק',technical:'טעכנישע אסיפה',advice:'עצות',other:'אנדערע'};
 const status={planned:'אין צוגרייטונג',open:'עפן',paused:'אויפגעהאלטן',ended:'פארענדיגט'};
 const speaking={listeners:'צוהערער בלבד',moderated:'מנהל געבט רשות',open:'אפענע דיסקוסיע'};
@@ -62,6 +63,17 @@ export function conferenceView(state,esc){
      '<button>אפהיטן דעם כלל</button></form>'+
      (policyList||'<p class="muted">קיין אקטיווע באזונדערע כללים.</p>')+
    '</section>':'';
+  const smallAudio=smallAudioState();
+  const listeningNow=smallAudio?.roomId===current.id;
+  const maySpeak=!me?.moderatorMuted&&(m||current.speaking_mode==='open'||me?.speakingGranted);
+  const p2p=(state.experimentalAudioEnabled&&(m||admitted)&&joined&&active)?
+   '<section class="card"><h3>קליינע לייוו־מייקראפאן־אסיפה (פרואווייזער)</h3>'+
+   '<p class="muted">ביז 8 מענטשן און העכסטנס 2 רעדנער. דירעקטע WebRTC־אודיא אן א האטליין־פראוויידער; אויף געוויסע אינטערנעט־נעצן קען א TURN־פארבינדונג נאך אויספעלן. מייקראפאן ווערט נאר געעפנט מיט דיין בפירושן באשטעטיגונג.</p>'+
+   (listeningNow?'<p>דו ביסט יעצט אינעם קליינעם אודיא־צימער ('+esc(smallAudio.mode)+')</p>'+
+      '<button type="button" data-action="rtc-stop">אויסלעשן מייקראפאן / פארלאזן אודיא</button>':
+      '<div class="actions"><button type="button" data-action="rtc-listen">איך וויל הערן</button>'+
+        (maySpeak?'<button type="button" data-action="rtc-speak">איך וויל רעדן — מייקראפאן־רשות</button>':'')+
+       '</div>')+'</section>':'';
   const join=!joined&&active?'<form data-form="conference-join" class="inline">'+
    (current.access_mode==='code'&&!m?'<input name="accessCode" dir="ltr" placeholder="צוטריט־קאוד" maxlength="24" required>':'')+
    '<button class="primary">אריינגיין / ווארטן אויף באשטעטיגונג</button></form>':'';
@@ -83,7 +95,7 @@ export function conferenceView(state,esc){
     (joined&&active?'<div class="actions"><button data-action="conference-hand">'+(me?.handRaised?'אראפנעמען די האנט':'אויפהייבן די האנט')+'</button><button data-action="conference-leave">ארויסגיין</button></div>':'')+
     '</section>'+
     ((m||admitted)?'<section class="card"><h3>עסקנים און רעדן־רעכטן</h3>'+people+'</section>':'')+
-    messages+policies+videoPanel(state.videoStatus.conference,'conference',current.id,state.videoGrants.conference,esc,state.conferenceSnapshot?.online||[]);
+    messages+p2p+policies+videoPanel(state.videoStatus.conference,'conference',current.id,state.videoGrants.conference,esc,state.conferenceSnapshot?.online||[]);
  })();
  return '<section class="card"><h2>התקבצו — אסיפות און חיזוק</h2>'+
  '<p class="muted">באזונדער פון דעם קאמפיין־זאל. אסיפות, דברי חיזוק, שאלות־ותשובות, עצות און טעכנישע דיסקוסיעס מיט מנהל־קאנטראל.</p>'+
