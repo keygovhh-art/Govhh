@@ -56,9 +56,44 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    return r;
   });res.json(result);
  }));
+ async function checkLeadTeam(db,c,subject,assignedTeam){
+  if(['owner','manager'].includes(c.role))return;
+  const r=await db.query('SELECT team_name FROM cc_campaign_members WHERE campaign_id=$1 AND subject=$2',[c.id,subject]);
+  if(!r.rowCount||r.rows[0].team_name!==assignedTeam)throw bad(404,'Contact not assigned to your team');
+ }
+ router.patch('/campaigns/:cid/members/:subject/team',run(async(req,res)=>{
+  const team=trim(req.body?.teamName,64);
+  if(team.length>64)throw bad(400,'Invalid team');
+  const result=await tx(async db=>{
+   const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,['owner','manager']);
+   const row=(await db.query('UPDATE cc_campaign_members SET team_name=$1 WHERE campaign_id=$2 AND subject=$3 RETURNING subject,team_name',[team,c.id,req.params.subject])).rows[0];
+   if(!row)throw bad(404,'Campaign member not found');
+   await log(db,c.organization_id,c.id,req.userId,'team.member_assigned',null,{subject:req.params.subject,team});
+   return row;
+  });res.json(result);
+ }));
+ router.patch('/campaigns/:cid/contacts/:id/team',run(async(req,res)=>{
+  if(!uuid(req.params.id))throw bad(400,'Invalid contact');
+  const team=trim(req.body?.teamName,64);
+  const result=await tx(async db=>{
+   const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,['owner','manager']);
+   const found=(await db.query('SELECT * FROM cc_contacts WHERE id=$1 AND campaign_id=$2 FOR UPDATE',[req.params.id,c.id])).rows[0];
+   if(!found||found.privacy!=='campaign')throw bad(404,'Shared contact not found');
+   if(found.claimed_by&&new Date(found.claim_expires_at).getTime()>Date.now())throw bad(409,'Wait until the current claim is released');
+   if(team){
+    const valid=await db.query("SELECT 1 FROM cc_campaign_members cm JOIN cc_memberships m ON m.organization_id=cm.organization_id AND m.subject=cm.subject AND m.membership_status='active' WHERE cm.campaign_id=$1 AND cm.team_name=$2 LIMIT 1",[c.id,team]);
+    if(!valid.rowCount)throw bad(400,'Assign an active member to this team first');
+   }
+   const row=(await db.query('UPDATE cc_contacts SET assigned_team=$1 WHERE id=$2 RETURNING id,assigned_team',[team,found.id])).rows[0];
+   await log(db,c.organization_id,c.id,req.userId,'contact.assigned_team',row.id,{from:found.assigned_team,to:team});
+   return row;
+  });res.json(result);
+ }));
  router.get('/campaigns/:cid/lead-queue',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,['owner','manager','squad_leader','askan']);
-  const r=await pool.query("SELECT id,display_name,phone,do_not_call,status,claimed_by,claim_expires_at FROM cc_contacts WHERE campaign_id=$1 AND organization_id=$2 AND privacy='campaign' ORDER BY created_at DESC LIMIT 200",[c.id,c.organization_id]);
+  const isManager=['owner','manager'].includes(c.role);
+  const r=await pool.query("SELECT id,display_name,phone,do_not_call,status,assigned_team,claimed_by,claim_expires_at FROM cc_contacts WHERE campaign_id=$1 AND organization_id=$2 AND privacy='campaign' AND ($3::boolean OR assigned_team=(SELECT team_name FROM cc_campaign_members WHERE campaign_id=$1 AND subject=$4)) ORDER BY created_at DESC LIMIT 200",
+    [c.id,c.organization_id,isManager,req.userId]);
   res.json(r.rows);
  }));
  router.post('/contacts/:id/claim',run(async(req,res)=>{
@@ -67,6 +102,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    const lead=(await db.query('SELECT * FROM cc_contacts WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
    if(!lead||lead.privacy!=='campaign')throw bad(404,'Shared contact missing');
    const c=await campaignAccess(db,lead.campaign_id,req.userId);need(c.role,['owner','manager','squad_leader','askan']);
+   await checkLeadTeam(db,c,req.userId,lead.assigned_team);
    if(lead.do_not_call)throw bad(409,'Do not call');
    if(lead.claimed_by&&lead.claimed_by!==req.userId&&new Date(lead.claim_expires_at).getTime()>Date.now())throw bad(409,'Another member currently claims this contact');
    const found=(await db.query("UPDATE cc_contacts SET claimed_by=$1,claim_expires_at=now()+interval '20 minutes' WHERE id=$2 RETURNING id,claimed_by,claim_expires_at",[req.userId,lead.id])).rows[0];
@@ -79,6 +115,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    const lead=(await db.query('SELECT * FROM cc_contacts WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
    if(!lead||lead.privacy!=='campaign')throw bad(404,'Shared contact missing');
    const c=await campaignAccess(db,lead.campaign_id,req.userId);
+   await checkLeadTeam(db,c,req.userId,lead.assigned_team);
    if(lead.claimed_by!==req.userId)need(c.role,['owner','manager']);
    const found=(await db.query('UPDATE cc_contacts SET claimed_by=NULL,claim_expires_at=NULL WHERE id=$1 RETURNING id,claimed_by',[lead.id])).rows[0];
    await log(db,c.organization_id,c.id,req.userId,'lead.released',lead.id);return found;
@@ -88,7 +125,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
   const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,['owner','manager','finance','auditor']);
   const [financial,members,leads,tasks]=await Promise.all([
    pool.query("SELECT COALESCE(SUM(amount) FILTER (WHERE event_kind='pledge'),0)::text promised, COALESCE(SUM(amount) FILTER (WHERE event_kind='receipt' AND verified_at IS NULL),0)::text manually_reported, COALESCE(SUM(amount) FILTER (WHERE event_kind='receipt' AND verified_at IS NOT NULL),0)::text verified_received FROM cc_finance_events WHERE campaign_id=$1 AND organization_id=$2",[c.id,c.organization_id]),
-   pool.query("SELECT m.subject,m.role FROM cc_campaign_members cm JOIN cc_memberships m ON m.organization_id=cm.organization_id AND m.subject=cm.subject AND m.membership_status='active' WHERE cm.campaign_id=$1",[c.id]),
+   pool.query("SELECT m.subject,m.role,cm.team_name FROM cc_campaign_members cm JOIN cc_memberships m ON m.organization_id=cm.organization_id AND m.subject=cm.subject AND m.membership_status='active' WHERE cm.campaign_id=$1",[c.id]),
    pool.query("SELECT COUNT(*)::int total, COUNT(*) FILTER(WHERE claimed_by IS NOT NULL AND claim_expires_at>now())::int claimed FROM cc_contacts WHERE campaign_id=$1 AND privacy='campaign'",[c.id]),
    pool.query('SELECT status,COUNT(*)::int total FROM cc_assignments WHERE campaign_id=$1 GROUP BY status',[c.id])
   ]);
