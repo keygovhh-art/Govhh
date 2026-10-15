@@ -150,7 +150,17 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const row=(await pool.query("SELECT amount,verified_at,source_system FROM cc_finance_events WHERE source_event_key='receipt:123'")).rows;
   assert.equal(row.length,1);assert.equal(row[0].verified_at,null);assert.equal(row[0].source_system,'gavhah_max');
   const total=(await req('/team/campaigns/'+c1+'/manager-overview',{user:owner})).data.financial;
-  assert.equal(Number(total.verified_received),0);assert.equal(Number(total.manually_reported),20);
+  assert.equal(Number(total.treasurer_confirmed),0);assert.equal(Number(total.net_manual_received),20);
+  const correction={gavhahUserId:7,campaignId:c1,originalReceiptId:123,refundId:55,amount:'5.00'};
+  const corrected=await req('/connect/service/finance-reversals',{service:true,method:'POST',data:correction});
+  assert.equal(corrected.status,201,'First manual reversal');
+  assert.equal((await req('/connect/service/finance-reversals',{service:true,method:'POST',data:correction})).data.duplicate,true);
+  assert.equal((await req('/connect/service/finance-reversals',{service:true,method:'POST',data:{...correction,refundId:56,amount:'16.00'}})).status,409,'Reversal cannot exceed original receipt');
+  const afterCorrection=(await req('/team/campaigns/'+c1+'/manager-overview',{user:owner})).data.financial;
+  assert.equal(Number(afterCorrection.net_manual_received),15,'Net manual total after correction');
+  assert.equal(Number(afterCorrection.refunded),5,'Audit records the reversal');
+  assert.equal((await pool.query("SELECT COUNT(*)::int n FROM cc_finance_events WHERE event_kind='refund'")).rows[0].n,1);
+
   // An unrelated organization must not count the same money again.
   const org2=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES('B',$1) RETURNING id",[first])).rows[0].id;
   await pool.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,'owner','active',now())",[org2,first]);
