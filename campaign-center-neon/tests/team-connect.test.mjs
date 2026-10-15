@@ -282,8 +282,15 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/floor/'+eventId+'/calls/'+shared,{user:second,method:'POST',data:callBody})).status,403,'Non-checked-in member cannot log any floor call');
   const help=await req('/floor/'+eventId+'/help',{user:first,method:'POST',data:{category:'technical',summary:'I need setup help'}});
   assert.equal(help.status,201);
+  const ticketPath='/floor/'+eventId+'/help/'+help.data.id+'/messages';
+  assert.equal((await req(ticketPath,{user:'stranger'})).status,404,'Help messages are hidden from outside org');
+  assert.equal((await req(ticketPath,{user:second})).status,404,'Other volunteer cannot read private manager support');
+  assert.equal((await req(ticketPath,{user:first,method:'POST',data:{body:'Can somebody guide my browser?'}})).status,201);
+  assert.equal((await req(ticketPath,{user:owner,method:'POST',data:{body:'Try the call desk, then press Claim.'}})).status,201);
+  assert.equal((await req(ticketPath,{user:first})).data.messages.length,2,'Volunteer sees own back-and-forth with manager');
   assert.equal((await req('/floor/'+eventId+'/help/'+help.data.id,{user:first,method:'PATCH',data:{status:'resolved'}})).status,403);
   assert.equal((await req('/floor/'+eventId+'/help/'+help.data.id,{user:owner,method:'PATCH',data:{status:'resolved'}})).status,200);
+  assert.equal((await req(ticketPath,{user:first,method:'POST',data:{body:'after resolved'}})).status,409,'Resolved help requests do not silently accept new messages');
   const start=await req('/floor-program/'+eventId+'/programs/'+programId+'/status',{user:owner,method:'POST',data:{status:'live'}});
   assert.equal(start.status,200);
   const during=await req('/floor-program/'+eventId+'/schedule',{user:first});
