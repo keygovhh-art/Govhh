@@ -77,6 +77,11 @@ export default function rtcRouter({pool,authenticate,member,campaignAccess,bad,u
    !['offer','answer','ice','bye'].includes(kind)||
    !payload||typeof payload!=='object'||Array.isArray(payload)||
    JSON.stringify(payload).length>18000)throw bad(400,'Invalid browser media signal');
+  if(['offer','answer'].includes(kind)&&(
+      payload.sdp?.type!==kind||typeof payload.sdp?.sdp!=='string'||payload.sdp.sdp.length>15000))
+    throw bad(400,'Invalid WebRTC session description');
+  if(kind==='ice'&&(typeof payload.candidate?.candidate!=='string'||
+      payload.candidate.candidate.length>3000))throw bad(400,'Invalid ICE candidate');
   const created=await tx(async db=>{
    const c=await context(db,req.params.rid,req.userId);
    const self=(await db.query("SELECT mode FROM cc_conference_rtc_peers WHERE room_id=$1 AND subject=$2 AND last_seen_at>now()-interval '45 seconds'",[req.params.rid,req.userId])).rows[0];
@@ -86,6 +91,8 @@ export default function rtcRouter({pool,authenticate,member,campaignAccess,bad,u
    const target=(await db.query("SELECT p.mode FROM cc_conference_rtc_peers p JOIN cc_conference_participants a ON a.room_id=p.room_id AND a.subject=p.subject WHERE p.room_id=$1 AND p.subject=$2 AND p.last_seen_at>now()-interval '45 seconds' AND a.admitted AND NOT a.banned AND a.left_at IS NULL",[req.params.rid,to])).rows[0];
    if(!target)throw bad(404,'Peer no longer in conference');
    if(kind==='offer'&&target.mode!=='listener')throw bad(400,'Speakers cannot offer to another speaker');
+   const rate=(await db.query("SELECT COUNT(*)::int n FROM cc_conference_rtc_signals WHERE room_id=$1 AND sender_subject=$2 AND created_at>now()-interval '1 minute'",[req.params.rid,req.userId])).rows[0].n;
+   if(rate>=300)throw bad(429,'Too many browser audio signals');
    const r=(await db.query('INSERT INTO cc_conference_rtc_signals(room_id,sender_subject,recipient_subject,kind,payload) VALUES($1,$2,$3,$4,$5) RETURNING id',
     [req.params.rid,req.userId,to,kind,JSON.stringify(payload)])).rows[0];
    // Signaling is ephemeral; never store permanent recordings or SDP in audit.
