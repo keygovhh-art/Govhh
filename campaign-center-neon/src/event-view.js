@@ -80,10 +80,10 @@ export function eventView(state,esc,money){
    '</section>':'';
  return '<section class="card event-status"><h2>קאמפיין־זאל — לעבעדיגע ארבעט</h2>'+
    '<p class="muted">מען קען סיי ווען אריינקומען, און אלע נייע ציפערן און פראגראמען דערהיינטיגן זיך.</p>'+
-   '<div class="metrics"><div><span>מצב</span><strong>'+esc(names[event?.mode]||event?.mode||'...')+'</strong></div>'+
-   '<div><span>איינגעטשעקט</span><strong>'+esc(event?.attendance?.checked_in||0)+'</strong></div>'+
-   '<div><span>רופן באריכטעט</span><strong>'+esc(metrics.calls?.reported||0)+'</strong></div>'+
-   '<div><span>נעטא באריכטעט</span><strong>'+money(metrics.financial?.manually_reported_net)+'</strong></div></div>'+
+   '<div class="metrics"><div><span>מצב</span><strong data-live-metric="mode">'+esc(names[event?.mode]||event?.mode||'...')+'</strong></div>'+
+   '<div><span>איינגעטשעקט</span><strong data-live-metric="attendance">'+esc(event?.attendance?.checked_in||0)+'</strong></div>'+
+   '<div><span>רופן באריכטעט</span><strong data-live-metric="calls">'+esc(metrics.calls?.reported||0)+'</strong></div>'+
+   '<div><span>נעטא באריכטעט</span><strong data-live-metric="net">'+money(metrics.financial?.manually_reported_net)+'</strong></div></div>'+
    (!isChecked?'<button data-action="event-check-in" class="primary">איך בין אנגעקומען — אריינטשעקן</button>':
    '<button data-action="event-check-out">ארויסטשעקן (מיינע רעקארדס בלייבן)</button>')+
    '<div class="inline"><button data-action="event-refresh">יעצט דערפרישן</button></div></section>'+
