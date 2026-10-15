@@ -133,6 +133,7 @@ async function boot(){
  try{
   const cfg=await fetch('/api/config').then(r=>r.json());
   if(!cfg.neonAuthUrl)throw new Error('Neon Auth איז נאכנישט קאנפיגורירט');
+  if(!cfg.ready){$('#app').innerHTML='<main class="auth-wrap"><section class="card"><h1>גבהה קאמפיין סענטער</h1><p>דער Render־סערוויס איז צוגעגרייט. פארן אמתן ארבעטן דארף מען נאך אריינלייגן די געהיימע Neon DATABASE_URL אין Render Environment.</p><p class="muted">קיין דאטן זענען נישט אריבערגעפירט געווארן און קיין קאמפיין איז נאך נישט פארעפנטליכט.</p></section></main>';return;}
   state.auth=createAuthClient(cfg.neonAuthUrl);
   const s=await state.auth.getSession();
   state.user=s.data?.user||null;
