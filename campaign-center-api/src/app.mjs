@@ -208,6 +208,18 @@ export function createApp({pool,verifyBearer,publicOrigin}){
     });
     res.json(updated);
   }));
+  app.get("/api/campaigns/:campaignId/members",asyncRoute(async(req,res)=>{
+    const campaign=await campaignAccess(pool,req.params.campaignId,req.account.sub);
+    if(!managerial.has(campaign.role))fail(403,"Manager access required");
+    const {rows}=await pool.query(`SELECT cm.subject,cm.team_name AS "teamName",
+        m.role,m.membership_status AS status,cm.assigned_at AS "assignedAt"
+      FROM cc_campaign_members cm
+      JOIN cc_memberships m ON m.organization_id=cm.organization_id
+        AND m.subject=cm.subject
+      WHERE cm.campaign_id=$1 ORDER BY cm.assigned_at DESC LIMIT 500`,
+      [campaign.id]);
+    res.json(rows);
+  }));
   app.post("/api/campaigns/:campaignId/members",asyncRoute(async(req,res)=>{
     const subject=req.body?.subject,teamName=req.body?.teamName||"";
     if(typeof subject!=="string"||subject.length<3||subject.length>200||
@@ -309,6 +321,21 @@ export function createApp({pool,verifyBearer,publicOrigin}){
       return row;
     });
     res.json({id:updated.id,status:updated.status});
+  }));
+  app.get("/api/organizations/:orgId/history",asyncRoute(async(req,res)=>{
+    const role=await organizationRole(pool,req.params.orgId,req.account.sub);
+    if(!managerial.has(role)&&role!=="auditor")fail(403,"Organization history requires managerial or audit role");
+    const limit=Number(req.query.limit??50),offset=Number(req.query.offset??0);
+    if(!Number.isSafeInteger(limit)||limit<1||limit>100||
+       !Number.isSafeInteger(offset)||offset<0||offset>100000)fail(400,"Invalid history pagination");
+    const {rows}=await pool.query(`SELECT id,campaign_id AS "campaignId",
+        event_type AS "eventType",actor_subject AS "actorSubject",
+        target_id AS "targetId",details,created_at AS "createdAt"
+      FROM cc_activity_events WHERE organization_id=$1
+      ORDER BY created_at DESC,id DESC LIMIT $2 OFFSET $3`,
+      [req.params.orgId,limit+1,offset]);
+    res.json({items:rows.slice(0,limit),hasMore:rows.length>limit,
+      nextOffset:offset+Math.min(rows.length,limit)});
   }));
   app.get("/api/campaigns/:campaignId/history",asyncRoute(async(req,res)=>{
     const campaign=await campaignAccess(pool,req.params.campaignId,req.account.sub);
