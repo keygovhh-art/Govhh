@@ -141,6 +141,38 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal(countAfterLeave,1);
   assert.equal((await req('/rooms/'+roomId+'/status',{user:owner,method:'PATCH',data:{status:'ended'}})).status,200);
   assert.equal((await req('/rooms/'+roomId+'/join',{user:second,method:'POST'})).status,409);
+  // The audit trail is real, tenant scoped, and remains available after closing rooms.
+  const ownerAudit=await req('/team/campaigns/'+c1+'/activity',{user:owner});
+  const firstAudit=await req('/team/campaigns/'+c1+'/activity',{user:first});
+  assert.equal(ownerAudit.status,200);
+  assert.equal(ownerAudit.data.scope,'campaign');
+  assert.ok(ownerAudit.data.events.some(x=>x.event_type==='room.announcement'));
+  assert.equal(firstAudit.status,200);
+  assert.equal(firstAudit.data.scope,'personal');
+  assert.ok(firstAudit.data.events.every(x=>x.actor_subject===first));
+  assert.equal((await req('/team/campaigns/'+c1+'/activity',{user:'stranger'})).status,404);
+  // CSV export: a squad cannot export another group's contact; private donor notes
+  // and spreadsheet formula injection must not leak or execute.
+  const dangerous=(await pool.query("INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy,assigned_team,notes) VALUES($1,$2,$3,$4,$5,'campaign','Group B',$6) RETURNING id",
+    [org1,c1,second,'=HYPERLINK("https://bad.example","Click")','0000000001','private donor note'])).rows[0].id;
+  const privateOwner=(await pool.query("INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy,assigned_team,notes) VALUES($1,$2,$3,'Private owner entry','0000000002','private','', 'owner secret memo') RETURNING id",[org1,c1,owner])).rows[0].id;
+  async function csv(user){
+   const raw=await fetch(url+'/api/team/campaigns/'+c1+'/contacts.csv?page=1',{headers:{'x-test-user':user}});
+   return {status:raw.status,body:await raw.text(),type:raw.headers.get('content-type')};
+  }
+  const firstCsv=await csv(first);
+  const secondCsv=await csv(second);
+  const managerCsv=await csv(owner);
+  assert.equal(firstCsv.status,200);
+  assert.ok(!firstCsv.body.includes(dangerous),'Group A must not export Group B contact');
+  assert.ok(!firstCsv.body.includes('owner secret memo'),'Owner private memo not exported');
+  assert.ok(secondCsv.body.includes(dangerous),'Group B can export own squad record');
+  assert.ok(!secondCsv.body.includes('owner secret memo'),'Owner private record not exported to others');
+  assert.ok(secondCsv.body.includes("'=HYPERLINK"),'Spreadsheet formula neutralized');
+  assert.ok(managerCsv.body.includes(dangerous),'Manager may export shared group contacts');
+  assert.ok(managerCsv.body.includes(privateOwner),'Manager sees own private record');
+  assert.ok(!managerCsv.body.includes('private donor note'),'Manager must not export other creator private notes');
+  assert.equal((await csv('stranger')).status,404);
   // Link requires authenticated CC account and authenticated Gavhah service.
   const link=await req('/connect/code',{user:first,method:'POST'});
   assert.equal(link.status,201);assert.equal(link.data.code.length,32);
