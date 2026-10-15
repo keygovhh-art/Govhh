@@ -423,6 +423,14 @@ async function click(event){
   if(a==='unlink-max'){if(!state.confirmUnlink){state.confirmUnlink=true;say('נאכאמאל דרוקן אויסלעשן פארבינדונג צו באשטעטיגן');return;}await api('/connect/unlink',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.confirmUnlink=false;state.connectCode='';await refresh();return;}
   if(a==='claim-lead'){await api('/team/contacts/'+btn.dataset.id+'/claim',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
   if(a==='release-lead'){await api('/team/contacts/'+btn.dataset.id+'/release',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
+  if(a==='video-revoke'){
+    const kind=btn.dataset.kind;
+    const roomId=kind==='floor'?state.joinedRoomId:kind==='conference'?state.conferenceId:null;
+    if(!roomId||!btn.dataset.subject)throw new Error('קלייב א מיטגליד און צימער');
+    await api('/video/'+kind+'/'+roomId+'/allow/'+encodeURIComponent(btn.dataset.subject),
+      {method:'PATCH',body:JSON.stringify({allowed:false})});
+    await refresh();return;
+  }
   if(a==='video-watch'){
     const kind=btn.dataset.kind,roomId=btn.dataset.id;
     if(!['conference','floor'].includes(kind)||!roomId)throw new Error('דער ווידעא־צימער פעלט');
