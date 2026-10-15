@@ -35,6 +35,46 @@ export default function floorRouter({pool,authenticate,campaignAccess,need,log,b
    help:help.rows,feed:feed.rows,online:team.rows,
    recentlyOnlineCount:manager?team.rowCount:null,mode:'web_live_reporting_with_manual_calls',pollAfterMs:6500});
  }));
+ router.post('/:rid/calls/:contactId',handle(async(req,res)=>{
+  const outcome=trim(req.body?.outcome,20),note=trim(req.body?.note,2000),attemptId=req.body?.attemptId;
+  if(!uuid(req.params.contactId)||!uuid(attemptId)||
+   !['no_answer','spoke','callback','pledged','paid','not_interested','do_not_call'].includes(outcome))
+   throw bad(400,'Invalid manual call result');
+  const result=await tx(async db=>{
+   const {room,campaign:c}=await context(db,req.params.rid,req.userId,true);
+   need(c.role,['owner','manager','squad_leader','askan']);
+   // Idempotent retry must return the identical immutable record, even if the
+   // fundraiser has since switched into a lunch/inspiration program.
+   const before=(await db.query('SELECT id,member_subject,contact_id,outcome FROM cc_call_events WHERE client_attempt_id=$1',[attemptId])).rows[0];
+   if(before){
+    if(before.member_subject!==req.userId||before.contact_id!==req.params.contactId||before.outcome!==outcome)
+      throw bad(409,'Conflicting call retry');
+    return {id:before.id,duplicate:true,manuallyReported:true};
+   }
+   if(room.room_status!=='open'||room.floor_mode!=='calling')throw bad(409,'Calling is paused for a program or break');
+   const check=await db.query('SELECT 1 FROM cc_floor_checkins WHERE room_id=$1 AND member_subject=$2 AND checked_out_at IS NULL',
+    [room.id,req.userId]);
+   if(!check.rowCount)throw bad(403,'Check into the event before recording calls');
+   const lead=(await db.query('SELECT * FROM cc_contacts WHERE id=$1 FOR UPDATE',[req.params.contactId])).rows[0];
+   if(!lead||lead.privacy!=='campaign'||lead.campaign_id!==c.id||lead.organization_id!==c.organization_id)
+    throw bad(404,'Contact is not on this campaign');
+   if(lead.do_not_call)throw bad(409,'Do-not-call contact');
+   if(lead.claimed_by!==req.userId||!lead.claim_expires_at||new Date(lead.claim_expires_at).getTime()<=Date.now())
+    throw bad(409,'Contact claim has expired or belongs to another operator');
+   if(!['owner','manager'].includes(c.role)){
+    const team=(await db.query('SELECT team_name FROM cc_campaign_members WHERE campaign_id=$1 AND subject=$2',[c.id,req.userId])).rows[0]?.team_name;
+    if(team===undefined||team!==lead.assigned_team)throw bad(404,'Contact belongs to another squad');
+   }
+   const saved=(await db.query('INSERT INTO cc_call_events(organization_id,campaign_id,contact_id,member_subject,outcome,note,client_attempt_id) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id',
+    [c.organization_id,c.id,lead.id,req.userId,outcome,note,attemptId])).rows[0];
+   const nextStatus=outcome==='do_not_call'?'do_not_call':outcome;
+   await db.query("UPDATE cc_contacts SET do_not_call=CASE WHEN $1='do_not_call' THEN true ELSE do_not_call END,status=$1,claimed_by=NULL,claim_expires_at=NULL WHERE id=$2",
+    [nextStatus,lead.id]);
+   await log(db,c.organization_id,c.id,req.userId,'call.logged',saved.id,{contactId:lead.id,outcome,roomId:room.id,manuallyReported:true});
+   return {id:saved.id,duplicate:false,manuallyReported:true};
+  });
+  res.status(result.duplicate?200:201).json(result);
+ }));
  router.post('/:rid/help',handle(async(req,res)=>{
   const category=trim(req.body?.category,24),summary=trim(req.body?.summary,501);
   if(!['technical','donor_question','manager','motivation','other'].includes(category)||summary.length<2||summary.length>500)
