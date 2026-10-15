@@ -147,6 +147,14 @@ async function submit(event){
      state.invitationCode='';state.connectCode='';state.joinedRoomId=null;state.showCampaignForm=false;
      state.tab='today';break;
    }
+   case 'member-permission': {
+     if(d.confirm!=='on')throw new Error('באשטעטיג דעם רשות־טויש');
+     const member=state.members.find(m=>m.subject===d.subject);
+     if(!member||member.role==='owner'||member.subject===state.subject)throw new Error('מען קען נישט ענדערן א באשיצטן מיטגליד');
+     await api('/team/organizations/'+state.orgId+'/members/'+encodeURIComponent(d.subject),{
+       method:'PATCH',body:JSON.stringify({role:d.role,status:d.status})
+     });break;
+   }
    case 'member-team': await api('/team/campaigns/'+state.campaignId+'/members/'+encodeURIComponent(d.subject)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
    case 'hall-new': await api('/rooms/campaigns/'+state.campaignId,{method:'POST',body:JSON.stringify({title:d.title})});break;
    case 'hall-message': await api('/rooms/'+state.joinedRoomId+'/announcements',{method:'POST',body:JSON.stringify({message:d.message})});break;
