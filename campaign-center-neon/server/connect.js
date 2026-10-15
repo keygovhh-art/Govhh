@@ -127,6 +127,31 @@ export function connectServiceRouter({pool,bad,uuid,log}) {
   const r=await pool.query("SELECT id,max_followup_ref,share_scope,created_at FROM cc_shared_followup_links WHERE campaign_id=$1 AND member_subject=$2 ORDER BY created_at DESC LIMIT 200",[c.id,subject]);
   res.json(r.rows);
  }));
+ router.post('/finance-reversals',wrap(async(req,res)=>{
+  const {gavhahUserId,campaignId,originalReceiptId,refundId,amount}=req.body||{};
+  if(!numericUser(gavhahUserId)||!numericUser(originalReceiptId)||!numericUser(refundId)||!money(amount))throw bad(400,'Invalid manual reversal');
+  const result=await transaction(pool,async db=>{
+   const subject=await linked(db,gavhahUserId);
+   const c=await campaign(db,subject,campaignId);
+   if(c.role==='auditor')throw bad(403,'Read only campaign role');
+   const sourceEventKey='refund:'+refundId;
+   const originalKey='receipt:'+originalReceiptId;
+   const original=(await db.query("SELECT * FROM cc_finance_events WHERE source_system='gavhah_max' AND source_event_key=$1 AND campaign_id=$2 AND credited_member_subject=$3 AND event_kind='receipt' AND organization_id=$4 FOR UPDATE",[originalKey,c.id,subject,c.organization_id])).rows[0];
+   if(!original)throw bad(409,'Original receipt was not explicitly shared with this campaign');
+   const saved=await db.query("INSERT INTO cc_finance_events(organization_id,campaign_id,credited_member_subject,source_system,source_event_key,event_kind,amount,currency,related_finance_event_id) VALUES($1,$2,$3,'gavhah_max',$4,'refund',$5,'USD',$6) ON CONFLICT DO NOTHING RETURNING id",[c.organization_id,c.id,subject,sourceEventKey,amount,original.id]);
+   if(!saved.rowCount){
+    const prev=(await db.query("SELECT id,organization_id,campaign_id,credited_member_subject,event_kind,amount,related_finance_event_id FROM cc_finance_events WHERE source_system='gavhah_max' AND source_event_key=$1",[sourceEventKey])).rows[0];
+    if(!prev||prev.organization_id!==c.organization_id||prev.campaign_id!==c.id||prev.credited_member_subject!==subject||prev.event_kind!=='refund'||prev.related_finance_event_id!==original.id||Number(prev.amount).toFixed(2)!==amount)
+     throw bad(409,'Conflicting duplicate manual reversal');
+    return {id:prev.id,duplicate:true,verification:'manually_reported'};
+   }
+   const sums=await db.query("SELECT COALESCE(SUM(amount),0)::text AS reversed FROM cc_finance_events WHERE related_finance_event_id=$1 AND event_kind='refund'",[original.id]);
+   if(Number(sums.rows[0].reversed)>Number(original.amount))throw bad(409,'Reversal exceeds source receipt total');
+   await log(db,c.organization_id,c.id,subject,'connect.manual_reversal',saved.rows[0].id,{originalFinanceEventId:original.id,sourceEventKey,verification:'manually_reported'});
+   return {id:saved.rows[0].id,duplicate:false,verification:'manually_reported'};
+  });
+  res.status(result.duplicate?200:201).json(result);
+ }));
  router.post('/finance-events',wrap(async(req,res)=>{
   const {gavhahUserId,campaignId,kind,amount,sourceEventKey}=req.body||{};
   if(!numericUser(gavhahUserId)||!['pledge','receipt'].includes(kind)||!money(amount)||typeof sourceEventKey!=='string'||!/^(?:pledge|receipt):[1-9]\d{0,15}$/.test(sourceEventKey))
