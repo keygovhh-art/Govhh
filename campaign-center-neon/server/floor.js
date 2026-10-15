@@ -1,4 +1,5 @@
 import {Router} from 'express';
+import {reconcileScheduledProgram} from './floor-programs.js';
 
 // A real multi-person virtual fundraising hall: operator queue, management KPIs,
 // dedicated help desk, and a single canonical contact claim. No phone-provider
@@ -40,6 +41,9 @@ export default function floorRouter({pool,authenticate,campaignAccess,need,log,b
   if(!uuid(req.params.contactId)||!uuid(attemptId)||
    !['no_answer','spoke','callback','pledged','paid','not_interested','do_not_call'].includes(outcome))
    throw bad(400,'Invalid manual call result');
+  // Authenticated, authorized check BEFORE applying any scheduled transition.
+  await context(pool,req.params.rid,req.userId);
+  await reconcileScheduledProgram(pool,req.params.rid,log);
   const result=await tx(async db=>{
    const {room,campaign:c}=await context(db,req.params.rid,req.userId,true);
    need(c.role,['owner','manager','squad_leader','askan']);
@@ -52,6 +56,12 @@ export default function floorRouter({pool,authenticate,campaignAccess,need,log,b
     return {id:before.id,duplicate:true,manuallyReported:true};
    }
    if(room.room_status!=='open'||room.floor_mode!=='calling')throw bad(409,'Calling is paused for a program or break');
+   // Race safety: even if the time boundary passes immediately after the
+   // scheduler reconciliation, this call must never bypass a planned pause.
+   const scheduledPause=await db.query(
+    "SELECT 1 FROM cc_floor_programs WHERE room_id=$1 AND auto_start AND status IN ('scheduled','live') AND scheduled_start<=now() AND scheduled_end>now() LIMIT 1",
+    [room.id]);
+   if(scheduledPause.rowCount)throw bad(409,'Automatic event break is in progress');
    const check=await db.query('SELECT 1 FROM cc_floor_checkins WHERE room_id=$1 AND member_subject=$2 AND checked_out_at IS NULL',
     [room.id,req.userId]);
    if(!check.rowCount)throw bad(403,'Check into the event before recording calls');
