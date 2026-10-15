@@ -292,7 +292,7 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req(rtc+'/state',{user:first})).data.signals.length,1,'Listener receives only the SDP addressed to their own account');
   assert.equal((await req(rtc+'/state',{user:first})).data.signals[0].sender_subject,owner);
   assert.equal((await req(rtc+'/state',{user:second})).status,403,'Waiting/not-joined attendee may not read media signaling');
-  assert.equal((await req(rtc+'/signal',{user:first,method:'POST',data:{to:owner,kind:'offer',payload:{sdp:'forbidden'}}})).status,403,'Listener cannot inject microphone offer');
+  assert.equal((await req(rtc+'/signal',{user:first,method:'POST',data:{to:owner,kind:'offer',payload:{sdp:{type:'offer',sdp:'v=0'}}}})).status,403,'Listener cannot inject microphone offer');
   assert.equal((await req(rtc+'/signal',{user:first,method:'POST',data:{to:owner,kind:'answer',payload:{sdp:{type:'answer',sdp:'v=0'}}}})).status,201);
   assert.equal((await req(rtc+'/state',{user:owner})).data.signals.length,1,'Speaker sees only own addressed answer');
   assert.equal((await req(rtc+'/leave',{user:first,method:'POST',data:{}})).status,200);
