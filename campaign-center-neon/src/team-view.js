@@ -10,10 +10,24 @@ export function teamView(state,esc,money) {
  const campaignMembers=manager?.members||[];
  const members=(state.members||[]).map(m=>{
   const campaignMember=campaignMembers.find(x=>x.subject===m.subject);
-  return '<article class="item"><div><strong>'+esc(m.subject)+'</strong><small>'+
-   esc(m.role)+' · '+esc(m.membership_status)+' · גרופע: '+esc(campaignMember?.team_name||'נישט צוגעטיילט')+'</small>'+
+  const canEdit=leader&&m.role!=='owner'&&m.subject!==state.subject&&
+   (role==='owner'||!['manager','finance','auditor'].includes(m.role));
+  const roles=role==='owner'?['askan','squad_leader','manager','finance','auditor']:['askan','squad_leader'];
+  const roleText={askan:'עסקן',squad_leader:'גרופע־פירער',manager:'מנהל',finance:'געלט־פארוואלטער',auditor:'אודיט'};
+  const roleOptions=roles.map(v=>'<option value="'+v+'" '+(m.role===v?'selected':'')+'>'+roleText[v]+'</option>').join('');
+  const statuses=[['active','אקטיוו'],['suspended','צייטווייליג אפשטעלן'],['revoked','צוטריט אוועקנעמען']];
+  const statusOptions=statuses.map(([v,n])=>'<option value="'+v+'" '+(m.membership_status===v?'selected':'')+'>'+n+'</option>').join('');
+  const manage=canEdit?
+   '<form class="stack member-editor" data-form="member-permission">'+
+    '<input type="hidden" name="subject" value="'+esc(m.subject)+'">'+
+    '<label>ראלע<select name="role">'+roleOptions+'</select></label>'+
+    '<label>צוטריט<select name="status">'+statusOptions+'</select></label>'+
+    '<label class="confirm-check"><input type="checkbox" name="confirm" required> איך פארשטיי אז דער טויש קען באגרעניצן צוטריט. אלטע רעקארדס ווערן נישט פארמעקט.</label>'+
+    '<button type="submit">רשות־טויש באשטעטיגן</button></form>':'';
+  return '<article class="item member-entry"><div><strong>'+esc(m.subject)+'</strong><small>'+
+   esc(roleText[m.role]||m.role)+' · '+esc(m.membership_status)+' · גרופע: '+esc(campaignMember?.team_name||'נישט צוגעטיילט')+'</small>'+
    (leader&&campaignMember?'<form data-form="member-team" class="inline"><input type="hidden" name="subject" value="'+esc(m.subject)+'"><input name="teamName" value="'+esc(campaignMember.team_name||'')+'" maxlength="64" placeholder="גרופע־נאמען"><button>אפהיטן גרופע</button></form>':'')+
-   '</div></article>';
+   manage+'</div></article>';
  }).join('');
  const groups=[...new Set(campaignMembers.map(x=>x.team_name||'').filter(Boolean))];
  const leads=(state.leads||[]).map(p=>
