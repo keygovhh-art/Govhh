@@ -93,3 +93,19 @@ Run GitHub Actions workflow \`Campaign Center Neon preflight\` on this branch. I
 10. For expanded plans: actual billing and entitlement enforcement before selling any fixed-price MAX seats, org subscriptions or unlimited phone channels.
 
 A passing GitHub Build or isolated PostgreSQL acceptance test is **not** a production acceptance test. Until these are satisfied the release state remains **NOT READY**, and 100% is never a guessed percentage.
+
+
+## Progress addendum: real manager and finance-facing operations in today's subsequent commits
+- Server-backed per-campaign audit event timeline with member-vs-manager authorization, Yiddish view and loading more pages (200/page).
+- Real contacts export to UTF-8 CSV in 1,000-contact pages, formula injection hardened and privacy-scoped; no cross-squad or private unrelated donor notes.
+- Validated manager-only contact importer with PapaParse header CSV \`name,phone,notes\`, dry-run-first UI, <=500 contacts per batch, <=1MB file, server-side row validation, normalized phone duplication guard and per-campaign database lock. No previous opt-out or contact notes are overwritten. GitHub QA success https://github.com/keygovhh-art/Govhh/actions/runs/38699564029 .
+- Real campaign member productivity API and mobile manager panel showing tasks assigned/done, manually logged calls, pledged amounts and net manually reported receipts. Privileged roles only, no private donor text. GitHub QA success https://github.com/keygovhh-art/Govhh/actions/runs/38700161880 .
+- Checked Render services: both user production hosts still point to original non-Connect branches, \`autoDeploy:no\`, \`autoDeployTrigger:off\`. Production Campaign Center Neon branch still contains only Neon Auth tables. No new Render deployment, production migration, or billing/telephony/provider activation occurred.
+
+## Explicitly out of scope from present staged feature set (do not label "100% ready")
+- Full 34-feature legacy Campaign Center parity, legacy browser/Supabase export and import, full payment processing, receipt verification, automated bank reconciliation, refund gateway, production Neon Auth sign-in E2E, all team size and 1,000+ concurrent load testing.
+- Real authorized telephony, caller-ID verification, voice conference and recordings, SMS/push delivery, provider-based live call logs.
+- Sponsored MAX seats with contracts/billing and consumer subscriptions; unrestricted AI agent, complete offline sync, voice transcription, all media storage.
+- Cross-Service staging with same signed-in human sessions through both deployed websites, reversible prod migration and Android UAT.
+
+**Release verdict: NOT 100% READY.** Work in these two GitHub PRs remains isolated until verified by the owner. Never call an unfinished mock a live function; do not deploy automatically.
