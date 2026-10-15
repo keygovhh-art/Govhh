@@ -45,7 +45,7 @@ const auth=(req,res,next)=>{req.userId=req.get('x-test-user')||'anonymous';next(
 
 async function prepare(){
  // Disposable Postgres on GitHub Actions only; NEVER any external production database.
- for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql']){
+ for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql']){
   const sql=await readFile(join(import.meta.dirname,'../db',file),'utf8');
   await pool.query(sql);
  }
@@ -242,6 +242,15 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/conferences/'+conferenceId+'/hand',{user:first,method:'POST',data:{raised:true}})).data.handRaised,true);
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'grant'}})).status,200);
   assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'Thank you'}})).status,201);
+  const policies='/conferences/'+conferenceId+'/policies';
+  assert.equal((await req(policies,{user:first})).status,403,'Only manager may inspect policy lists');
+  assert.equal((await req(policies+'/'+owner,{user:owner,method:'PATCH',data:{rule:'deny_entry',enabled:true}})).status,403,'Cannot deny a conference manager');
+  assert.equal((await req(policies+'/'+first,{user:second,method:'PATCH',data:{rule:'deny_messages',enabled:true}})).status,403,'Volunteer cannot edit access lists');
+  assert.equal((await req(policies+'/'+first,{user:owner,method:'PATCH',data:{rule:'deny_messages',enabled:true}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'policy bypass'}})).status,403,'Server must enforce message deny list');
+  assert.ok((await req(policies,{user:owner})).data.policies.some(p=>p.rule==='deny_messages'&&p.enabled),'Policy appears in manager panel');
+  assert.equal((await req(policies+'/'+first,{user:owner,method:'PATCH',data:{rule:'deny_messages',enabled:false}})).status,200);
+
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'mute'}})).status,200);
   assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'Muted'}})).status,403);
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'unmute'}})).status,200);
@@ -257,6 +266,14 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}})).status,403,'Banned user cannot reuse code');
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'restore'}})).status,200);
   assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}})).data.waiting,true,'Restored member must be readmitted');
+  assert.equal((await req(policies+'/'+first,{user:owner,method:'PATCH',data:{rule:'skip_waiting',enabled:true}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:first})).data.you.admitted,true,'Approved list admits a waiting participant');
+  assert.equal((await req(policies+'/'+first,{user:owner,method:'PATCH',data:{rule:'deny_entry',enabled:true}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:first})).status,403,'Entry deny takes effect immediately, even for previous attendees');
+  assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}})).status,403,'Valid code cannot bypass blocked list');
+  assert.equal((await req(policies+'/'+first,{user:owner,method:'PATCH',data:{rule:'deny_entry',enabled:false}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}})).data.admitted,true,'Authorized skip-waiting returns after unblocking');
+
   assert.equal((await req('/conferences/'+conferenceId,{user:owner,method:'PATCH',data:{roomStatus:'ended'}})).status,200);
   assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}})).status,409);
   assert.equal((await req('/conferences/'+conferenceId,{user:owner,method:'PATCH',data:{roomStatus:'open'}})).status,409,'Ended conference is an archive');
