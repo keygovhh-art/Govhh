@@ -45,7 +45,7 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
   const elevated=privileged.includes(role)||role==='finance'||role==='auditor';
   const r=await pool.query("SELECT c.*, (SELECT COUNT(*)::int FROM cc_conference_participants p WHERE p.room_id=c.id AND p.admitted AND NOT p.banned AND p.left_at IS NULL AND p.last_seen_at>now()-interval '45 seconds') AS online FROM cc_conference_rooms c WHERE c.organization_id=$1 AND ($2::boolean OR c.campaign_id IS NULL OR EXISTS (SELECT 1 FROM cc_campaign_members cm WHERE cm.campaign_id=c.campaign_id AND cm.subject=$3)) ORDER BY c.created_at DESC LIMIT 80",
    [req.params.oid,elevated,req.userId]);
-  res.json({conferences:r.rows.map(row=>({...view(row),online:row.online}))});
+  res.json({conferences:r.rows.map(row=>{const {media_url,...visible}=view(row);return {...visible,online:row.online};})});
  }));
  router.post('/organizations/:oid',handle(async(req,res)=>{
   const title=trim(req.body?.title,180),category=trim(req.body?.category,20)||'assembly',
@@ -72,7 +72,8 @@ export default function conferenceRouter({pool,authenticate,member,campaignAcces
   const {conf,role,isModerator}=await room(pool,req.params.rid,req.userId);
   const self=await participant(pool,conf.id,req.userId);
   if(!isModerator&&(!self||!self.admitted||self.banned||self.left_at)){
-    return res.json({conference:view(conf),you:self?{admitted:false,banned:self.banned,joined:!self.left_at}:null,
+    const {media_url,...redacted}=view(conf);
+    return res.json({conference:redacted,you:self?{admitted:false,banned:self.banned,joined:!self.left_at}:null,
       isModerator:false,online:[],messages:[],waiting:true,mode:'web_discussion_only',pollAfterMs:8500});
   }
   const online=await pool.query("SELECT subject,admitted,banned,moderator_muted,speaking_granted,hand_raised,joined_at,last_seen_at FROM cc_conference_participants WHERE room_id=$1 AND left_at IS NULL AND last_seen_at>now()-interval '45 seconds' AND ($2::boolean OR admitted) AND (NOT banned OR $2::boolean) ORDER BY hand_raised DESC,joined_at ASC LIMIT 300",[conf.id,isModerator]);
