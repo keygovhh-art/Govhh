@@ -1,5 +1,7 @@
 import express from 'express';
 import pg from 'pg';
+import teamRouter from './team.js';
+import { connectUserRouter, connectServiceRouter } from './connect.js';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -90,7 +92,12 @@ app.get('/api/health', async (req, res, next) => {
 });
 app.get('/api/config', (_req,res) => res.json({ neonAuthUrl: authBase.toString().replace(/\/$/,'') ,ready: Boolean(pool)}));
 app.use('/api', (req,res,next) => pool ? next() : res.status(503).json({error:'Neon DATABASE_URL configuration required'}));
+// Cross-service endpoint is reachable ONLY with an explicitly configured 32+ byte shared secret.
+app.use('/api/connect/service', (req,res,next)=>pool?next():res.status(503).json({error:'Neon not configured'}));
+app.use('/api/connect/service', connectServiceRouter({pool,bad,uuid,log}));
 app.use('/api', authenticate);
+app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
+app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.get('/api/me', async (req,res,next) => {
   try {
     const result = await q("SELECT o.id,o.name,m.role FROM cc_organizations o JOIN cc_memberships m ON m.organization_id=o.id WHERE m.subject=$1 AND m.membership_status='active' ORDER BY o.created_at DESC",[req.userId]);
