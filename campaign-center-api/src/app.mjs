@@ -324,6 +324,7 @@ export function createApp({pool,verifyBearer,publicOrigin}){
     res.json({items:rows.slice(0,limit),hasMore:rows.length>limit,
       nextOffset:offset+Math.min(rows.length,limit)});
   }));
+  app.use((_req,res)=>res.status(404).json({error:"Endpoint not found"}));
   app.use((err,_req,res,_next)=>{
     const status=err.status||((err.type==="entity.too.large")?413:500);
     if(status>=500)console.error("Campaign API failure:",err);
