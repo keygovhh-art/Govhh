@@ -1,0 +1,117 @@
+import { Router } from 'express';
+import { randomBytes,createHash,timingSafeEqual } from 'node:crypto';
+
+const digest=s=>createHash('sha256').update(s).digest('hex');
+const code=()=>randomBytes(24).toString('base64url');
+const pass=(provided,secret)=>typeof provided==='string'&&typeof secret==='string'&&secret.length>=32
+ &&Buffer.byteLength(provided)===Buffer.byteLength(secret)
+ &&timingSafeEqual(Buffer.from(provided),Buffer.from(secret));
+const money=v=>typeof v==='string'&&/^(?:0|[1-9]\d{0,11})\.\d{2}$/.test(v)&&Number(v)>0;
+const numericUser=v=>Number.isSafeInteger(v)&&v>0;
+const wrap=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
+const transaction=async(pool,fn)=>{
+ const db=await pool.connect();try{await db.query('BEGIN');const result=await fn(db);await db.query('COMMIT');return result;}
+ catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
+};
+// Only one owner-signed action links two separate authentication systems.
+// A MAX user may never link by matching their email/phone with an org roster.
+export function connectUserRouter({pool,authenticate,log,bad}) {
+ const router=Router();router.use(authenticate);
+ router.post('/code',wrap(async(req,res)=>{
+  const result=await transaction(pool,async db=>{
+   const prior=await db.query("SELECT COUNT(*)::int AS count FROM cc_connect_codes WHERE subject=$1 AND created_at>now()-interval '1 hour'",[req.userId]);
+   if(prior.rows[0].count>=5)throw bad(429,'Please wait before requesting another link code');
+   const raw=code();
+   await db.query("INSERT INTO cc_connect_codes(code_hash,subject,expires_at) VALUES($1,$2,now()+interval '10 minutes')",[digest(raw),req.userId]);
+   return {code:raw,expiresInMinutes:10};
+  });
+  res.status(201).json(result);
+ }));
+ router.get('/status',wrap(async(req,res)=>{
+  const r=await pool.query("SELECT external_system,linked_at FROM cc_external_account_links WHERE subject=$1 AND revoked_at IS NULL",[req.userId]);
+  res.json({linked:r.rowCount>0,connections:r.rows});
+ }));
+ router.post('/unlink',wrap(async(req,res)=>{
+  await transaction(pool,async db=>{
+   const r=await db.query("UPDATE cc_external_account_links SET revoked_at=now() WHERE subject=$1 AND external_system='gavhah_max' AND revoked_at IS NULL RETURNING id",[req.userId]);
+   if(r.rowCount)await db.query("INSERT INTO cc_activity_events(organization_id,actor_subject,event_type,details) SELECT organization_id,$1,'connect.unlinked',$2 FROM cc_memberships WHERE subject=$1 AND membership_status='active'",[req.userId,JSON.stringify({source:'gavhah_max'})]);
+  });
+  res.json({unlinked:true});
+ }));
+ return router;
+}
+export function connectServiceRouter({pool,bad,uuid,log}) {
+ const router=Router();
+ router.use((req,res,next)=>{
+  if(!pass(req.get('x-gavhah-connect-secret'),process.env.GAVHAH_CONNECT_SHARED_SECRET)){
+   res.status(403).json({error:'Server-to-server connection is disabled or not authorized'});return;
+  }
+  next();
+ });
+ async function linked(db,gavhahUserId){
+  if(!numericUser(gavhahUserId))throw bad(400,'Invalid external user');
+  const r=await db.query("SELECT subject FROM cc_external_account_links WHERE external_system='gavhah_max' AND external_user_id=$1 AND revoked_at IS NULL",[gavhahUserId]);
+  if(!r.rowCount)throw bad(403,'Accounts not yet explicitly linked');
+  return r.rows[0].subject;
+ }
+ async function campaign(db,subject,campaignId){
+  if(!uuid(campaignId))throw bad(400,'Invalid campaign');
+  const r=await db.query("SELECT c.id,c.organization_id,c.title,m.role FROM cc_campaigns c JOIN cc_memberships m ON m.organization_id=c.organization_id AND m.subject=$2 AND m.membership_status='active' WHERE c.id=$1 AND (m.role IN ('owner','manager','finance','auditor') OR EXISTS (SELECT 1 FROM cc_campaign_members cm WHERE cm.campaign_id=c.id AND cm.subject=$2))",[campaignId,subject]);
+  if(!r.rowCount)throw bad(403,'No active campaign membership');
+  return r.rows[0];
+ }
+ router.post('/redeem',wrap(async(req,res)=>{
+  const gavhahUserId=req.body?.gavhahUserId,raw=req.body?.code;
+  if(!numericUser(gavhahUserId)||typeof raw!=='string'||!/^[A-Za-z0-9_-]{32}$/.test(raw))throw bad(400,'Invalid link request');
+  const result=await transaction(pool,async db=>{
+   const found=(await db.query('SELECT * FROM cc_connect_codes WHERE code_hash=$1 FOR UPDATE',[digest(raw)])).rows[0];
+   if(!found||found.redeemed_at||new Date(found.expires_at).getTime()<Date.now())throw bad(404,'Link code expired or used');
+   const other=(await db.query("SELECT subject,external_user_id FROM cc_external_account_links WHERE revoked_at IS NULL AND ((subject=$1 AND external_system='gavhah_max') OR (external_user_id=$2 AND external_system='gavhah_max')) FOR UPDATE",[found.subject,gavhahUserId])).rows[0];
+   if(other&&(other.subject!==found.subject||Number(other.external_user_id)!==gavhahUserId))throw bad(409,'Either account is already connected elsewhere');
+   if(!other)await db.query("INSERT INTO cc_external_account_links(subject,external_system,external_user_id) VALUES($1,'gavhah_max',$2)",[found.subject,gavhahUserId]);
+   await db.query('UPDATE cc_connect_codes SET redeemed_at=now() WHERE id=$1',[found.id]);
+   // Activity log without storing code/secret/Gavhah private records.
+   await db.query("INSERT INTO cc_activity_events(organization_id,actor_subject,event_type,details) SELECT organization_id,$1,'connect.linked',$2 FROM cc_memberships WHERE subject=$1 AND membership_status='active'",[found.subject,JSON.stringify({source:'gavhah_max'})]);
+   return {linked:true};
+  });
+  res.json(result);
+ }));
+ router.post('/unlink',wrap(async(req,res)=>{
+  const gavhahUserId=req.body?.gavhahUserId;
+  if(!numericUser(gavhahUserId))throw bad(400,'Invalid user');
+  const r=await pool.query("UPDATE cc_external_account_links SET revoked_at=now() WHERE external_system='gavhah_max' AND external_user_id=$1 AND revoked_at IS NULL RETURNING id",[gavhahUserId]);
+  res.json({unlinked:r.rowCount>0});
+ }));
+ router.get('/campaigns',wrap(async(req,res)=>{
+  const gavhahUserId=Number(req.query.gavhahUserId),subject=await linked(pool,gavhahUserId);
+  const r=await pool.query("SELECT c.id,c.title,c.goal_amount,c.status,m.role FROM cc_campaigns c JOIN cc_memberships m ON m.organization_id=c.organization_id AND m.subject=$1 AND m.membership_status='active' WHERE m.role IN ('owner','manager','finance','auditor') OR EXISTS (SELECT 1 FROM cc_campaign_members cm WHERE cm.campaign_id=c.id AND cm.subject=$1) ORDER BY c.created_at DESC",[subject]);
+  res.json({linked:true,campaigns:r.rows});
+ }));
+ router.get('/assignments',wrap(async(req,res)=>{
+  const gavhahUserId=Number(req.query.gavhahUserId),campaignId=req.query.campaignId,subject=await linked(pool,gavhahUserId);
+  const c=await campaign(pool,subject,campaignId);
+  // The personal MAX workspace sees its own assignments, never another team member's.
+  const r=await pool.query('SELECT id,title,kind,priority,status,due_at FROM cc_assignments WHERE campaign_id=$1 AND organization_id=$2 AND assignee_subject=$3 ORDER BY created_at DESC LIMIT 200',[c.id,c.organization_id,subject]);
+  res.json(r.rows);
+ }));
+ router.post('/finance-events',wrap(async(req,res)=>{
+  const {gavhahUserId,campaignId,kind,amount,sourceEventKey}=req.body||{};
+  if(!numericUser(gavhahUserId)||!['pledge','receipt'].includes(kind)||!money(amount)||typeof sourceEventKey!=='string'||!/^(?:pledge|receipt):[1-9]\d{0,15}$/.test(sourceEventKey))
+    throw bad(400,'Invalid source finance event');
+  const result=await transaction(pool,async db=>{
+   const subject=await linked(db,gavhahUserId);
+   const c=await campaign(db,subject,campaignId);
+   if(['auditor'].includes(c.role))throw bad(403,'Read only role');
+   const r=await db.query("INSERT INTO cc_finance_events(organization_id,campaign_id,credited_member_subject,source_system,source_event_key,event_kind,amount,currency,verified_at) VALUES($1,$2,$3,'gavhah_max',$4,$5,$6,'USD',NULL) ON CONFLICT(organization_id,source_system,source_event_key) DO NOTHING RETURNING *",[c.organization_id,c.id,subject,sourceEventKey,kind,amount]);
+   if(!r.rowCount){
+    const old=(await db.query("SELECT id,campaign_id,credited_member_subject,event_kind,amount FROM cc_finance_events WHERE organization_id=$1 AND source_system='gavhah_max' AND source_event_key=$2",[c.organization_id,sourceEventKey])).rows[0];
+    if(!old||old.campaign_id!==c.id||old.credited_member_subject!==subject||old.event_kind!==kind||Number(old.amount).toFixed(2)!==amount)throw bad(409,'Conflicting duplicate source event');
+    return {id:old.id,duplicate:true,verification:'manually_reported'};
+   }
+   await log(db,c.organization_id,c.id,subject,'connect.finance_reported',r.rows[0].id,{kind,sourceEventKey,verification:'manually_reported'});
+   return {id:r.rows[0].id,duplicate:false,verification:'manually_reported'};
+  });
+  res.status(result.duplicate?200:201).json(result);
+ }));
+ return router;
+}
