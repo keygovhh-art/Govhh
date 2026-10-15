@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const required = ['DATABASE_URL', 'NEON_AUTH_BASE_URL', 'NEON_AUTH_JWKS_URL'];
+const required = ['NEON_AUTH_BASE_URL', 'NEON_AUTH_JWKS_URL'];
 const missing = required.filter(key => !process.env[key]);
 if (missing.length) {
   console.error('Missing Render environment settings:', missing.join(', '));
@@ -17,7 +17,7 @@ if (authBase.protocol !== 'https:' || jwksUrl.protocol !== 'https:' || authBase.
   throw new Error('Neon Auth and JWKS settings must share the same HTTPS origin');
 }
 const jwks = createRemoteJWKSet(jwksUrl);
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: 10000 });
+const pool = process.env.DATABASE_URL ? new pg.Pool({ connectionString: process.env.DATABASE_URL, max: 5, connectionTimeoutMillis: 10000 }) : null;
 const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '32kb' }));
@@ -84,10 +84,12 @@ async function campaignAccess(db, id, user) {
 function need(role, allowed) { if (!allowed.includes(role)) throw bad(403,'Insufficient permission'); }
 
 app.get('/api/health', async (req, res, next) => {
+  if (!pool) return res.json({ status:'configuration_required',database:'neon_not_connected' });
   try { await q('SELECT 1'); res.json({ status:'ok',database:'neon' }); }
   catch (error) { next(error); }
 });
-app.get('/api/config', (_req,res) => res.json({ neonAuthUrl: authBase.toString().replace(/\/$/,'') }));
+app.get('/api/config', (_req,res) => res.json({ neonAuthUrl: authBase.toString().replace(/\/$/,'') ,ready: Boolean(pool)}));
+app.use('/api', (req,res,next) => pool ? next() : res.status(503).json({error:'Neon DATABASE_URL configuration required'}));
 app.use('/api', authenticate);
 app.get('/api/me', async (req,res,next) => {
   try {
