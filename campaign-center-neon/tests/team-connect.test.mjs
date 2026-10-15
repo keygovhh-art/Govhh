@@ -166,7 +166,7 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   await pool.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,'owner','active',now())",[org2,first]);
   const c2=(await pool.query("INSERT INTO cc_campaigns(organization_id,title) VALUES($1,'Campaign B') RETURNING id",[org2])).rows[0].id;
   assert.equal((await req('/connect/service/finance-events',{service:true,method:'POST',data:{...body,campaignId:c2}})).status,409);
-  assert.equal((await pool.query("SELECT COUNT(*)::int total FROM cc_finance_events WHERE source_system='gavhah_max'")).rows[0].total,1);
+  assert.equal((await pool.query("SELECT COUNT(*)::int total FROM cc_finance_events WHERE source_system='gavhah_max'")).rows[0].total,2,'Exactly one source receipt PLUS one immutable manual reversal');
   // Unlink blocks access and does not delete the append-only financial history.
   assert.equal((await req('/connect/unlink',{user:first,method:'POST'})).status,200);
   assert.equal((await req('/connect/service/campaigns?gavhahUserId=7',{service:true})).status,403);
