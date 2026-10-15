@@ -122,5 +122,5 @@ export function eventView(state,esc,money){
     '<option value="manager">איך דארף א מנהל</option><option value="motivation">חיזוק</option><option value="other">אנדערע</option></select>'+
     '<textarea name="summary" maxlength="500" required rows="2" placeholder="שרייב א קורצע פראגע — נישט קיין פריוואטע נדבן־נומערן"></textarea>'+
     '<button '+(!isChecked?'disabled':'')+'>שיקן הילף־בקשה</button></form>'+
-    (help||'<p class="muted">נאך קיין הילף־בקשות.</p>')+'</section>'+privateChat+videoPanel(state.videoStatus.floor,'floor',room.id,state.videoGrants.floor,esc);
+    (help||'<p class="muted">נאך קיין הילף־בקשות.</p>')+'</section>'+privateChat+videoPanel(state.videoStatus.floor,'floor',room.id,state.videoGrants.floor,esc,state.members);
 }
