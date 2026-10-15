@@ -69,3 +69,27 @@ No auto-join by name/email/phone. No private donor notes shared by manager defau
 
 ## Exact test method
 Run GitHub Actions workflow \`Campaign Center Neon preflight\` on this branch. It verifies syntax, Vite production build, three SQL migrations against disposable Postgres, two members/two campaigns, invitation redemption and permission blocks, squad lead claims, web hall lifecycle and messages, explicit account linking and deduped finance/refunds. One green CI run does NOT substitute for real Render/Neon smoke tests.
+
+
+## Release-readiness addendum — subsequent changes
+- Manager now has real audit-paginated campaign event browser; ordinary askan sees only events authored by their own authenticated subject. Audit query is scoped to the selected campaign and organization.
+- Campaign CSV export is an authenticated text/csv download, one 1,000-row page at a time, with privacy/role checks, no other users' private notes, and formula-injection escaping; the UI explicitly notes pagination.
+- Manager-only contact CSV import now accepts up to 500 rows per file and at most 1MB file; the browser parses quoted CSV, previews before write, and requires explicit confirmation to commit.
+- Import is deduplicated on normalized telephone number, uses per-campaign locking, an indexed shared-contact uniqueness guard, and doesn't overwrite pre-existing notes or do-not-call records. Retry saves no second contact.
+- Tests: uninvited user denied, invalid rows rejected, dry run writes no contacts, first import creates two, repeat zero, audit preserved, and cross-squad CSV privacy, all on an ephemeral PostgreSQL service in GitHub Actions.
+- GitHub Actions success for commit containing import and audit: https://github.com/keygovhh-art/Govhh/actions/runs/38699564029
+- Production still untouched, no Render deploy or Neon production migration approved. The import/export limits are explicit — **not** an unlimited bulk-processing service.
+
+## What "100% ready to launch" requires — release acceptance, not a cosmetic percentage
+1. Scope lock: sign off each of the 34 Campaign Center functions and the MAX catalog as complete, excluded from v1, or openly deferred. Do not claim any excluded/deferred feature "exists".
+2. Real managed Neon Auth login/signup/email verification/password reset, Android Chrome, and session renewal tested by two real people.
+3. External staging domain running both new code versions with secure two-service secret and tested role boundaries after linked accounts and after revoke; secrets only in protected Render Environment.
+4. All DB migrations reviewed on a *copy* of production, conflict checks, encrypted backup, verified restore, non-destructive cutover with rollback.
+5. Real payment processor and live banking settlement reconciled before calling any money processor-verified; dedicated authorized telephony provider and caller-ID rights verified before promising live outgoing calls.
+6. Safe handling of opt-outs/Do-Not-Call, legal consent, privacy retention and authorized recordings.
+7. Tested lost network/retry/cold start, simultaneous operators, duplicate leads, double postings, refunds and overlapping squads; complete no-leak logs and end-to-end audit.
+8. Real team owner signoff on Yiddish UI from Android, admin roles and finance balances, plus legal/privacy disclosures.
+9. Render AutoDeploy remains OFF unless user separately changes it. Explicit merge, staged manual deploy, checked healthy endpoints and go/no-go required for each release.
+10. For expanded plans: actual billing and entitlement enforcement before selling any fixed-price MAX seats, org subscriptions or unlimited phone channels.
+
+A passing GitHub Build or isolated PostgreSQL acceptance test is **not** a production acceptance test. Until these are satisfied the release state remains **NOT READY**, and 100% is never a guessed percentage.
