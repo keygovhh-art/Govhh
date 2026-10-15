@@ -132,6 +132,7 @@ async function submit(event){
    case 'hall-message': await api('/rooms/'+state.joinedRoomId+'/announcements',{method:'POST',body:JSON.stringify({message:d.message})});break;
    case 'contact-team': await api('/team/campaigns/'+state.campaignId+'/contacts/'+encodeURIComponent(d.contactId)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
    case 'invite': {
+     if(d.campaignOnly&&['manager','finance','auditor'].includes(d.role))throw new Error('דאס איז א מוסד־ברייטער ראלע. נעם אראפ דעם צייכן ״בלויז דעם קאמפיין״ אדער קלייב גרופע־פירער/עסקן.');
      const r=await api('/team/organizations/'+state.orgId+'/invitations',{method:'POST',
        body:JSON.stringify({role:d.role,campaignId:d.campaignOnly?state.campaignId:null})});
      state.invitationCode=r.invitationCode;
