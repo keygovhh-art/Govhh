@@ -150,13 +150,13 @@ function history(){
  'room.left':'וועב־זאל פארלאזן','room.announcement':'מנהל־אנווייזונג',
  'room.status_changed':'וועב־זאל מצב'
  };
- return \`<section class="card"><h2>שטענדיגע קאמפיין־היסטאריע</h2>
- <p class="muted">די ריכטיגע אפגעהיטענע סערווער־געשעענישן. \${state.activityScope==='personal'?'דו זעסט נאר דיין אייגענע געשיכטע.':'דו זעסט די ערלויבטע קאמפיין־געשיכטע.'} פינאנציעלע געשעענישן ווערן נישט אויטאמאטיש אויסגעמעקט.</p>
+ return `<section class="card"><h2>שטענדיגע קאמפיין־היסטאריע</h2>
+ <p class="muted">די ריכטיגע אפגעהיטענע סערווער־געשעענישן. ${state.activityScope==='personal'?'דו זעסט נאר דיין אייגענע געשיכטע.':'דו זעסט די ערלויבטע קאמפיין־געשיכטע.'} פינאנציעלע געשעענישן ווערן נישט אויטאמאטיש אויסגעמעקט.</p>
  <div class="inline"><button data-action="refresh-history">דערפרישן געשיכטע</button><button data-action="export-contacts">ארויסנעמען קשרים אלס CSV (ביז 1,000 פער בלאט)</button></div>
- \${visible.length?visible.map(x=>\`<article class="item"><div><strong>\${esc(names[x.event_type]||x.event_type)}</strong>
- <small>\${esc(x.actor_subject)} · \${esc((x.created_at||'').replace('T',' ').slice(0,16))}</small></div></article>\`).join(''):'<p class="muted">נאכנישטא קיין געשיכטע אינעם אויסגעקליבענעם קאמפיין.</p>'}
- \${state.activityNextOffset!==null?'<button data-action="more-history">ווייז נאך געשיכטע</button>':''}
- </section>\`;
+ ${visible.length?visible.map(x=>`<article class="item"><div><strong>${esc(names[x.event_type]||x.event_type)}</strong>
+ <small>${esc(x.actor_subject)} · ${esc((x.created_at||'').replace('T',' ').slice(0,16))}</small></div></article>`).join(''):'<p class="muted">נאכנישטא קיין געשיכטע אינעם אויסגעקליבענעם קאמפיין.</p>'}
+ ${state.activityNextOffset!==null?'<button data-action="more-history">ווייז נאך געשיכטע</button>':''}
+ </section>`;
 }
 async function exportContactsPage(){
  if(!state.campaignId)throw new Error('קלייב א קאמפיין');
