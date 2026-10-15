@@ -16,6 +16,10 @@ test("real Postgres Campaign Center: orgs, invitations, two members, scoped assi
     return {sub:h.slice(7)};
   };
   const server=createApp({pool,verifyBearer,publicOrigin:"http://127.0.0.1:8124"}).listen(0);
+  await new Promise((resolve,reject)=>{
+    if(server.listening){resolve();return;}
+    server.once("listening",resolve);server.once("error",reject);
+  });
   const port=server.address().port,base="http://127.0.0.1:"+port;
   const request=async(account,path,method="GET",body=null,key=null)=>{
     const headers={};
