@@ -279,7 +279,7 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/team/contacts/'+shared+'/claim',{user:first,method:'POST'})).status,200);
   const attempt='00000000-0000-4000-8000-000000000707';
   const callBody={outcome:'spoke',note:'manual report from own phone',attemptId:attempt};
-  assert.equal((await req('/floor/'+eventId+'/calls/'+shared,{user:second,method:'POST',data:callBody})).status,409,'Another squad cannot log held call');
+  assert.equal((await req('/floor/'+eventId+'/calls/'+shared,{user:second,method:'POST',data:callBody})).status,403,'Non-checked-in member cannot log any floor call');
   const help=await req('/floor/'+eventId+'/help',{user:first,method:'POST',data:{category:'technical',summary:'I need setup help'}});
   assert.equal(help.status,201);
   assert.equal((await req('/floor/'+eventId+'/help/'+help.data.id,{user:first,method:'PATCH',data:{status:'resolved'}})).status,403);
