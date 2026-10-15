@@ -36,8 +36,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS cc_connect_unique_subject ON public.cc_externa
 CREATE UNIQUE INDEX IF NOT EXISTS cc_connect_unique_external ON public.cc_external_account_links(external_system,external_user_id) WHERE revoked_at IS NULL;
 ALTER TABLE public.cc_contacts ADD COLUMN IF NOT EXISTS claimed_by text;
 ALTER TABLE public.cc_contacts ADD COLUMN IF NOT EXISTS claim_expires_at timestamptz;
-ALTER TABLE public.cc_contacts ADD CONSTRAINT cc_claim_consistent
- CHECK ((claimed_by IS NULL AND claim_expires_at IS NULL) OR (claimed_by IS NOT NULL AND claim_expires_at IS NOT NULL));
+DO $guard$
+BEGIN
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='cc_claim_consistent' AND conrelid='public.cc_contacts'::regclass) THEN
+  ALTER TABLE public.cc_contacts ADD CONSTRAINT cc_claim_consistent
+   CHECK ((claimed_by IS NULL AND claim_expires_at IS NULL) OR (claimed_by IS NOT NULL AND claim_expires_at IS NOT NULL));
+ END IF;
+END $guard$;
 CREATE INDEX IF NOT EXISTS cc_contacts_claim_idx ON public.cc_contacts(campaign_id,claimed_by,claim_expires_at);
 ALTER TABLE public.cc_team_invites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cc_connect_codes ENABLE ROW LEVEL SECURITY;
