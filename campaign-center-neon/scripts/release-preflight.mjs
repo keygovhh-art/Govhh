@@ -29,7 +29,7 @@ const requiredTables=[
  'cc_conference_rooms','cc_conference_participants','cc_conference_messages',
  'cc_conference_access_rules','cc_conference_video_grants','cc_floor_video_grants',
  'cc_floor_checkins','cc_floor_programs','cc_floor_help_requests',
- 'cc_floor_help_messages','cc_conference_rtc_peers','cc_conference_rtc_signals'
+ 'cc_floor_help_messages','cc_sponsored_max_seats','cc_conference_rtc_peers','cc_conference_rtc_signals'
 ];
 const db=new pg.Client({connectionString:connection,connectionTimeoutMillis:10000});
 try{
