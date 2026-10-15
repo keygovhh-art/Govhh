@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS public.cc_external_account_links (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS cc_connect_unique_subject ON public.cc_external_account_links(subject,external_system) WHERE revoked_at IS NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS cc_connect_unique_external ON public.cc_external_account_links(external_system,external_user_id) WHERE revoked_at IS NULL;
+ALTER TABLE public.cc_contacts ADD COLUMN IF NOT EXISTS assigned_team text NOT NULL DEFAULT '';
+CREATE INDEX IF NOT EXISTS cc_contacts_team_idx ON public.cc_contacts(campaign_id,assigned_team);
 ALTER TABLE public.cc_contacts ADD COLUMN IF NOT EXISTS claimed_by text;
 ALTER TABLE public.cc_contacts ADD COLUMN IF NOT EXISTS claim_expires_at timestamptz;
 DO $guard$
