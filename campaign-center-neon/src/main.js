@@ -5,11 +5,12 @@ import { teamView } from './team-view.js';
 import { hallView } from './hall-view.js';
 import { eventView } from './event-view.js';
 import { conferenceView } from './conference-view.js';
+import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContext } from './video-view.js';
 
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],conferenceCode:''};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]}};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -34,12 +35,17 @@ async function refresh() {
    state.conferences=rooms.conferences||[];
   }
   if(state.conferenceId&&!state.conferences.some(r=>r.id===state.conferenceId))state.conferenceId=null;
-  state.conferencePolicies=[];
+  state.conferencePolicies=[];state.videoStatus.conference=null;state.videoGrants.conference=[];
   if(state.conferenceId){
     state.conferenceSnapshot=await api('/conferences/'+state.conferenceId+'/snapshot').catch(()=>null);
+    const v=await api('/video/conference/'+state.conferenceId+'/status').catch(()=>null);
+    state.videoStatus.conference=v;
     if(state.conferenceSnapshot?.isModerator){
-      const policy=await api('/conferences/'+state.conferenceId+'/policies').catch(()=>({policies:[]}));
-      state.conferencePolicies=policy.policies||[];
+      const [policy,grants]=await Promise.all([
+       api('/conferences/'+state.conferenceId+'/policies').catch(()=>({policies:[]})),
+       api('/video/conference/'+state.conferenceId+'/grants').catch(()=>({grants:[]}))
+      ]);
+      state.conferencePolicies=policy.policies||[];state.videoGrants.conference=grants.grants||[];
     }
   }
   if(!state.campaigns.some(x=>x.id===state.campaignId))state.campaignId=state.campaigns[0]?.id||null;
@@ -50,7 +56,7 @@ async function refresh() {
       api('/campaigns/'+id+'/contacts'),api('/campaigns/'+id+'/finance')
     ]);
   }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];}
-  state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.helpMessages=[];state.activity=[];state.activityNextOffset=null;
+  state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.videoStatus.floor=null;state.videoGrants.floor=[];state.helpMessages=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
     state.activity=activity.events||[];state.activityNextOffset=activity.nextOffset;state.activityScope=activity.scope;
@@ -65,6 +71,11 @@ async function refresh() {
           api('/floor-program/'+room.id+'/schedule').catch(()=>null)
         ]);
         state.hallAnnouncements=msgs;state.floorBoard=board;state.floorProgram=program;
+        state.videoStatus.floor=await api('/video/floor/'+room.id+'/status').catch(()=>null);
+        if(state.videoStatus.floor?.isManager){
+          const grants=await api('/video/floor/'+room.id+'/grants').catch(()=>({grants:[]}));
+          state.videoGrants.floor=grants.grants||[];
+        }
         if(state.selectedHelpId&&board?.help?.some(h=>h.id===state.selectedHelpId)){
           const thread=await api('/floor/'+room.id+'/help/'+state.selectedHelpId+'/messages').catch(()=>({messages:[]}));
           state.helpMessages=thread.messages||[];
@@ -248,6 +259,25 @@ async function submit(event){
      });break;
    }
    case 'member-team': await api('/team/campaigns/'+state.campaignId+'/members/'+encodeURIComponent(d.subject)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
+   case 'video-config': {
+     const kind=d.kind;
+     const id=kind==='floor'?state.joinedRoomId:kind==='conference'?state.conferenceId:null;
+     if(!id)throw new Error('קלייב א צימער');
+     const payload={enabled:d.enabled==='true',accessMode:d.accessMode};
+     if(d.sourceUrl?.trim())payload.sourceUrl=d.sourceUrl.trim();
+     await api('/video/'+kind+'/'+id+'/config',{method:'PATCH',body:JSON.stringify(payload)});
+     if(!payload.enabled&&watchedContext()?.kind===kind&&watchedContext()?.roomId===id)stopOptionalVideo();
+     break;
+   }
+   case 'video-grant': {
+     const kind=d.kind;
+     const id=kind==='floor'?state.joinedRoomId:kind==='conference'?state.conferenceId:null;
+     if(!id||!d.subject?.trim())throw new Error('קלייב א באשטעטיגטן מיטגליד');
+     await api('/video/'+kind+'/'+id+'/allow/'+encodeURIComponent(d.subject.trim()),{
+       method:'PATCH',body:JSON.stringify({allowed:d.allowed==='true'})
+     });
+     break;
+   }
    case 'conference-new': {
      const created=await api('/conferences/organizations/'+state.orgId,{method:'POST',
        body:JSON.stringify({title:d.title,category:d.category,accessMode:d.accessMode,
@@ -354,7 +384,7 @@ async function click(event){
  const btn=event.target.closest('[data-action]');if(!btn)return;
  const a=btn.dataset.action;
  try {
-  if(a==='logout'){await state.auth.signOut();state.user=null;state.notice='';draw();return;}
+  if(a==='logout'){stopOptionalVideo();await state.auth.signOut();state.user=null;state.notice='';draw();return;}
   if(a==='tab'){state.tab=btn.dataset.tab;draw();return;}
   if(a==='refresh-history'){await refresh();return;}
   if(a==='more-history'){
@@ -385,6 +415,13 @@ async function click(event){
   if(a==='unlink-max'){if(!state.confirmUnlink){state.confirmUnlink=true;say('נאכאמאל דרוקן אויסלעשן פארבינדונג צו באשטעטיגן');return;}await api('/connect/unlink',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.confirmUnlink=false;state.connectCode='';await refresh();return;}
   if(a==='claim-lead'){await api('/team/contacts/'+btn.dataset.id+'/claim',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
   if(a==='release-lead'){await api('/team/contacts/'+btn.dataset.id+'/release',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
+  if(a==='video-watch'){
+    const kind=btn.dataset.kind,roomId=btn.dataset.id;
+    if(!['conference','floor'].includes(kind)||!roomId)throw new Error('דער ווידעא־צימער פעלט');
+    const allowed=await api('/video/'+kind+'/'+roomId+'/watch');
+    watchOptionalVideo(allowed.url,kind,roomId);
+    return;
+  }
   if(a==='conference-home'){state.tab='conference';await refresh();return;}
   if(a==='conference-select'){
     state.conferenceId=btn.dataset.id;state.conferenceCode='';state.tab='conference';
@@ -535,3 +572,15 @@ setInterval(async()=>{
  }catch(e){console.warn('Temporary conference refresh error');}
 },8500);
 
+
+// Video permission is revalidated while the app is open. Removing permission
+// immediately hides the player on the next status poll. The EXTERNAL media
+// provider must still enforce expiring signed URLs against copied links.
+setInterval(async()=>{
+ const current=watchedContext();
+ if(!current||!state.user||document.visibilityState!=='visible')return;
+ try{
+  const status=await api('/video/'+current.kind+'/'+current.roomId+'/status');
+  if(!status.allowed||!status.enabled){stopOptionalVideo();state.notice='דער ווידעא־שידור איז אויסגעלאשן אדער דיינע רעכטן האבן זיך געענדערט.';}
+ }catch{stopOptionalVideo();}
+},12000);
