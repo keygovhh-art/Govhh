@@ -86,6 +86,14 @@ export default function videoRouter({pool,authenticate,member,campaignAccess,nee
   res.json({url:item.row.video_url,roomId:item.row.id,kind:req.params.kind,
    note:'The external stream provider must independently secure its media URL.'});
  }));
+ router.get('/:kind/:id/grants',wrap(async(req,res)=>{
+  const item=await context(pool,req.params.kind,req.params.id,req.userId);
+  need(item.role,managerRoles);
+  const r=await pool.query("SELECT subject,granted,changed_at FROM public."+item.tables.grantTable+
+   " WHERE room_id=$1 ORDER BY changed_at DESC LIMIT 500",[item.row.id]);
+  res.set('Cache-Control','no-store');
+  res.json({grants:r.rows});
+ }));
  router.patch('/:kind/:id/config',wrap(async(req,res)=>{
   const {enabled,accessMode,sourceUrl}=req.body||{};
   if(typeof enabled!=='boolean'||typeof accessMode!=='string'||(sourceUrl!==undefined&&typeof sourceUrl!=='string'))
