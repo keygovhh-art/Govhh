@@ -253,6 +253,15 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal(Number(afterCorrection.refunded),5,'Audit records the reversal');
   assert.equal((await pool.query("SELECT COUNT(*)::int n FROM cc_finance_events WHERE event_kind='refund'")).rows[0].n,1);
 
+  const progress=await req('/team/campaigns/'+c1+'/member-progress',{user:owner});
+  assert.equal(progress.status,200,'Campaign manager may inspect real work totals');
+  assert.equal(progress.data.memberProgress.length,3);
+  const firstStats=progress.data.memberProgress.find(m=>m.subject===first);
+  assert.equal(firstStats.assigned_tasks,1);
+  assert.equal(firstStats.completed_tasks,0,'Reopened MAX assignment is not falsely completed');
+  assert.equal(Number(firstStats.manually_reported_net),15,'Member-level accounting applies manual reversal');
+  assert.equal((await req('/team/campaigns/'+c1+'/member-progress',{user:first})).status,403,'Askan cannot read full team earnings');
+  assert.equal((await req('/team/campaigns/'+c1+'/member-progress',{user:'stranger'})).status,404,'Unrelated organization cannot inspect totals');
   // An unrelated organization must not count the same money again.
   const org2=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES('B',$1) RETURNING id",[first])).rows[0].id;
   await pool.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,'owner','active',now())",[org2,first]);
