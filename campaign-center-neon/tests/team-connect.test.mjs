@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import express from 'express';
 import pg from 'pg';
 import teamRouter from '../server/team.js';
+import campaignAdminRouter from '../server/campaign-admin.js';
 import webHallRouter from '../server/web-hall.js';
 import {connectUserRouter,connectServiceRouter} from '../server/connect.js';
 
@@ -48,6 +49,7 @@ async function prepare(){
 async function launch(){
  const app=express();app.use(express.json({limit:'20kb'}));
  app.use('/api/team',teamRouter({pool,authenticate:auth,member,campaignAccess,need,log,bad,uuid,trim}));
+ app.use('/api/campaigns',campaignAdminRouter({pool,authenticate:auth,campaignAccess,need,bad,log,trim}));
  app.use('/api/rooms',webHallRouter({pool,authenticate:auth,campaignAccess,need,log,bad,uuid,trim}));
  app.use('/api/connect/service',connectServiceRouter({pool,bad,uuid,log}));
  app.use('/api/connect',connectUserRouter({pool,authenticate:auth,log,bad}));
@@ -72,6 +74,18 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   await pool.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,'owner','active',now())",[org1,owner]);
   const c1=(await pool.query("INSERT INTO cc_campaigns(organization_id,title) VALUES($1,'Campaign A') RETURNING id",[org1])).rows[0].id;
   await pool.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject) VALUES($1,$2,$3)',[org1,c1,owner]);
+  const uninvitedEdit=await req('/campaigns/'+c1,{user:'stranger',method:'PATCH',data:{status:'active'}});
+  assert.equal(uninvitedEdit.status,404,'Uninvited account cannot edit campaign');
+  const activated=await req('/campaigns/'+c1,{user:owner,method:'PATCH',data:{status:'active',goalAmount:'125000.00'}});
+  assert.equal(activated.status,200,'Owner can set target and activate campaign');
+  assert.equal(activated.data.status,'active');
+  assert.equal(Number(activated.data.goal_amount),125000);
+  const closed=await req('/campaigns/'+c1,{user:owner,method:'PATCH',data:{status:'closed'}});
+  assert.equal(closed.status,200,'Closed campaign retains data');
+  const reopened=await req('/campaigns/'+c1,{user:owner,method:'PATCH',data:{status:'active'}});
+  assert.equal(reopened.status,200,'Reopening is an audited lifecycle change');
+  const audit=(await pool.query("SELECT COUNT(*)::int n FROM cc_activity_events WHERE event_type='campaign.settings_changed' AND campaign_id=$1",[c1])).rows[0].n;
+  assert.equal(audit,3,'Every settings change has retained history');
   const invitePath='/team/organizations/'+org1+'/invitations';
   assert.equal((await req(invitePath,{user:'stranger',method:'POST',data:{role:'askan',campaignId:c1}})).status,404);
   const firstInvite=await req(invitePath,{user:owner,method:'POST',data:{role:'askan',campaignId:c1}});
@@ -177,5 +191,15 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/connect/unlink',{user:first,method:'POST'})).status,200);
   assert.equal((await req('/connect/service/campaigns?gavhahUserId=7',{service:true})).status,403);
   assert.equal((await pool.query("SELECT COUNT(*)::int n FROM cc_finance_events WHERE source_event_key='receipt:123'")).rows[0].n,1);
+  assert.equal((await req('/campaigns/'+c1,{user:first,method:'PATCH',data:{goalAmount:'10.00'}})).status,403,'An askan cannot edit goal');
+  assert.equal((await req('/team/organizations/'+org1+'/members/'+owner,{user:first,method:'PATCH',data:{status:'revoked'}})).status,403,'No one may revoke owner');
+  assert.equal((await req('/team/organizations/'+org1+'/members/'+first,{user:first,method:'PATCH',data:{status:'suspended'}})).status,403,'No member can suspend self');
+  assert.equal((await req('/team/organizations/'+org1+'/members/'+second,{user:owner,method:'PATCH',data:{status:'suspended'}})).status,200,'Owner may suspend a member');
+  assert.equal((await req('/team/campaigns/'+c1+'/lead-queue',{user:second})).status,404,'Suspended member loses access immediately');
+  assert.equal((await req('/team/organizations/'+org1+'/members/'+second,{user:owner,method:'PATCH',data:{status:'active'}})).status,200,'Owner may explicitly reactivate');
+  assert.equal((await req('/team/campaigns/'+c1+'/assignees',{user:second})).status,200,'Access restored after explicit reactivation');
+  const otherCampaign=(await pool.query("INSERT INTO cc_campaigns(organization_id,title) VALUES($1,'Campaign A 2') RETURNING id",[org1])).rows[0].id;
+  assert.equal((await req('/campaigns/'+otherCampaign,{user:first,method:'PATCH',data:{status:'active'}})).status,404,'Nonteam askan cannot modify second campaign');
+
  }finally{await new Promise(resolve=>server.close(resolve));await pool.end();}
 });
