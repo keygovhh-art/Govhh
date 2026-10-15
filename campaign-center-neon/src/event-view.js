@@ -27,6 +27,7 @@ export function eventView(state,esc,money){
  }).join('');
  const segmentForm=manager?'<section class="card"><h3>פראגראם־לוח: לאנטש, דרשות און חיזוק</h3>'+
    '<p class="muted">לייג אריין די ארטיגע צייט פון די באשטימטע פראגראמען. דער מנהל הייבט אָן דעם פראגראם מיט א באשטעטיגונג; די צייטן אליין געבן פאראויס ידיעות.</p>'+
+   '<button type="button" data-action="program-lunch-preset">איינשטעלן לאנטש 1:30–2:00</button>'+ 
    '<form data-form="program-add" class="stack">'+
    '<label>פראגראם־נאמען<input name="title" required maxlength="180" placeholder="למשל: לאנטש און דברי חיזוק"></label>'+
    '<label>סארט<select name="segmentType"><option value="inspiration">דברי חיזוק</option><option value="lunch">לאנטש</option><option value="manager">מנהל־אנווייזונגען</option><option value="opening">פתיחה</option><option value="technical">טעכנישע הילף</option><option value="break">הפסקה</option><option value="closing">סיום</option><option value="other">אנדערע</option></select></label>'+
