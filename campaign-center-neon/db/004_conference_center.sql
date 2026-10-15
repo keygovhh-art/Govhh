@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS public.cc_conference_rooms (
  FOREIGN KEY(organization_id,campaign_id) REFERENCES public.cc_campaigns(organization_id,id) ON DELETE RESTRICT,
  CHECK ((access_mode='code' AND access_code_hash IS NOT NULL) OR (access_mode='members' AND access_code_hash IS NULL))
 );
+ALTER TABLE public.cc_conference_rooms ADD COLUMN IF NOT EXISTS media_url text;
 CREATE INDEX IF NOT EXISTS cc_conferences_org_date_idx ON public.cc_conference_rooms(organization_id,created_at DESC);
 CREATE TABLE IF NOT EXISTS public.cc_conference_participants (
  room_id uuid NOT NULL REFERENCES public.cc_conference_rooms(id) ON DELETE RESTRICT,
