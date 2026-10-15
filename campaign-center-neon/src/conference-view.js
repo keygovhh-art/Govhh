@@ -45,6 +45,22 @@ export function conferenceView(state,esc){
     '<option value="'+v+'" '+(current.speaking_mode===v?'selected':'')+'>'+t+'</option>').join('')+'</select></label>'+
    '<label>באשטעטיגטער HTTPS־אודיא־שידור אדער רעקארדירונג<input name="mediaUrl" type="url" placeholder="https://...mp3" value="'+esc(current.media_url||'')+'"></label>'+ 
    '<button '+(current.room_status==='ended'?'disabled':'')+'>אפהיטן מנהל־איינשטעלונגען</button></form>':'';
+  const policyList=(state.conferencePolicies||[]).filter(r=>r.enabled).map(r=>
+    '<article class="item"><div><strong>'+esc(r.subject)+'</strong><small>'+
+    esc(({deny_entry:'פארשפארט פון אסיפה',skip_waiting:'מעג אריין אן ווארט־צימער',deny_messages:'נישט ערלויבט שרייבן'})[r.rule])+
+    '</small></div></article>').join('');
+  const policies=m?'<section class="card"><h3>באזונדערע צוטריט־און־רעדן־ליסטעס</h3>'+
+   '<p class="muted">דו קאנטראלירסט יעדער ליסטע באזונדער, אפילו אינמיטן אסיפה. נאר באשטעטיגטע מוסד־מיטגלידער קענען ווערן צוגעלייגט; א מוסד־מנהל קען נישט ווערן פארשפארט דורך דעם אויסשטעל.</p>'+
+   '<form data-form="conference-policy" class="stack">'+
+     '<label>מיטגליד־קאוד<input name="subject" required maxlength="128" placeholder="דער באנוצער־קאוד פונעם מיטגליד"></label>'+
+     '<label>וועלכע ליסטע?<select name="rule">'+
+       '<option value="deny_entry">נישט אריינלאזן אין אסיפה</option>'+
+       '<option value="skip_waiting">דורכלאזן ווארט־צימער</option>'+
+       '<option value="deny_messages">נישט ערלויבן מעסעדזשעס</option></select></label>'+
+     '<label>איינשטעלונג<select name="enabled"><option value="true">אנצינדן</option><option value="false">אויסלעשן</option></select></label>'+
+     '<button>אפהיטן דעם כלל</button></form>'+
+     (policyList||'<p class="muted">קיין אקטיווע באזונדערע כללים.</p>')+
+   '</section>':'';
   const join=!joined&&active?'<form data-form="conference-join" class="inline">'+
    (current.access_mode==='code'&&!m?'<input name="accessCode" dir="ltr" placeholder="צוטריט־קאוד" maxlength="24" required>':'')+
    '<button class="primary">אריינגיין / ווארטן אויף באשטעטיגונג</button></form>':'';
@@ -66,7 +82,7 @@ export function conferenceView(state,esc){
     (joined&&active?'<div class="actions"><button data-action="conference-hand">'+(me?.handRaised?'אראפנעמען די האנט':'אויפהייבן די האנט')+'</button><button data-action="conference-leave">ארויסגיין</button></div>':'')+
     '</section>'+
     ((m||admitted)?'<section class="card"><h3>עסקנים און רעדן־רעכטן</h3>'+people+'</section>':'')+
-    messages;
+    messages+policies;
  })();
  return '<section class="card"><h2>התקבצו — אסיפות און חיזוק</h2>'+
  '<p class="muted">באזונדער פון דעם קאמפיין־זאל. אסיפות, דברי חיזוק, שאלות־ותשובות, עצות און טעכנישע דיסקוסיעס מיט מנהל־קאנטראל.</p>'+
