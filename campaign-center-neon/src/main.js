@@ -6,7 +6,7 @@ import { hallView } from './hall-view.js';
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],leads:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null};
+const state = {auth:null,user:null,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -32,7 +32,7 @@ async function refresh() {
       api('/campaigns/'+id+'/contacts'),api('/campaigns/'+id+'/finance')
     ]);
   }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];}
-  state.manager=null;state.members=[];state.leads=[];state.rooms=[];state.hallAnnouncements=[];
+  state.manager=null;state.members=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];
   if(state.campaignId){
     const rooms=await api('/rooms/campaigns/'+state.campaignId).catch(()=>({rooms:[]}));
     state.rooms=rooms.rooms||[];
@@ -46,6 +46,9 @@ async function refresh() {
     const role=state.orgs.find(x=>x.id===state.orgId)?.role;
     const calls=[
       api('/connect/status').then(v=>state.linkStatus=v),
+      ...(state.campaignId?[
+        api('/team/campaigns/'+state.campaignId+'/assignees').then(v=>state.assignees=v)
+      ]:[]),
       ...(state.campaignId&&['owner','manager','finance','auditor'].includes(role)?[
         api('/team/campaigns/'+state.campaignId+'/manager-overview').then(v=>state.manager=v)
       ]:[]),
@@ -91,7 +94,7 @@ function campaignNav(){
 function today(){
  const f=Object.fromEntries((state.overview?.finance||[]).map(x=>[x.event_kind,Number(x.amount)]));
  return `<div class="metrics"><div><span>ציל</span><strong>${money(state.overview?.campaign?.goal_amount)}</strong></div><div><span>צוגעזאגט</span><strong>${money(f.pledge)}</strong></div><div><span>באריכטעט באקומען (נעטא)</span><strong>${money(Math.max(0,(f.receipt||0)-(f.refund||0)))}</strong></div></div>
- <section class="card"><h2>נייע אויפגאבע</h2><form data-form="task" class="inline"><input name="title" required placeholder="וואס דארף געטון ווערן?"><select name="priority"><option value="normal">נארמאל</option><option value="high">וויכטיג</option><option value="critical">קריטיש</option></select><select name="kind"><option value="task">אויפגאבע</option><option value="followup">נאכפאלג</option><option value="call_lead">רופן</option></select><button>צולייגן</button></form></section>
+ <section class="card"><h2>נייע אויפגאבע</h2><form data-form="task" class="inline"><input name="title" required placeholder="וואס דארף געטון ווערן?"><select name="priority"><option value="normal">נארמאל</option><option value="high">וויכטיג</option><option value="critical">קריטיש</option></select><select name="kind"><option value="task">אויפגאבע</option><option value="followup">נאכפאלג</option><option value="call_lead">רופן</option></select><select name="assigneeSubject"><option value="">פאר מיר</option>${state.assignees.map(m=>`<option value="${esc(m.subject)}">${esc(m.subject)} — ${esc(m.team_name||"אנדערע")}</option>`).join("")}</select><button>צולייגן</button></form></section>
  <section class="card"><h2>אויפגאבן <span class="count">${state.tasks.length}</span></h2>${state.tasks.length?state.tasks.map(t=>`<article class="item"><div><strong>${esc(t.title)}</strong><small>${esc(t.kind)} · ${esc(t.priority)} · ${esc(t.status)}</small></div><div class="actions">${t.status!=='done'?`<button data-action="done" data-id="${esc(t.id)}">פארענדיגט</button>`:''}</div></article>`).join(''):'<p class="muted">נאך קיין אויפגאבן.</p>'}</section>`;
 }
 function people(){
@@ -139,7 +142,7 @@ async function submit(event){
      break;
    }
    case 'campaign': await api('/organizations/'+state.orgId+'/campaigns',{method:'POST',body:JSON.stringify({title:d.title,goalAmount:d.goalAmount})});break;
-   case 'task': await api('/campaigns/'+state.campaignId+'/tasks',{method:'POST',body:JSON.stringify({title:d.title,priority:d.priority,kind:d.kind})});break;
+   case 'task': await api('/campaigns/'+state.campaignId+'/tasks',{method:'POST',body:JSON.stringify({title:d.title,priority:d.priority,kind:d.kind,assigneeSubject:d.assigneeSubject||undefined})});break;
    case 'contact': await api('/campaigns/'+state.campaignId+'/contacts',{method:'POST',body:JSON.stringify({name:d.name,phone:d.phone,notes:d.notes,privacy:d.privacy})});break;
    case 'call': await api('/contacts/'+d.contactId+'/calls',{method:'POST',body:JSON.stringify({outcome:d.outcome,note:d.note})});break;
    case 'finance': await api('/campaigns/'+state.campaignId+'/finance',{method:'POST',body:JSON.stringify({kind:d.kind,amount:d.amount,verificationReference:d.verificationReference})});break;
