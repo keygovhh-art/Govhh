@@ -168,6 +168,23 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    res.setHeader('X-Export-Has-More',r.rowCount>size?'true':'false');
    res.send('\uFEFF'+lines.join('\r\n')+'\r\n');
  }));
+
+ router.get('/campaigns/:cid/member-progress',run(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);
+  need(c.role,['owner','manager','finance','auditor']);
+  const result=await pool.query(
+   "SELECT cm.subject,cm.team_name,m.role,"+
+   " (SELECT COUNT(*)::int FROM cc_assignments a WHERE a.campaign_id=$1 AND a.assignee_subject=cm.subject) AS assigned_tasks,"+
+   " (SELECT COUNT(*)::int FROM cc_assignments a WHERE a.campaign_id=$1 AND a.assignee_subject=cm.subject AND a.status='done') AS completed_tasks,"+
+   " (SELECT COUNT(*)::int FROM cc_call_events calls WHERE calls.campaign_id=$1 AND calls.member_subject=cm.subject) AS manual_call_reports,"+
+   " (SELECT COALESCE(SUM(f.amount),0)::text FROM cc_finance_events f WHERE f.campaign_id=$1 AND f.credited_member_subject=cm.subject AND f.event_kind='pledge') AS pledged,"+
+   " (SELECT COALESCE(SUM(CASE WHEN f.event_kind='receipt' THEN f.amount WHEN f.event_kind='refund' THEN -f.amount ELSE 0 END),0)::text FROM cc_finance_events f WHERE f.campaign_id=$1 AND f.credited_member_subject=cm.subject) AS manually_reported_net"+
+   " FROM cc_campaign_members cm JOIN cc_memberships m ON m.organization_id=cm.organization_id AND m.subject=cm.subject AND m.membership_status='active'"+
+   " WHERE cm.campaign_id=$1 AND cm.organization_id=$2 ORDER BY cm.team_name,cm.subject LIMIT 2000",
+   [c.id,c.organization_id]
+  );
+  res.json({memberProgress:result.rows,count:result.rowCount,mode:'manual_records_not_payment_provider_confirmation'});
+ }));
  router.get('/campaigns/:cid/manager-overview',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,['owner','manager','finance','auditor']);
   const [financial,members,leads,tasks]=await Promise.all([
