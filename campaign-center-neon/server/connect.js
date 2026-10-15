@@ -99,6 +99,23 @@ export function connectServiceRouter({pool,bad,uuid,log}) {
   const r=await pool.query('SELECT id,title,kind,priority,status,due_at FROM cc_assignments WHERE campaign_id=$1 AND organization_id=$2 AND assignee_subject=$3 ORDER BY created_at DESC LIMIT 200',[c.id,c.organization_id,subject]);
   res.json(r.rows);
  }));
+ router.post('/assignments/:id/status',wrap(async(req,res)=>{
+  const {gavhahUserId,campaignId,status}=req.body||{};
+  if(!uuid(req.params.id)||!numericUser(gavhahUserId)||!['open','in_progress','done'].includes(status))throw bad(400,'Invalid task update');
+  const result=await transaction(pool,async db=>{
+    const subject=await linked(db,gavhahUserId);
+    const c=await campaign(db,subject,campaignId);
+    const task=(await db.query('SELECT * FROM cc_assignments WHERE id=$1 AND campaign_id=$2 AND organization_id=$3 FOR UPDATE',
+      [req.params.id,c.id,c.organization_id])).rows[0];
+    if(!task||task.assignee_subject!==subject)throw bad(404,'This is not your assignment');
+    if(task.status==='cancelled')throw bad(409,'Cancelled task cannot be updated in MAX');
+    if(task.status===status)return {id:task.id,status:task.status,unchanged:true};
+    const next=(await db.query('UPDATE cc_assignments SET status=$1 WHERE id=$2 RETURNING id,status',[status,task.id])).rows[0];
+    await log(db,c.organization_id,c.id,subject,'connect.assignment_status',task.id,{from:task.status,to:status});
+    return {id:next.id,status:next.status,unchanged:false};
+  });
+  res.json(result);
+ }));
  router.post('/followups',wrap(async(req,res)=>{
   const {gavhahUserId,campaignId,followupId,shareScope}=req.body||{};
   if(!numericUser(gavhahUserId)||!numericUser(followupId)||!['campaign','assigned_managers'].includes(shareScope))throw bad(400,'Invalid shared follow-up');
