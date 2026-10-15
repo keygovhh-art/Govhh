@@ -545,6 +545,19 @@ setInterval(async()=>{
  });}
  catch{state.joinedRoomId=null;state.hallAnnouncements=[];}
 },30000);
+// Attendance for Hitkabtzu must be based on real heartbeat, not a one-time join.
+// Including waiting participants makes manager admissions accurate. User may
+// leave at any time; a background tab is not counted as continuously present.
+setInterval(async()=>{
+ if(!state.user||!state.conferenceId||state.tab!=='conference'||document.visibilityState!=='visible')return;
+ const id=state.conferenceId;
+ if(!state.conferenceSnapshot?.you?.joined)return;
+ try{
+  await api('/conferences/'+id+'/heartbeat',{method:'POST',body:'{}'});
+ }catch{
+  if(id===state.conferenceId)state.conferenceSnapshot=null;
+ }
+},20000);
 // Only refresh an open event hall while visible. All totals are authoritative
 // server figures. The browser does not simulate progress or dial calls.
 setInterval(async()=>{
