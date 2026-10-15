@@ -72,7 +72,14 @@ async function launch(){
  return {server,url:'http://127.0.0.1:'+server.address().port};
 }
 test('signed team invitations, lead locks, private linking and exactly-once cross-org ledger',async()=>{
- await prepare();
+ // Use the EXACT release migration runner on a pristine disposable database.
+ // This catches files that exist in staging but are missing from the repo.
+ const firstMigration=spawnSync(process.execPath,[join(import.meta.dirname,'../scripts/apply-reviewed-schema.mjs')],{
+  env:{...process.env,DATABASE_URL:connection,CC_EXPECTED_DB_HOST:new URL(connection).hostname,
+   CC_MIGRATION_MODE:'staging'},encoding:'utf8',timeout:45000
+ });
+ assert.equal(firstMigration.status,0,'Fresh DB transactional release migration failed: '+firstMigration.stderr);
+ assert.match(firstMigration.stdout,/PASS staging: 29 protected tables/);
  // Run the EXACT reviewed release runner against disposable PostgreSQL.
  // A fully migrated schema must produce a no-op, and a 'production' invocation
  // without owner approval must fail even on localhost.
