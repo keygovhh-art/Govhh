@@ -47,7 +47,7 @@ const auth=(req,res,next)=>{req.userId=req.get('x-test-user')||'anonymous';next(
 
 async function prepare(){
  // Disposable Postgres on GitHub Actions only; NEVER any external production database.
- for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql']){
+ for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql','009_experimental_browser_audio.sql']){
   const sql=await readFile(join(import.meta.dirname,'../db',file),'utf8');
   await pool.query(sql);
  }
@@ -256,6 +256,25 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:second,method:'POST',data:{action:'admit'}})).status,403);
   assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'admit'}})).status,200);
   assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:first})).data.you.admitted,true);
+
+  // Small-room browser-to-browser audio (explicit opt-in), not a hotline or
+  // advertised scalable media conference. Synthetic SDP only, no real microphone.
+  const rtc='/rtc/'+conferenceId;
+  assert.equal((await req(rtc+'/join',{user:second,method:'POST',data:{mode:'listener'}})).status,403,'Unadmitted visitor cannot join audio even with organization membership');
+  assert.equal((await req(rtc+'/join',{user:first,method:'POST',data:{mode:'speaker'}})).status,403,'Moderator must grant a microphone to a regular attendee');
+  assert.equal((await req(rtc+'/join',{user:owner,method:'POST',data:{mode:'speaker'}})).status,200,'Manager may explicitly publish microphone');
+  assert.equal((await req(rtc+'/join',{user:first,method:'POST',data:{mode:'listener'}})).status,200,'Admitted person may explicitly listen to pilot');
+  const offer=await req(rtc+'/signal',{user:owner,method:'POST',data:{to:first,kind:'offer',payload:{sdp:{type:'offer',sdp:'v=0\\r\\n'}}}});
+  assert.equal(offer.status,201);
+  assert.equal((await req(rtc+'/state',{user:first})).data.signals.length,1,'Listener receives only the SDP addressed to their own account');
+  assert.equal((await req(rtc+'/state',{user:first})).data.signals[0].sender_subject,owner);
+  assert.equal((await req(rtc+'/state',{user:second})).status,403,'Waiting/not-joined attendee may not read media signaling');
+  assert.equal((await req(rtc+'/signal',{user:first,method:'POST',data:{to:owner,kind:'offer',payload:{sdp:'forbidden'}}})).status,403,'Listener cannot inject microphone offer');
+  assert.equal((await req(rtc+'/signal',{user:first,method:'POST',data:{to:owner,kind:'answer',payload:{sdp:{type:'answer',sdp:'v=0'}}}})).status,201);
+  assert.equal((await req(rtc+'/state',{user:owner})).data.signals.length,1,'Speaker sees only own addressed answer');
+  assert.equal((await req(rtc+'/leave',{user:first,method:'POST',data:{}})).status,200);
+  assert.equal((await req(rtc+'/state',{user:first})).status,403,'Left participant cannot read any more signals');
+
 
   assert.equal((await req(videoConf+'/watch',{user:first})).status,403,'Admission alone insufficient for approved-only video');
   assert.equal((await req(videoConf+'/allow/'+first,{user:second,method:'PATCH',data:{allowed:true}})).status,403,'Other member cannot grant video');
