@@ -200,6 +200,51 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal(normalized,1,'Phone normalization deduplicates spreadsheet variants');
   const importedHistory=(await pool.query("SELECT count(*)::int n FROM cc_activity_events WHERE campaign_id=$1 AND event_type='contacts.csv_import'",[c1])).rows[0].n;
   assert.equal(importedHistory,2,'Both first submission and retry keep audit events');
+  // Independent 'Hitkabtzu' conference: every test participant is a member
+  // of this organization, but only moderators can manage floor/waiting room.
+  const confCreated=await req('/conferences/organizations/'+org1,{user:owner,method:'POST',data:{
+    title:'Asifas Chizuk',category:'inspiration',accessMode:'code',
+    speakingMode:'moderated',agenda:'Lecture then questions'
+  }});
+  assert.equal(confCreated.status,201);
+  assert.equal(confCreated.data.accessCode.length,24);
+  const conferenceId=confCreated.data.conference.id;
+  assert.equal((await req('/conferences/organizations/'+org1,{user:first,method:'POST',data:{title:'Hijack'}})).status,403);
+  assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}})).status,409,'Planned conference must not admit anyone');
+  assert.equal((await req('/conferences/'+conferenceId,{user:owner,method:'PATCH',data:{roomStatus:'open'}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:'bad'}})).status,403,'Invalid code');
+  assert.equal((await req('/conferences/'+conferenceId+'/join',{user:owner,method:'POST'})).data.admitted,true);
+  const waiting=await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}});
+  assert.equal(waiting.status,200);assert.equal(waiting.data.waiting,true,'Moderated meetings use waiting room');
+  const waitingView=await req('/conferences/'+conferenceId+'/snapshot',{user:first});
+  assert.equal(waitingView.data.waiting,true);assert.deepEqual(waitingView.data.messages,[],'Waiting attendees cannot read private discussion');
+  assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'not admitted'}})).status,403);
+  assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:second,method:'POST',data:{action:'admit'}})).status,403);
+  assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'admit'}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:first})).data.you.admitted,true);
+  assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'Muted discussion'}})).status,403);
+  assert.equal((await req('/conferences/'+conferenceId+'/hand',{user:first,method:'POST',data:{raised:true}})).data.handRaised,true);
+  assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'grant'}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'Thank you'}})).status,201);
+  assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'mute'}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'Muted'}})).status,403);
+  assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'unmute'}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{kind:'question',body:'Question before Q&A'}})).status,409);
+  assert.equal((await req('/conferences/'+conferenceId,{user:owner,method:'PATCH',data:{phase:'qna',speakingMode:'listeners'}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{kind:'question',body:'Can we discuss next steps?'}})).status,201);
+  assert.equal((await req('/conferences/'+conferenceId+'/messages',{user:first,method:'POST',data:{body:'Listener unauthorized discussion'}})).status,403);
+  const board=await req('/conferences/'+conferenceId+'/snapshot',{user:owner});
+  assert.equal(board.data.conference.phase,'qna');
+  assert.ok(board.data.messages.some(m=>m.message_kind==='question'));
+  assert.equal(board.data.online.filter(m=>m.hand_raised).length,1);
+  assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'ban'}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}})).status,403,'Banned user cannot reuse code');
+  assert.equal((await req('/conferences/'+conferenceId+'/moderate/'+first,{user:owner,method:'POST',data:{action:'restore'}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}})).data.waiting,true,'Restored member must be readmitted');
+  assert.equal((await req('/conferences/'+conferenceId,{user:owner,method:'PATCH',data:{roomStatus:'ended'}})).status,200);
+  assert.equal((await req('/conferences/'+conferenceId+'/join',{user:first,method:'POST',data:{accessCode:confCreated.data.accessCode}})).status,409);
+  assert.equal((await req('/conferences/'+conferenceId,{user:owner,method:'PATCH',data:{roomStatus:'open'}})).status,409,'Ended conference is an archive');
+  assert.equal((await req('/conferences/'+conferenceId+'/snapshot',{user:'stranger'})).status,404,'Other organization has no conference access');
   // Link requires authenticated CC account and authenticated Gavhah service.
   const link=await req('/connect/code',{user:first,method:'POST'});
   assert.equal(link.status,201);assert.equal(link.data.code.length,32);
