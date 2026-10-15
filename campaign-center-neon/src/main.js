@@ -3,11 +3,12 @@ import Papa from 'papaparse';
 import './style.css';
 import { teamView } from './team-view.js';
 import { hallView } from './hall-view.js';
+import { eventView } from './event-view.js';
 
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null};
 async function api(path,options={}) {
   const token = await state.auth.getJWTToken();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
@@ -34,7 +35,7 @@ async function refresh() {
       api('/campaigns/'+id+'/contacts'),api('/campaigns/'+id+'/finance')
     ]);
   }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];}
-  state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.activity=[];state.activityNextOffset=null;
+  state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
     state.activity=activity.events||[];state.activityNextOffset=activity.nextOffset;state.activityScope=activity.scope;
@@ -42,7 +43,14 @@ async function refresh() {
     state.rooms=rooms.rooms||[];
     if(state.joinedRoomId){
       const room=state.rooms.find(r=>r.id===state.joinedRoomId&&r.room_status==='open');
-      if(room)state.hallAnnouncements=await api('/rooms/'+room.id+'/announcements').catch(()=>[]);
+      if(room){
+        const [msgs,board,program]=await Promise.all([
+          api('/rooms/'+room.id+'/announcements').catch(()=>[]),
+          api('/floor/'+room.id+'/board').catch(()=>null),
+          api('/floor-program/'+room.id+'/schedule').catch(()=>null)
+        ]);
+        state.hallAnnouncements=msgs;state.floorBoard=board;state.floorProgram=program;
+      }
       else state.joinedRoomId=null;
     }
   }
@@ -188,7 +196,7 @@ async function exportContactsPage(){
 }
 
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?campaignSetup():campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc):history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?campaignSetup():campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -221,6 +229,30 @@ async function submit(event){
      });break;
    }
    case 'member-team': await api('/team/campaigns/'+state.campaignId+'/members/'+encodeURIComponent(d.subject)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
+   case 'program-add': {
+     const start=new Date(d.scheduledStart),end=new Date(d.scheduledEnd);
+     if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||end<=start)throw new Error('די פראגראם־צייטן זענען נישט ריכטיג');
+     await api('/floor-program/'+state.joinedRoomId+'/schedule',{method:'POST',
+       body:JSON.stringify({title:d.title,speaker:d.speaker,segmentType:d.segmentType,
+        description:d.description,mediaUrl:d.mediaUrl||null,
+        scheduledStart:start.toISOString(),scheduledEnd:end.toISOString()})});break;
+   }
+   case 'floor-help': {
+     if(!state.floorProgram?.checkedIn)throw new Error('קודם טשעקט זיך אריין צום קאמפיין־אוונט');
+     await api('/floor/'+state.joinedRoomId+'/help',{method:'POST',
+      body:JSON.stringify({category:d.category,summary:d.summary})});break;
+   }
+   case 'floor-call': {
+     if(state.floorProgram?.mode!=='calling'||!state.floorProgram?.checkedIn)
+       throw new Error('די רופן זענען יעצט אפגעשטעלט פאר א פראגראם אדער הפסקה');
+     const lead=state.leads.find(p=>p.id===d.contactId);
+     if(!lead||lead.claimed_by!==state.subject||new Date(lead.claim_expires_at).getTime()<=Date.now())
+       throw new Error('קודם נעם דעם קשר פאר דיין רוף');
+     await api('/contacts/'+encodeURIComponent(d.contactId)+'/calls',{method:'POST',
+       body:JSON.stringify({outcome:d.outcome,note:d.note||''})});
+     await api('/team/contacts/'+encodeURIComponent(d.contactId)+'/release',{method:'POST',
+       body:'{}',headers:{'Content-Type':'application/json'}});break;
+   }
    case 'hall-new': await api('/rooms/campaigns/'+state.campaignId,{method:'POST',body:JSON.stringify({title:d.title})});break;
    case 'hall-message': await api('/rooms/'+state.joinedRoomId+'/announcements',{method:'POST',body:JSON.stringify({message:d.message})});break;
    case 'contact-team': await api('/team/campaigns/'+state.campaignId+'/contacts/'+encodeURIComponent(d.contactId)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
@@ -300,6 +332,22 @@ async function click(event){
   if(a==='unlink-max'){if(!state.confirmUnlink){state.confirmUnlink=true;say('נאכאמאל דרוקן אויסלעשן פארבינדונג צו באשטעטיגן');return;}await api('/connect/unlink',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.confirmUnlink=false;state.connectCode='';await refresh();return;}
   if(a==='claim-lead'){await api('/team/contacts/'+btn.dataset.id+'/claim',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
   if(a==='release-lead'){await api('/team/contacts/'+btn.dataset.id+'/release',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});await refresh();return;}
+  if(a==='event-refresh'){await refresh();return;}
+  if(a==='event-check-in'||a==='event-check-out'){
+    if(!state.joinedRoomId)throw new Error('קודם גיי אריין אין דעם קאמפיין־זאל');
+    await api('/floor-program/'+state.joinedRoomId+(a==='event-check-in'?'/check-in':'/check-out'),{method:'POST',body:'{}'});
+    await refresh();return;
+  }
+  if(a==='program-start'||a==='program-complete'||a==='program-cancel'){
+    const status=a==='program-start'?'live':a==='program-complete'?'completed':'cancelled';
+    await api('/floor-program/'+state.joinedRoomId+'/programs/'+encodeURIComponent(btn.dataset.id)+'/status',{method:'POST',body:JSON.stringify({status})});
+    await refresh();return;
+  }
+  if(a==='help-progress'||a==='help-resolve'){
+    const status=a==='help-progress'?'in_progress':'resolved';
+    await api('/floor/'+state.joinedRoomId+'/help/'+encodeURIComponent(btn.dataset.id),{method:'PATCH',body:JSON.stringify({status})});
+    await refresh();return;
+  }
   if(a==='hall-refresh'){await refresh();return;}
   if(a==='hall-open'||a==='hall-pause'||a==='hall-end'){
     const status=a==='hall-open'?'open':a==='hall-pause'?'paused':'ended';
@@ -349,3 +397,18 @@ setInterval(async()=>{
  });}
  catch{state.joinedRoomId=null;state.hallAnnouncements=[];}
 },30000);
+// Only refresh an open event hall while visible. All totals are authoritative
+// server figures. The browser does not simulate progress or dial calls.
+setInterval(async()=>{
+ if(!state.user||!state.joinedRoomId||state.tab!=='hall'||document.visibilityState!=='visible')return;
+ try{
+  const roomId=state.joinedRoomId;
+  const [board,program,messages]=await Promise.all([
+   api('/floor/'+roomId+'/board'),api('/floor-program/'+roomId+'/schedule'),
+   api('/rooms/'+roomId+'/announcements')
+  ]);
+  if(roomId!==state.joinedRoomId||state.tab!=='hall')return;
+  state.floorBoard=board;state.floorProgram=program;state.hallAnnouncements=messages;
+  if(!document.activeElement?.matches?.('input,textarea,select'))draw();
+ }catch(e){console.warn('Temporary live hall refresh failed');}
+},7500);
