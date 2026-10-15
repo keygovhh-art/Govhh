@@ -1,5 +1,3 @@
-import Hls from 'hls.js';
-
 // The media element lives OUTSIDE the main app root so a chat message,
 // task update or 7-second dashboard refresh cannot restart a playing video.
 // It is created ONLY on the participant's explicit "watch" button.
@@ -34,20 +32,29 @@ export function playingOptionalVideo(){
  return Boolean(dock&&!dock.hidden&&watchContext);
 }
 export function watchedContext(){return watchContext;}
-export function watchOptionalVideo(url,kind,roomId){
+export async function watchOptionalVideo(url,kind,roomId){
  if(typeof url!=='string'||!url.startsWith('https://'))throw Error('א באשטעטיגטער HTTPS־שידור פעלט');
  ensureDock();stopOptionalVideo();
  dock.hidden=false;watchContext={kind,roomId};
  const streamUrl=new URL(url);
  const isHls=streamUrl.pathname.toLowerCase().endsWith('.m3u8');
- if(isHls&&Hls.isSupported()){
-  hls=new Hls({enableWorker:true,lowLatencyMode:true});
-  hls.loadSource(streamUrl.href);hls.attachMedia(player);
- }else{
-  player.src=streamUrl.href;
- }
+ if(isHls){
+  // Download the HLS decoder only after an explicit video opt-in.
+  // Ordinary campaign workers never need this heavy mobile bundle.
+  const {default:Hls}=await import('hls.js');
+  if(watchContext?.kind!==kind||watchContext?.roomId!==roomId)return;
+  if(Hls.isSupported()){
+   hls=new Hls({enableWorker:true,lowLatencyMode:true});
+   hls.loadSource(streamUrl.href);hls.attachMedia(player);
+  }else if(player.canPlayType('application/vnd.apple.mpegurl')){
+   player.src=streamUrl.href;
+  }else{
+   stopOptionalVideo();
+   throw Error('דער בראוזער שטיצט נישט דעם HLS שידור. פרוביר א MP4 אדער אן אנדערע וועב־קוואל.');
+  }
+ }else player.src=streamUrl.href;
  player.scrollIntoView({block:'nearest',behavior:'smooth'});
- // Never call play(): mobile browsers must wait for another user gesture.
+ // Never call play(): the viewer controls playback on their own device.
 }
 export function videoPanel(status,kind,roomId,grants,esc){
  if(!roomId)return '';
