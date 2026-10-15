@@ -1,0 +1,22 @@
+# Render Blueprint: create under the NEW Campaign Center workspace after user creates it.
+services:
+  - type: web
+    name: gavhah-campaign-center
+    runtime: node
+    plan: free
+    repo: https://github.com/keygovhh-art/Govhh
+    branch: main
+    rootDir: campaign-center-neon
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeployTrigger: 'off' # Enable only after secure staging, domain and live auth tests
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: NEON_AUTH_BASE_URL
+        sync: false
+      - key: NEON_AUTH_JWKS_URL
+        sync: false
