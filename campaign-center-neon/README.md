@@ -30,3 +30,17 @@ New **isolated implementation** alongside `campaign-center-v2`; it does not alte
 - Migration of old browser localStorage is intentionally deferred. Nothing will be deleted automatically.
 - RLS is deny-by-default on application tables. The server database role is privileged, so application middleware and tenant predicates are mandatory. For production, also configure a dedicated minimal-privilege DB role; don't reuse the owner credential indefinitely.
 - Authentication end-to-end, database migrations, simultaneous members, finance edge cases and browser workflow require testing against the eventual Render domain.
+
+
+## Latest staging features (see master documents)
+The text above describes the original Neon-only foundation before the optional feature branch. The current isolated Campaign Center team/connect branch now also includes hashed team invitations, active membership and squad permissions, canonical donor claims, MAX consent-based linking, immutable manual finance reversals, CSV preview/import/export, audited member progress, and a virtual fundraiser plus a separate general meeting center.
+
+**Virtual fundraising room** (not a telephony hotline): late arrival check-in, event schedule, manager announcements, 1:30–2:00 local lunch preset, stage/finish speaker segments, a private manager support desk, real manual operator claim/call report with one-time retry key, live stats and historical audit. New migrations 005/006 and controllers floor.js/floor-programs.js.
+
+**Hitkabtzu general conferences:** distinct organization or campaign assembly room, waiting room, participant admission, hashed access codes, moderator speaking/text controls, hand raise, Q&A phases, immutable discussion and optional protected HTTPS audio stream URL. New migration 004 and controllers conferences.js.
+
+The current UI plays *a supplied authorized audio source*; it neither publishes a live microphone itself nor provides a WebRTC SFU. The live calling floor is manual through the member's device dialer (no outbound caller-ID provider claim). Scheduling requires the manager to start/end the segment (no guaranteed automated cron). No large audience load test yet.
+
+Migration order for staging/production after backup and approval: 001 -> 002 -> 003 -> 004 -> 005 -> 006. Migration 004 may require its additive media_url ALTER. All application tables have RLS deny-by-default for direct users. Dedicated least-privilege database role required before production.
+
+GitHub end-to-end CI uses a disposable local PostgreSQL service, but REAL authenticated Android + multi-Render testing is still mandatory. Do NOT merge to main or deploy to Render without a separate user command. AutoDeploy remains disabled.
