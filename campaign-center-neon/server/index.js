@@ -153,7 +153,7 @@ app.post('/api/organizations/:oid/campaigns', async(req,res,next) => {
 app.get('/api/campaigns/:cid/overview', async(req,res,next)=>{
   try {
     const c=await campaignAccess(pool,req.params.cid,req.userId);
-    const stats=await q("SELECT event_kind,COALESCE(SUM(amount),0)::text AS amount FROM cc_finance_events WHERE campaign_id=$1 AND organization_id=$2 AND (event_kind='pledge' OR (event_kind='receipt' AND verified_at IS NOT NULL)) GROUP BY event_kind",[c.id,c.organization_id]);
+    const stats=await q("SELECT event_kind,COALESCE(SUM(amount),0)::text AS amount FROM cc_finance_events WHERE campaign_id=$1 AND organization_id=$2 AND event_kind IN ('pledge','receipt','refund') GROUP BY event_kind",[c.id,c.organization_id]);
     const tasks=await q('SELECT status,count(*)::int AS total FROM cc_assignments WHERE campaign_id=$1 GROUP BY status',[c.id]);
     res.json({campaign:c,finance:stats.rows,tasks:tasks.rows});
   } catch(error){next(error);}
