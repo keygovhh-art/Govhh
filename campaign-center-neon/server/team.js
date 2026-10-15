@@ -130,6 +130,44 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    await log(db,c.organization_id,c.id,req.userId,'lead.released',lead.id);return found;
   });res.json(r);
  }));
+
+ router.get('/campaigns/:cid/activity',run(async(req,res)=>{
+   const c=await campaignAccess(pool,req.params.cid,req.userId);
+   const all=['owner','manager','auditor'].includes(c.role);
+   const offset=Number(req.query.offset||0);
+   if(!Number.isSafeInteger(offset)||offset<0||offset>100000)throw bad(400,'Invalid activity offset');
+   const r=await pool.query(
+    'SELECT id,actor_subject,event_type,target_id,details,created_at FROM cc_activity_events WHERE campaign_id=$1 AND organization_id=$2 AND ($3::boolean OR actor_subject=$4) ORDER BY created_at DESC,id DESC LIMIT 200 OFFSET $5',
+    [c.id,c.organization_id,all,req.userId,offset]
+   );
+   res.json({events:r.rows,nextOffset:r.rowCount===200?offset+200:null,scope:all?'campaign':'personal'});
+ }));
+ router.get('/campaigns/:cid/contacts.csv',run(async(req,res)=>{
+   const c=await campaignAccess(pool,req.params.cid,req.userId);
+   if(!['owner','manager','finance','auditor','squad_leader','askan'].includes(c.role))
+     throw bad(403,'Not permitted to export contacts');
+   const all=['owner','manager','finance','auditor'].includes(c.role);
+   const page=Number(req.query.page||1);
+   if(!Number.isSafeInteger(page)||page<1||page>10000)throw bad(400,'Invalid export page');
+   const size=1000;
+   const r=await pool.query(
+    "SELECT id,display_name,phone,status,do_not_call,privacy,assigned_team,created_at,CASE WHEN created_by=$3 THEN notes ELSE '' END notes FROM cc_contacts WHERE campaign_id=$1 AND organization_id=$2 AND ((privacy='private' AND created_by=$3) OR (privacy='campaign' AND ($4::boolean OR (assigned_team<>'' AND assigned_team=(SELECT team_name FROM cc_campaign_members WHERE campaign_id=$1 AND subject=$3)) OR (assigned_team='' AND created_by=$3)))) ORDER BY created_at,id LIMIT $5 OFFSET $6",
+    [c.id,c.organization_id,req.userId,all,size+1,(page-1)*size]
+   );
+   const rows=r.rows.slice(0,size);
+   const safe=value=>{
+      const raw=String(value??'');
+      const sanitized=/^\s*[=+\-@\t\r]/.test(raw)?"'"+raw:raw;
+      return '"'+sanitized.replaceAll('"','""').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g,'')+'"';
+   };
+   const fields=['id','display_name','phone','status','do_not_call','privacy','assigned_team','created_at','notes'];
+   const lines=[fields.map(safe).join(','),...rows.map(row=>fields.map(key=>safe(row[key])).join(','))];
+   res.setHeader('Content-Type','text/csv; charset=utf-8');
+   res.setHeader('Content-Disposition','attachment; filename="campaign-contacts-'+c.id+'-page-'+page+'.csv"');
+   res.setHeader('Cache-Control','no-store');
+   res.setHeader('X-Export-Has-More',r.rowCount>size?'true':'false');
+   res.send('\uFEFF'+lines.join('\r\n')+'\r\n');
+ }));
  router.get('/campaigns/:cid/manager-overview',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,['owner','manager','finance','auditor']);
   const [financial,members,leads,tasks]=await Promise.all([
