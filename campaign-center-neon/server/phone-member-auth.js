@@ -71,6 +71,25 @@ export function campaignPhoneWebRouter({pool,authenticate}){
    res.json({configured:true,owner:'campaign-center'});
   }catch(e){next(e);}
  });
+ r.post('/activate-pin',async(req,res,next)=>{
+  try{
+   if(!sameSite(req))throw bad(403,'Same-origin Neon website sign-in required');
+   if(!await activeMember(pool,req.userId))throw bad(403,'Active Campaign Center membership required');
+   const pin=req.body?.pin;
+   if(!validPin(pin))throw bad(400,'Enter your 12–16 digit assigned Campaign Center PIN');
+   const record=await pool.query(
+    'SELECT pin_index,pin_salt,pin_verifier FROM cc_phone_member_pins '+
+    'WHERE subject=$1 AND activation_required=true',[req.userId]);
+   const row=record.rows[0];
+   if(!row||row.pin_index!==lookup(pin))throw bad(401,'Wrong or already activated PIN');
+   const given=Buffer.from(await slow(pin,row.pin_salt),'hex');
+   const expected=Buffer.from(row.pin_verifier,'hex');
+   if(given.length!==expected.length||!timingSafeEqual(given,expected))throw bad(401,'Invalid PIN');
+   await pool.query(
+    'UPDATE cc_phone_member_pins SET activation_required=false,updated_at=now() WHERE subject=$1',[req.userId]);
+   res.json({activated:true,owner:'campaign-center'});
+  }catch(e){next(e);}
+ });
  r.delete('/pin',async(req,res,next)=>{
   try{
    if(!sameSite(req))throw bad(403,'Same-origin sign-in required');
