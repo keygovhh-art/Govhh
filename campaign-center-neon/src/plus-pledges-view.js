@@ -18,7 +18,7 @@ export function plusPledgesView(state,esc,money) {
    ' · '+esc(p.created_at?.slice(0,10)||'')+'</small>'+
    '<p>מאנועל באריכטעט באקומען: '+money(p.manually_reported_received)+
    ' · צוריקגעדרייט: '+money(p.manually_reversed)+
-   ' · <strong>נאכ'ן חשבון אויסשטייענדיג: '+money(p.outstanding)+'</strong></p></div>'+
+   ' · <strong>נאכן חשבון אויסשטייענדיג: '+money(p.outstanding)+'</strong></p></div>'+
    form+'</article>';
  }).join('');
  return '<section class="card"><h2>עסקן פלאס — התחייבויות און טייל־באצאלונגען</h2>'+
