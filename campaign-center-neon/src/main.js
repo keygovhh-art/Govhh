@@ -130,14 +130,14 @@ async function refresh() {
 }
 function authError(error){
  const status=Number(error?.status||0);
- if(status===404||/HTTP\\s*404/i.test(String(error?.message||'')))
+ if(status===404||/HTTP\s*404/i.test(String(error?.message||'')))
    return 'די Login־סערוויס געפינט נישט דעם פארלאנג (HTTP 404). די סיסטעם־אדרעס דארף ווערן איבערגעקוקט. קיינער דארף נישט נאכאמאל שאפן אן אקאונט ביז דאס איז פארראכטן.';
  if(status===401||error?.code==='INVALID_EMAIL_OR_PASSWORD')return 'דער בליצפאסט אדער פעסווארט איז נישט ריכטיג.';
  return String(error?.message||'אריינלאגירן איז נישט געלונגען');
 }
 function authView(){
  return `<main class="auth-wrap"><div class="auth-hero"><div class="logo">✦</div><h1>גבהה קאמפיין סענטער</h1>
- <p>קאמפיינס, עסקנים, קשרים און אויפגאבן — אויף איין ארט.</p><small>Neon־באזירטע פריערדיגע טעסט־ווערסיע</small></div>
+ <p>הייב אן אליין מיט דיין ערשטן קאמפיין. ווען דו וואקסט, קענסטו צולייגן א גאנצע מאנשאפט.</p><small>פאר יעדן — פון אנהייבער ביז א גרויסע מאנשאפט</small></div>
  <div class="auth-grid">
  <form data-form="signin" class="card"><h2>אריינגיין</h2><label>בליצפאסט <input type="email" name="email" autocomplete="email" required></label><label>פעסווארט <input type="password" name="password" autocomplete="current-password" required></label><button class="primary">אריינגיין</button></form>
  <form data-form="signup" class="card"><h2>אנהייבן אקאונט</h2><label>נאמען <input name="name" autocomplete="name" required maxlength="120"></label><label>בליצפאסט <input name="email" type="email" autocomplete="email" required></label><label>פעסווארט <input type="password" name="password" autocomplete="new-password" minlength="8" required></label><button>שאפן אקאונט</button></form></div></main>`;
