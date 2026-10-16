@@ -80,6 +80,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
   if(team.length>64)throw bad(400,'Invalid team');
   const result=await tx(async db=>{
    const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,['owner','manager']);
+   planPolicy.requireFeature(await planPolicy.forMember(db,c.organization_id,req.userId),'teams_captains');
    const row=(await db.query('UPDATE cc_campaign_members SET team_name=$1 WHERE campaign_id=$2 AND subject=$3 RETURNING subject,team_name',[team,c.id,req.params.subject])).rows[0];
    if(!row)throw bad(404,'Campaign member not found');
    await log(db,c.organization_id,c.id,req.userId,'team.member_assigned',null,{subject:req.params.subject,team});
@@ -91,6 +92,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
   const team=trim(req.body?.teamName,64);
   const result=await tx(async db=>{
    const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,['owner','manager']);
+   planPolicy.requireFeature(await planPolicy.forMember(db,c.organization_id,req.userId),'call_assignments');
    const found=(await db.query('SELECT * FROM cc_contacts WHERE id=$1 AND campaign_id=$2 FOR UPDATE',[req.params.id,c.id])).rows[0];
    if(!found||found.privacy!=='campaign')throw bad(404,'Shared contact not found');
    if(found.claimed_by&&new Date(found.claim_expires_at).getTime()>Date.now())throw bad(409,'Wait until the current claim is released');
