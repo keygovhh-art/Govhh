@@ -1,70 +1,58 @@
-# קאמפיין סענטער — נייע זעקס־פלאן מאסטער־דעליווערי
-**16 אקטאבער 2026 — ספעציפיקאציע פארן נייעם Neon־סיסטעם**
+# קאמפיין סענטער — דער נייער זעקס־פלאן מאסטער־פלאן
+**16 אקטאבער 2026 · נאר Campaign Center — keygovhh-art/Govhh**
+**מצב:** Staged code. Render production, Neon production and Gavhah MAX production זענען נישט געענדערט.
 
-**Status:** Development, NOT fully live. ONLY GitHub keygovhh-art/Govhh, Render gavhah-campaign-center.onrender.com, Neon still-haze-11727622. Separate Gavhah/MAX deployment is OUT of scope.
+## אומפארהאנדליכע נייע אפמאך
+**Personal Askan Free איז אינגאנצן ארויסגענומען פון Campaign Center.** פערזענליכע אויפגאבן, פריוואטע נאטיצן, Brain Dump, Follow-ups, Focus און פערזענליכע היסטאריע געהערן צו **גבהה — עולם החסד**, אין `/my` און `/communications`. קיין צוויי פערזענליכע דאטאבעיסן.
 
-## די ששה שטאפלען
+### די זעקס Campaign Center פלענער
+| שטאפל | פלאן | עסקנים | צילן | קאמפיינס |
+|---|---|---:|---:|---:|
+| 1 | Chesed Quick | 5 | 3 | 1 |
+| 2 | Askan Plus | **נאך נישט באשטימט** | **נאך נישט באשטימט** | **נאך נישט באשטימט** |
+| 3 | Askan Pro | 25 | 20 | 1 |
+| 4 | Gabbai Pro | 100 | 100 | 3 |
+| 5 | Organization | 500 | 500 | 50 |
+| 6 | Custom | לויט אפמאך | לויט אפמאך | לויט אפמאך |
 
-| פלאן | עסקנים | צילן | קאמפיינס | Focus |
-|---|---:|---:|---:|---|
-| Personal Askan Free | 1 | 0 | 0 | פריוואטע היינט, אויפגאבן, נאטיצן, נאכפאלגן |
-| Chesed Quick | 5 | 3 | 1 | 1 גרופע, 3 שריט, 7 טעג היסטאריע |
-| Askan Pro | 25 | 20 | 1 | 1–2 גרופעס, 3/5 שריט, 30 טעג, Clarity |
-| Gabbai Pro | 100 | 100 | 3 | 3 גרופעס, 3/5/7 שריט, Operations |
-| Organization | 500 | 500 | 50 | 4 גרופעס, Portfolio, הנהלה |
-| Custom | לויטן אפמאך | לויטן אפמאך | לויטן אפמאך | 1–5 גרופעס, 1–20 priorities |
+א העכערע פלאן נעמט אריין די פונקציעס פונעם נידעריגערן. די באצאלטע פלענער זענען נאכנישט פארבונדן צו Verified Billing/Entitlements; א פלאן־באשרייבונג איז נישט קיין אקטיוויזאציע אדער צאלונג.
 
-קיין פרייזן, אקטיווע באצאלטע Subscriptions אדער אומבאגרעניצטע קאפאציטעט זענען נישט באשטעטיגט. Guided Campaign און Managed Campaign זענען עקסטערע סערוויס־צוגאבן, נישט נאך צוויי פלענער.
+## 72 אויסגעשמועסטע פונקציעס
+דער חובת־מייסטער איז פארשריבן אין `src/plan-catalog.js`, מיט 64 פלאן־פונקציעס און 8 פראיעקט־ברייטע צוגאב־פונקציעס וואס זייער פלאן־צוטיילונג איז **נאך נישט באשטימט**. אלע 72 האבן אמתע שטרענג אפגעטיילטע סטאטוס: `pilot`, `partial`, `missing`. דער באזונדערער `src/plan-view.js` ווייזט די פונקציעס אויף מאביל־אידיש.
 
-## Tier 1 — Personal Askan
-**מוז קענען:** פריוואטע אויפגאבן, נאטיצן, נאכפאלגן, טערמינען, Done/Reopen/Archive, טעגלעכער Focus, רימיינדערס, History/Memory, Login/Reset. מוז ארבעטן אויך אן א מוסד אדער קאמפיין. די גאנצע Kesher/Contacts אפטיילונג הייבט זיך אן נאר ביי Chesed Quick.
-**איצט אויפן feature־ברענטש:** אן אמתער Neon־פערזענליכער Item־טאבעלע, JWT subject-scoped API, Write/Read/Done/Archive UI. **פעלט:** Focus־געשיכטע, Push, UAT, ווערסיע פון אמתן Login/Reset. Database migration 013 נאכנישט production.
+### Chesed Quick
+קאמפיין־דעשבאורד; קאמפיין־צילן; Focus־לוח און 7־טאגיקער זכרון; Kesher־קשרים מיט privacy/Do Not Call; טעסקס; 5 עסקנים; רוף־צענטער; פלעדזשעס; מאנועלע קבלות; דרויסנדיגער נדבה־לינק; באריכטן; member progress; System Watch; טעגלעכער איבערבליק.
 
-## Tier 2 — Chesed Quick
-**מוז קענען:** קאמפיין, ביז 3 צילן, פינף עסקנים, רופן־ליסטעס, קשרים מיט Do Not Call, 20־מינוט claim, מאנועלע התחייבויות און קבלות, קאמפיין־ציל, 3־שריט Focus, team progress, basic reports, System Watch, external donation link. א סאלאָ־עסקן קען צולייגן מאנשאפט אן פארלירן דאטן.
-**איצט:** קאמפיין, טיעם־איינלאדונגען, scoped קשרים/Claims, Calls, Manual Finance, CSV און Virtual Floor Pilot.
-**נייעס אינעם איצטיגן Draft PR:** איצט אויך זיכערע באזונדערע קאמפיין־Goal items מיט Title, Category, Target, Current Progress, Due date, Status, 3-Goal Pilot Limit און immutable History; manager-only Writes און authorized member Reads. נייע Neon migration 014 דארף נאך staging/production review. **פעלט:** באצאלטע פלאן־באשטעטיגטע 20/100/500 Goal quotas, focus-memory, System Watch, external link settings, UAT.
+### Askan Plus
+אלעס Quick + גרופע־פירער, עסקן־דעשבאורד, שטארקערע קשר־ליסטעס, רוף־צוטיילונגען/נאכפאלגן, טיילווייזע התחייבויות, טשעק/קעש־איינצלהייטן, מאנשאפט־קרעדיט, נדבה־לעוועלן, אויפגאבע־איבערגעבן, פריוואטער טיעם־זאל, מנהל־אנווייזונגען, טיפערע באריכטן און פשוטע אויטאמאטישע ווארענונגען.
 
-## Tier 3 — Askan Pro
-**מוז קענען:** אלע Quick + Advanced CRM, קאמפיין־פיילס, CSV, Call Office, Clarity Radar, 7-day sprint, 30-day history, carryover, repeated-blocker insights, Next Best Action, controlled automations, guidance requests.
-**איצט:** Basic CRM און טעסטירטער CSV/Call Lists־Pilot. **פעלט:** נאכפאלג־מאשין, File Storage, Focus/Clarity און staffed guidance.
+### Askan Pro
+אלעס Plus + Advanced CRM, קשר־היסטאריע, דאקומענטן, Call Lists, CSV/Excel, Clarity, Next Best Action, Automations, Guidance, 7-Day Sprint, 30-Day Memory, Blocker Analysis.
 
-## Tier 4 — Gabbai Pro
-**מוז קענען:** אלע Pro + full ledger, verified approvals, immutable correction/reversal/refund, treasurer role separation, priority oversight, custom roles, manager operational briefing and campaign load.
-**איצט:** Manual event ledger, auditing, MAX explicit finance reversal pilot and manager productivity.
-**פעלט:** approvals workflow, full ledger settlement, payout verification, custom roles, true financial reconciliation.
+### Gabbai Pro
+אלעס Pro + Advanced Finance, Ledger, Approvals, Audit, Reversals, Sync, Priority Oversight, Custom Roles, Operations Memory, Team Workload.
 
-## Tier 5 — Organization
-**מוז קענען:** אלע Gabbai + 50 Campaigns, 500 member seats, Departments, Shared CRM with explicit permissions, Portfolio, multi-campaign reports, cross-campaign finance, leadership decisions and resource allocations.
-**איצט:** multiple campaigns foundation, squads, scoped shared contacts. **פעלט:** full portfolio, reporting, hard capacity checks, cross-campaign audited role access, large-scale load.
+### Organization
+אלעס Gabbai + Multiple Campaigns, Departments, Shared CRM (פריוואטקייט), Portfolio Reports, Leadership Decisions, Resource Allocation, Organization Memory.
 
-## Tier 6 — Custom
-**מוז קענען:** אלע Organization + individually contracted quotas, custom permissions/workflows, certified API/webhooks, authorized caller-ID provider and hotline integration, agreement-defined reporting and custom focus.
-**איצט:** limited internal API pilot and central read-only Yemot status. **פעלט:** live authorized phone calls, signed outbound caller ID, public API, contracts, provider approval and performance certification. Never represent 9999 as unlimited.
+### Custom
+אלעס Organization + Custom API, Hotline integration, authorized Caller ID outbound only with provider authorization, workflows, custom focus and contract-specific capacity. No invented unlimited capacity.
 
-## איבערגרייכנדע פונקציעס
-- Virtual Fundraising Floor: member check-in/out, manager program, lunch 1:30–2:00, claim, manual dialer and result, private manager help, immutable history. NOT automatic phone dialing.
-- התקבצו: controlled joining, waiting room, hand raise, Q&A, text moderator, opt-in external streams. Microphone P2P experiment OFF by default; NOT large-scale audio hosting.
-- MAX Connect: two independently authenticated identities, single-use pairing, opt-in single-event finance share; never copy donor names/phones or personal notes automatically.
-- ONE centrally governed Yemot credential, located under Gavhah super admin. No per-institution API keys; menu and transfers are not live without proof.
+### 8 פראיעקט־ברייטע צוגאב־פונקציעס (נאך נישט צוגעטיילט)
+Virtual Fundraising Floor; Live Attendance; Event/Lunch Schedule; Private Manager Help; Hitkabtzu; Optional Audio/Video; Gavhah Connect; one central Yemot API credential under Gavhah Super Admin. These are not automatically granted by catalogue tier.
 
-## פונקציע־צו־פונקציע רעאליטעט
-The complete 34-item catalogue and one of three states for each item (pilot, partial, missing) live in src/plan-catalog.js; src/plan-view.js renders all six plans on the actual app in Yiddish. Pilot does NOT mean production-certified. No pricing/billing/entitlement activation follows merely from a catalogue.
+## דאזיגע אפגעזונדערטע ארבעט
+- **Remove** the now-obsolete personal route, UI, DB migration and CI tests from Campaign Center. No Personal Askan fee/plan.
+- **Add** `Askan Plus` as a distinct intermediate plan.
+- **Preserve** the secure Campaign Goals API/UI with audited edits and three-goal interim pilot limit until entitlement verification. Its additive Neon migration is `db/013_campaign_goals.sql` and requires staging review before any production use.
+- **Show** every agreed planned feature without pretending it has shipped.
+- **Keep** Guided Campaign and Managed Campaign as add-ons, not additional tiers.
 
-## Release gates / סדר העבודה
-**A** Baseline: verify health/config, branch/Neon, login from Android and two org/two member isolation; backup and restore. Protect existing data.
-**B** Personal: apply db/013_personal_askan.sql to disposable/staging only, test private ownership, 500 active-item limit under concurrency, notes, due dates, retries, session expiry, Android; separate approval required for production.
-**C** Chesed Quick: build separate goals + focus snapshots + true campaign quotas + verified plan grant and downgrade behavior without losing past records.
-**D** Askan Pro: CRM/files/automations/Clarity and defensible human review commitments.
-**E** Gabbai/Organization: full account approvals, verified manual reconciliation, audit, portfolio, departments and large-team tests.
-**F** Custom: third-party verified Caller ID, phone contract, direct API security, signed streaming and billing. Never promise unlimited calls.
-**Final** Real session E2E, slow network/reload, concurrent donor claims, duplicate event tests, Do Not Call, ledger corrections, tenant privacy, member suspension, backup/rollback and owner Android acceptance.
+## Release gates
+1. Prove CI (syntax, Vite build, 2-member Postgres security, six-plan catalogue, goal schema).
+2. Verify real login/signup/password reset on Android and two-organization privacy in deployed staging, including role changes and revoked membership.
+3. Independently verify target Neon branch host and recoverable production backup before any migration; then require explicit permission for production DB changes and Render deploy.
+4. Implement and test all missing/pilot 72-feature workflows one-by-one: task CRUD, finance, collaboration, Focus, CRM, portfolio, human services. Cannot sell 6 plans until server-side per-plan grants and billing exist.
+5. Real telecom, payments, audio conference and push require provider agreements and verified real-world tests, not just UI buttons.
 
-**Never automatically deploy staged features.** Render AutoDeploy stays OFF. Publish only separately reviewed and tested release sets. No production DB or connected service changes are authorized by merely listing a feature; authorized releases should preserve the current production code and data.
-
-## Delivered in current work branch, NOT all 34
-- Read-only six-plan screen with exact quotas and honestly labeled feature states.
-- Owner-only Personal Askan Neon task/note/followup API and mobile UI, additive schema migration 013.
-- Campaign goals with progress, authenticated manager actions, append-only audit and additive schema migration 014.
-- CI tests for inherited plan feature catalogue, private two-user security, goal-role isolation, archive, caps and append-only history.
-- Draft PR for inspection, NOT 100% completion.
+**NO MERGE, NO PRODUCTION DEPLOY, NO PRODUCTION DB MIGRATION** from this document. Render AutoDeploy stays OFF. Never publish unrelated changes from other chats automatically.
