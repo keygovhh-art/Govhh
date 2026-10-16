@@ -348,6 +348,7 @@ async function submit(event){
    case 'organization-memory-revise': {
      await api('/organization/organizations/'+state.orgId+'/memory',{
        method:'POST',body:JSON.stringify({category:d.category,title:d.title,summary:d.summary,
+        sourceCampaignId:d.sourceCampaignId||null,reviewDueAt:d.reviewDueAt||null,
         supersedesId:form.dataset.memoryId})});break;
    }
    case 'organization-resource-pool-new': {
