@@ -43,3 +43,33 @@ CREATE OR REPLACE TRIGGER cc_gabbai_decisions_immutable
  BEFORE UPDATE OR DELETE ON public.cc_gabbai_approval_decisions
  FOR EACH ROW EXECUTE FUNCTION public.cc_prevent_history_mutation();
 COMMENT ON TABLE public.cc_gabbai_approval_requests IS 'Two-person internal approval only; approval never executes bank payment, refund or ledger adjustment.';
+
+-- A request's original amount, justification and maker are immutable after submission.
+-- A permitted decision may only move pending -> approved/rejected, with one different reviewer.
+CREATE OR REPLACE FUNCTION public.cc_gabbai_guard_request_change()
+RETURNS trigger LANGUAGE plpgsql AS $guard$
+BEGIN
+ IF TG_OP='DELETE' THEN
+  RAISE EXCEPTION 'Campaign Center approval requests cannot be deleted';
+ END IF;
+ IF OLD.status<>'pending' OR NEW.status NOT IN ('approved','rejected')
+    OR NEW.id IS DISTINCT FROM OLD.id
+    OR NEW.organization_id IS DISTINCT FROM OLD.organization_id
+    OR NEW.campaign_id IS DISTINCT FROM OLD.campaign_id
+    OR NEW.requested_by IS DISTINCT FROM OLD.requested_by
+    OR NEW.category IS DISTINCT FROM OLD.category
+    OR NEW.amount IS DISTINCT FROM OLD.amount
+    OR NEW.currency IS DISTINCT FROM OLD.currency
+    OR NEW.subject IS DISTINCT FROM OLD.subject
+    OR NEW.explanation IS DISTINCT FROM OLD.explanation
+    OR NEW.created_at IS DISTINCT FROM OLD.created_at
+    OR NEW.decided_by IS NULL
+    OR NEW.decided_by=OLD.requested_by
+    OR NEW.decided_at IS NULL THEN
+  RAISE EXCEPTION 'Only a distinct reviewer can finalize a pending financial approval';
+ END IF;
+ RETURN NEW;
+END $guard$;
+CREATE OR REPLACE TRIGGER cc_gabbai_approval_request_guard
+ BEFORE UPDATE OR DELETE ON public.cc_gabbai_approval_requests
+ FOR EACH ROW EXECUTE FUNCTION public.cc_gabbai_guard_request_change();
