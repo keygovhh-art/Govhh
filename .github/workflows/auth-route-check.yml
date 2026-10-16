@@ -16,7 +16,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Check production Neon managed-auth routing without creating accounts
+      - name: Install exact UI auth client
+        run: cd campaign-center-neon && npm install --ignore-scripts
+      - name: Check production Neon Auth endpoints and actual SDK calls (no account created)
         run: node campaign-center-neon/scripts/auth-route-check.mjs
         env:
           NEON_AUTH_PROBE_URL: https://ep-lively-resonance-b5wpd7u5.neonauth.c-7.us-east-2.aws.neon.tech/neondb/auth
