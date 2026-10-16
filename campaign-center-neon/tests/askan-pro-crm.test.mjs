@@ -41,7 +41,7 @@ test('Askan Pro CRM protects private contacts, team notes, history and revocatio
   await pool.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject,team_name) VALUES($1,$2,$3,$4)',[org,camp,who,team]);
  async function contact(name,by,privacy,team){
   return (await pool.query("INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy,assigned_team) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id",
-    [org,camp,by,name,'5551235678',privacy,team])).rows[0].id;
+    [org,camp,by,name,name==='Donor A'?'5551235678':name==='Donor B'?'5551235679':'5551235680',privacy,team])).rows[0].id;
  }
  const a=await contact('Donor A',alpha,'campaign','A'),b=await contact('Donor B',beta,'campaign','B');
  const privateOne=await contact('Personal PRIVATE donor',alpha,'private','A');
