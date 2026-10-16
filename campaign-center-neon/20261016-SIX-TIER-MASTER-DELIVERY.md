@@ -48,6 +48,12 @@ Virtual Fundraising Floor; Live Attendance; Event/Lunch Schedule; Private Manage
 - **Show** every agreed planned feature without pretending it has shipped.
 - **Keep** Guided Campaign and Managed Campaign as add-ons, not additional tiers.
 
+## נייערע ממשותדיקע Funktions אויפן Draft
+- Campaign Goals: א באזונדערער, ראלע־באגרעניצטער יעדעס ציל, פריאריטעט און געשיכטע אין Neon staging-only migration `db/013_campaign_goals.sql`.
+- Daily Campaign Focus: פון אמתע, דערלויבטע אויפגאבן; דריי וויכטיגע אפענע שריט אויף דער היינט־זייט. דער 7/30־טאגיקער Memory איז נאך פעלנדיג.
+- External Donation Link: איינשטעלן/אויסמעקן אן ערלויבטן HTTPS־לינק דורך Owner/Manager, ארויסווייזן פאר דעם קאמפיין'ס מיטגלידער, מיט Audit פון ענדערונגען; `db/014_campaign_external_donation_link.sql` — סטיידזשינג־מיגראציע. קיין פראסעסאר־באשטעטיגונג אדער פארארבעטונג פון באצאלונגען.
+- ביידע 013 און 014 זענען פארזיכטיג ADDITIVE. זיי טארן נישט ווערן ארויפגעלייגט אין פראדוקציע אן באקאפ, צוויי־מוסדות פריוואטקייט־טעסט און בפירושער באשטעטיגונג.
+
 ## Release gates
 1. Prove CI (syntax, Vite build, 2-member Postgres security, six-plan catalogue, goal schema).
 2. Verify real login/signup/password reset on Android and two-organization privacy in deployed staging, including role changes and revoked membership.
