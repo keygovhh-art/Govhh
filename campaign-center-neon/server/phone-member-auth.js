@@ -90,6 +90,29 @@ export function campaignPhoneWebRouter({pool,authenticate}){
    res.json({activated:true,owner:'campaign-center'});
   }catch(e){next(e);}
  });
+ r.get('/admin/join-requests',async(req,res,next)=>{
+  try{
+   const platformOwner=process.env.CC_PLATFORM_OWNER_SUBJECT||'';
+   if(platformOwner.length<6||req.userId!==platformOwner)throw bad(403,'Platform administrator authorization required');
+   const rows=await pool.query(
+    "SELECT id,contact_phone,status,requested_at FROM cc_phone_join_requests WHERE status='pending' ORDER BY requested_at ASC LIMIT 100");
+   res.json({requests:rows.rows,owner:'campaign-center'});
+  }catch(e){next(e);}
+ });
+ r.post('/admin/join-requests/:id/contacted',async(req,res,next)=>{
+  try{
+   if(!sameSite(req))throw bad(403,'Same-origin sign-in required');
+   const platformOwner=process.env.CC_PLATFORM_OWNER_SUBJECT||'';
+   if(platformOwner.length<6||req.userId!==platformOwner)throw bad(403,'Platform administrator authorization required');
+   if(!uuid(req.params.id)||req.body?.contactVerified!==true)throw bad(400,'Verify caller identity independently');
+   const updated=await pool.query(
+    "UPDATE cc_phone_join_requests SET status='contacted',reviewed_at=now(),reviewed_by_subject=$2 "+
+    "WHERE id=$1 AND status='pending' RETURNING id",[req.params.id,req.userId]);
+   if(!updated.rowCount)throw bad(409,'Application no longer pending');
+   res.json({contacted:true,membershipCreated:false,
+    nextStep:'Verified applicant must finish Neon Auth website sign-up; CC organization membership is a separate step'});
+  }catch(e){next(e);}
+ });
  r.delete('/pin',async(req,res,next)=>{
   try{
    if(!sameSite(req))throw bad(403,'Same-origin sign-in required');
@@ -159,6 +182,28 @@ export function campaignPhoneServiceRouter({pool}){
     await client.query('COMMIT');
    }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
    return res.json({authenticated:true,owner:'campaign-center',expiresInSeconds:1200});
+  }catch(e){next(e);}
+ });
+ r.post('/join-request',async(req,res,next)=>{
+  try{
+   const {callHash,contactPhone}=req.body||{};
+   if(!call(callHash)||typeof contactPhone!=='string'||!/^[0-9]{10,15}$/.test(contactPhone))
+    throw bad(400,'A valid contact telephone number is required');
+   const prior=await pool.query(
+    "SELECT 1 FROM cc_phone_join_requests WHERE (call_hash=$1 AND requested_at>now()-interval '24 hours') "+
+    "OR (contact_phone=$2 AND status='pending') LIMIT 1",[callHash,contactPhone]);
+   if(prior.rowCount)return res.json({requested:true,pendingVerification:true,owner:'campaign-center'});
+   try{
+    await pool.query(
+     "INSERT INTO cc_phone_join_requests(call_hash,contact_phone) VALUES($1,$2)",
+     [callHash,contactPhone]);
+   }catch(e){
+    if(e.code==='23505')return res.json({requested:true,pendingVerification:true,owner:'campaign-center'});
+    throw e;
+   }
+   // Unverified incoming calls NEVER create managed Neon Auth identities or
+   // grant any tenant memberships, even if the caller knows a phone number.
+   res.json({requested:true,pendingVerification:true,owner:'campaign-center'});
   }catch(e){next(e);}
  });
  r.post('/logout',async(req,res,next)=>{
