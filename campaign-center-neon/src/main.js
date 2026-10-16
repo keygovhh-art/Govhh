@@ -11,7 +11,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {platformPhoneAdmin:false,phoneJoinRequests:[],auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -50,6 +50,8 @@ async function refresh() {
   const me=await api('/me');
   state.subject=me.subject;
   state.orgs=me.organizations;
+  state.platformPhoneAdmin=!!me.platformPhoneAdmin;
+  state.phoneJoinRequests=state.platformPhoneAdmin?(await api('/phone/admin/join-requests').then(x=>x.requests||[]).catch(()=>[])):[];
   if(!state.orgs.some(x=>x.id===state.orgId))state.orgId=state.orgs[0]?.id||null;
   state.campaigns=state.orgId?await api('/organizations/'+state.orgId+'/campaigns'):[];
   // Centralized, read-only status; never fetch organization-specific credentials.
@@ -195,7 +197,13 @@ function yemotPanel(){
   '<label>Member <select name="subject">'+state.members.map(m=>'<option value="'+esc(m.subject)+'">'+esc(m.subject)+'</option>').join('')+'</select></label>'+
   '<label>Optional chosen 12–16 digit PIN <input type="password" autocomplete="new-password" name="pin" inputmode="numeric" pattern="[0-9]{12,16}" maxlength="16" placeholder="Leave empty for secure random PIN"></label>'+
   '<button type="submit">Issue / Replace Member Phone PIN</button></form>':'')+
-  '<p class="muted">Phone sign-in will use the independent Campaign Center Neon database and membership roles. This staging build does not activate new phone routes until reviewed and released.</p></section>';
+  (state.platformPhoneAdmin?'<section class="card"><h3>Pending Campaign Center Telephone Signups — Platform Review</h3>'+
+   '<p>Only independently verified contacts may be marked contacted. A managed Neon Auth signup and actual organization membership are STILL REQUIRED; this does not activate an account.</p>'+
+   state.phoneJoinRequests.map(x=>'<form class="inline" data-form="cc-phone-contacted"><input type="hidden" name="id" value="'+esc(x.id)+'">'+
+     '<p>Request '+esc(x.id)+' · Contact number '+esc(x.contact_phone)+'</p>'+
+     '<label><input type="checkbox" name="verified" required> I independently verified contact ownership</label>'+
+     '<button>Mark Verified Contact / Await Neon Signup</button></form>').join('')+'</section>':'')+
+  '<p class="muted">Phone sign-in uses the independent Campaign Center Neon database and its memberships. This staged build is not live.</p></section>';
 }
 function campaignAdminPanel(){
  const campaign=state.overview?.campaign;
@@ -309,6 +317,14 @@ async function submit(event){
    case 'cc-phone-pin': {
      await api('/phone/pin',{method:'POST',body:JSON.stringify({pin:String(d.pin||'')})});
      state.notice='Your Campaign Center hotline PIN has been saved securely. It is different from the Gavhah account PIN.';
+     break;
+   }
+   case 'cc-phone-contacted': {
+     if(!state.platformPhoneAdmin||d.verified!=='on')throw new Error('Verify contact ownership first');
+     await api('/phone/admin/join-requests/'+encodeURIComponent(String(d.id||''))+'/contacted',{
+      method:'POST',body:JSON.stringify({contactVerified:true})
+     });
+     state.notice='Contact reviewed. The applicant still needs Neon Auth website registration and active organization membership.';
      break;
    }
    case 'cc-phone-activate': {
