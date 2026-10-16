@@ -278,8 +278,21 @@ async function submit(event){
  const d=Object.fromEntries(new FormData(form).entries());
  try {
   switch(form.dataset.form){
-   case 'signin': {const r=await state.auth.signIn.email({email:d.email,password:d.password});if(r.error)throw new Error(r.error.message);break;}
-   case 'signup': {const r=await state.auth.signUp.email({name:d.name,email:d.email,password:d.password});if(r.error)throw new Error(r.error.message);state.notice='אקאונט געשאפן. אויב מען פארלאנגט באשטעטיגונג, קוק דיין בליצפאסט.';break;}
+   case 'signin': {
+     let r;
+     try {r=await state.auth.signIn.email({email:d.email,password:d.password});}
+     catch(e){throw new Error(authError(e));}
+     if(r.error)throw new Error(authError(r.error));
+     break;
+   }
+   case 'signup': {
+     let r;
+     try {r=await state.auth.signUp.email({name:d.name,email:d.email,password:d.password});}
+     catch(e){throw new Error(authError(e));}
+     if(r.error)throw new Error(authError(r.error));
+     state.notice='אקאונט געשאפן. דו קענסט זיך אריינלאגירן מיט דעם בליצפאסט און פעסווארט.';
+     break;
+   }
    case 'org': await api('/organizations',{method:'POST',body:JSON.stringify({name:d.name})});break;
    case 'redeem-invite': {
      const joined=await api('/team/invitations/redeem',{method:'POST',body:JSON.stringify({invitationCode:d.invitationCode})});
