@@ -27,7 +27,7 @@ async function campaignAccess(db,id,who){
  return c;
 }
 test('Gabbai Pro approvals require two humans and preserve immutable decisions without money transfer',async()=>{
- for(const file of ['001_core.sql','002_team_connect.sql','021_gabbai_pro_finance_approvals.sql'])
+ for(const file of ['001_core.sql','002_team_connect.sql','020_askan_pro_task_blockers.sql','021_gabbai_pro_finance_approvals.sql'])
   await pool.query(await readFile(join(import.meta.dirname,'../db',file),'utf8'));
  const tag='gabbai-ci-'+Date.now();
  const owner=tag+'owner',manager=tag+'manager',finance=tag+'finance',auditor=tag+'audit',askan=tag+'askan',foreign=tag+'foreign';
@@ -61,6 +61,8 @@ test('Gabbai Pro approvals require two humans and preserve immutable decisions w
   const first=await create(finance,proposal);
   assert.equal(first.status,201);assert.equal(first.data.approvalDoesNotMoveMoney,true);
   const id=first.data.id;
+  await assert.rejects(pool.query('UPDATE cc_gabbai_approval_requests SET amount=1 WHERE id=$1',[id]),/Only a distinct reviewer/);
+  await assert.rejects(pool.query('DELETE FROM cc_gabbai_approval_requests WHERE id=$1',[id]),/cannot be deleted/);
   assert.equal((await request(auditor,'GET',home)).data.requests.length,1);
   assert.equal((await decision(foreign,id,'approved')).status,404);
   assert.equal((await decision(finance,id,'approved')).status,403);
@@ -100,6 +102,20 @@ test('Gabbai Pro approvals require two humans and preserve immutable decisions w
   assert.equal(review.data.receiptsWithoutPledgeLink,2);
   assert.ok(review.data.internalStampsNotBankVerification);
   assert.equal(review.data.bySource.length,3);
+  await pool.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject,team_name) VALUES($1,$2,$3,$4)',[org,campaign,manager,'B']);
+  await pool.query('UPDATE cc_campaign_members SET team_name=$1 WHERE campaign_id=$2 AND subject=$3',['A',campaign,askan]);
+  const openTask=(await pool.query("INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,status,due_at) VALUES($1,$2,$3,'Critical contact','open','2026-01-01T10:00:00Z') RETURNING id",[org,campaign,askan])).rows[0].id;
+  await pool.query("INSERT INTO cc_pro_task_blockers(task_id,organization_id,campaign_id,reason,updated_by) VALUES($1,$2,$3,'approval_needed',$4)",
+    [openTask,org,campaign,owner]);
+  const priorities=await request(owner,'GET','/campaigns/'+campaign+'/priority-oversight');
+  assert.equal(priorities.status,200);
+  assert.equal(priorities.data.noEmployeePerformanceJudgement,true);
+  const teamA=priorities.data.teams.find(x=>x.team_name==='A');
+  assert.equal(teamA.open_tasks,1);
+  assert.equal(teamA.overdue_tasks,1);
+  assert.equal(teamA.active_blockers,1);
+  assert.equal((await request(auditor,'GET','/campaigns/'+campaign+'/priority-oversight')).status,403);
+  assert.equal((await request(foreign,'GET','/campaigns/'+campaign+'/priority-oversight')).status,404);
 
   const audit=await pool.query("SELECT details FROM cc_activity_events WHERE campaign_id=$1 AND event_type LIKE 'gabbai.approval.%'",[campaign]);
   assert.equal(audit.rowCount,4);
