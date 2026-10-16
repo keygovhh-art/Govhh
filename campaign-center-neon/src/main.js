@@ -16,6 +16,7 @@ const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],o
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
 const deepCampaign=deepLink.get('campaign'),deepHall=deepLink.get('hall');
+if(deepLink.get('tab')==='yemot')state.tab='yemot';
 if(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(deepCampaign||'') &&
  /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(deepHall||'')){
  state.campaignId=deepCampaign;state.requestedRoomId=deepHall;state.tab='hall';
@@ -260,7 +261,7 @@ async function exportContactsPage(){
 }
 
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button>'+(state.orgs.find(o=>o.id===state.orgId)?.role==='owner'?'<button data-action="yemot-home">ימות API — איינשטעלונגען</button>':'')+'</div>'+ (state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -484,6 +485,7 @@ async function click(event){
     await watchOptionalVideo(allowed.url,kind,roomId);
     return;
   }
+  if(a==='yemot-home'){state.tab='yemot';await refresh();return;}
   if(a==='conference-home'){state.tab='conference';await refresh();return;}
   if(a==='conference-select'){
     state.conferenceId=btn.dataset.id;state.conferenceCode='';state.tab='conference';
