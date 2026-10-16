@@ -73,3 +73,5 @@ jobs:
         run: node --test tests/organization-memory.test.mjs
       - name: Custom Focus rule-scoring privacy, DNC and immutable config
         run: node --test tests/custom-focus.test.mjs
+      - name: Six-tier server plan grants, quota gates, tenant isolation and immutable audit
+        run: node --test tests/server-plan-entitlements.test.mjs

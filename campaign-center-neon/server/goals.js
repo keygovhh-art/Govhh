@@ -1,9 +1,8 @@
 import { Router } from 'express';
 
 // Goal facts are explicitly shared *within one authorized campaign*.
-// Plan billing is not live: until an entitlement service is verified,
-// the pilot limits active goals to the smallest campaign plan (3).
-export default function goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log}) {
+// The server checks approved plan capacity. This endpoint cannot self-provision entitlements.
+export default function goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log,planPolicy}) {
  const router=Router(),wrap=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
  const categories=new Set(['money','members','calls','pledges','tasks','custom']);
  const statuses=new Set(['active','at_risk','completed','paused','archived']);
@@ -32,7 +31,8 @@ export default function goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log}
  router.get('/campaigns/:cid',wrap(async(req,res)=>{
    const c=await campaignAccess(pool,req.params.cid,req.userId);
    const rows=await pool.query('SELECT '+fields+' FROM cc_goals WHERE organization_id=$1 AND campaign_id=$2 AND status<>\'archived\' ORDER BY created_at DESC LIMIT 200',[c.organization_id,c.id]);
-   res.json({goals:rows.rows,pilotLimit:3,limitIsPaidEntitlement:false});
+   const access=await planPolicy.forMember(pool,c.organization_id,req.userId);
+   res.json({goals:rows.rows,goalLimit:access.limits.goals,planCode:access.planCode,serverEnforced:true});
  }));
  router.post('/campaigns/:cid',wrap(async(req,res)=>{
    const title=trim(req.body?.title,160),description=trim(req.body?.description,1000);
@@ -44,7 +44,8 @@ export default function goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log}
      const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,[...writable]);
      await db.query('SELECT pg_advisory_xact_lock(hashtext($1))',['cc_goals:'+c.id]);
      const count=await db.query("SELECT count(*)::int total FROM cc_goals WHERE organization_id=$1 AND campaign_id=$2 AND status<>'archived'",[c.organization_id,c.id]);
-     if(count.rows[0].total>=3)throw bad(409,'Pilot goal limit is 3 until plan verification is available');
+     const access=await planPolicy.forMember(db,c.organization_id,req.userId);
+     if(count.rows[0].total>=access.limits.goals)throw bad(409,'Approved plan goal limit reached');
      const row=(await db.query(
        'INSERT INTO cc_goals(organization_id,campaign_id,title,description,category,target_value,current_value,due_on,created_by) '+
        'VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING '+fields,

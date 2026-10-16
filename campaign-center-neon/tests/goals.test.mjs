@@ -5,6 +5,7 @@ import {join} from 'node:path';
 import express from 'express';
 import pg from 'pg';
 import goalsRouter from '../server/goals.js';
+import {makePlanPolicy} from '../server/plan-policy.js';
 
 const connection=process.env.TEST_DATABASE_URL;
 if(!connection||!['localhost','127.0.0.1'].includes(new URL(connection).hostname))
@@ -30,6 +31,7 @@ async function campaignAccess(db,id,subject){
 }
 test('campaign goals are tenant-scoped, role-checked, quota-bounded and append-only',async()=>{
  await pool.query(await readFile(join(import.meta.dirname,'../db/013_campaign_goals.sql'),'utf8'));
+  await pool.query(await readFile(join(import.meta.dirname,'../db/026_server_plan_entitlements.sql'),'utf8'));
  const unique='goals-ci-'+Date.now();
  const org=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES($1,$2) RETURNING id",['CI test',unique+'owner'])).rows[0].id;
  const other=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES($1,$2) RETURNING id",['Other',unique+'other'])).rows[0].id;
@@ -39,7 +41,7 @@ test('campaign goals are tenant-scoped, role-checked, quota-bounded and append-o
  await pool.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject) VALUES($1,$2,$3)',[org,camp,unique+'askan']);
  const app=express();app.use(express.json());
  app.use('/api/goals',(req,_res,next)=>{req.userId=req.get('x-ci-user')||'anonymous';next();});
- app.use('/api/goals',goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log}));
+ app.use('/api/goals',goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log,planPolicy:makePlanPolicy({pool,bad})}));
  app.use((error,_req,res,_next)=>res.status(error.status||500).json({error:error.message}));
  const server=await new Promise(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s));});
  const base='http://127.0.0.1:'+server.address().port+'/api/goals';
@@ -68,6 +70,17 @@ test('campaign goals are tenant-scoped, role-checked, quota-bounded and append-o
   assert.equal((await call(askan,'/'+goal.id+'/history')).status,403);
   assert.equal((await call(owner,'/'+goal.id,'PATCH',{status:'archived'})).status,200);
   assert.equal((await call(owner,'/campaigns/'+camp,'POST',{title:'New goal',targetValue:'5'})).status,201);
+  await pool.query("INSERT INTO cc_plan_entitlements(organization_id,plan_code,provision_reference,provisioned_by) VALUES($1,'askan_pro','approved-ci-fixture-20261016','CI-operator')",[org]);
+  assert.equal((await call(owner,'/campaigns/'+camp)).data.goalLimit,20);
+  for(let i=0;i<17;i++){
+    const added=await call(owner,'/campaigns/'+camp,'POST',{title:'Pro goal '+i,targetValue:'10'});
+    assert.equal(added.status,201,'Askan Pro goal '+i);
+  }
+  assert.equal((await call(owner,'/campaigns/'+camp,'POST',{title:'Above Pro limit',targetValue:'10'})).status,409);
+  await pool.query("UPDATE cc_plan_entitlements SET status='suspended',updated_at=now() WHERE organization_id=$1",[org]);
+  assert.equal((await call(owner,'/campaigns/'+camp)).data.goalLimit,3);
+  assert.equal((await call(owner,'/campaigns/'+camp,'POST',{title:'Suspended limit',targetValue:'10'})).status,409);
+  assert.equal((await call(owner,'/campaigns/'+camp)).data.goals.length,20,'Plan downgrade may not delete old goals');
   const mutation=await pool.query('SELECT id FROM cc_goal_history WHERE goal_id=$1 LIMIT 1',[goal.id]);
   await assert.rejects(pool.query('DELETE FROM cc_goal_history WHERE id=$1',[mutation.rows[0].id]),/append-only/);
  }finally{

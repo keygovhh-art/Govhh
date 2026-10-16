@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { createHash, randomBytes } from 'node:crypto';
 
 // The caller has a verified Neon Auth session; all authorization is DB-backed.
-export default function teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}) {
+export default function teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim,planPolicy}) {
  const router=Router(); router.use(authenticate);
  const digest=s=>createHash('sha256').update(s).digest('hex');
  const run=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
@@ -34,7 +34,15 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    if(!inv||inv.claimed_at||new Date(inv.expires_at).getTime()<Date.now())throw bad(404,'Invitation is expired');
    const prior=(await db.query('SELECT role,membership_status FROM cc_memberships WHERE organization_id=$1 AND subject=$2 FOR UPDATE',[inv.organization_id,req.userId])).rows[0];
    if(prior&&prior.membership_status!=='active')throw bad(403,'Member suspended or revoked');
-   if(!prior)await db.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,$3,'active',now())",[inv.organization_id,req.userId,inv.invited_role]);
+   if(!prior){
+     // Admission cap is committed under a single canonical org lock.
+     await db.query('SELECT id FROM cc_organizations WHERE id=$1 FOR UPDATE',[inv.organization_id]);
+     const issuer=await db.query("SELECT subject FROM cc_memberships WHERE organization_id=$1 AND membership_status='active' ORDER BY joined_at NULLS LAST LIMIT 1",[inv.organization_id]);
+     if(!issuer.rows[0])throw bad(409,'No active workspace owner');
+     const access=await planPolicy.entitlement(db,inv.organization_id);
+     await planPolicy.checkCapacity(db,access,inv.organization_id,'members');
+     await db.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,$3,'active',now())",[inv.organization_id,req.userId,inv.invited_role]);
+   }
    if(inv.campaign_id)await db.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[inv.organization_id,inv.campaign_id,req.userId]);
    await db.query('UPDATE cc_team_invites SET claimed_by=$1,claimed_at=now() WHERE id=$2',[req.userId,inv.id]);
    await log(db,inv.organization_id,inv.campaign_id,req.userId,'invite.redeemed',inv.id,{role:prior?.role||inv.invited_role});
@@ -52,6 +60,11 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    if(!prior)throw bad(404,'Member missing');
    if(prior.role==='owner')throw bad(403,'Owner cannot be suspended');
    if(caller!=='owner'&&['manager','finance','auditor'].some(r=>r===role||r===prior.role))throw bad(403,'Owner permission required');
+   if(status==='active'&&prior.membership_status!=='active'){
+     await db.query('SELECT id FROM cc_organizations WHERE id=$1 FOR UPDATE',[req.params.oid]);
+     const access=await planPolicy.forMember(db,req.params.oid,req.userId);
+     await planPolicy.checkCapacity(db,access,req.params.oid,'members');
+   }
    const r=(await db.query('UPDATE cc_memberships SET role=COALESCE($1,role),membership_status=COALESCE($2,membership_status),updated_at=now() WHERE organization_id=$3 AND subject=$4 RETURNING subject,role,membership_status',[role||null,status||null,req.params.oid,req.params.subject])).rows[0];
    await log(db,req.params.oid,null,req.userId,'member.updated',null,{subject:r.subject,before:prior.role,after:r.role,status:r.membership_status});
    return r;
@@ -67,6 +80,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
   if(team.length>64)throw bad(400,'Invalid team');
   const result=await tx(async db=>{
    const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,['owner','manager']);
+   planPolicy.requireFeature(await planPolicy.forMember(db,c.organization_id,req.userId),'teams_captains');
    const row=(await db.query('UPDATE cc_campaign_members SET team_name=$1 WHERE campaign_id=$2 AND subject=$3 RETURNING subject,team_name',[team,c.id,req.params.subject])).rows[0];
    if(!row)throw bad(404,'Campaign member not found');
    await log(db,c.organization_id,c.id,req.userId,'team.member_assigned',null,{subject:req.params.subject,team});
@@ -78,6 +92,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
   const team=trim(req.body?.teamName,64);
   const result=await tx(async db=>{
    const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,['owner','manager']);
+   planPolicy.requireFeature(await planPolicy.forMember(db,c.organization_id,req.userId),'call_assignments');
    const found=(await db.query('SELECT * FROM cc_contacts WHERE id=$1 AND campaign_id=$2 FOR UPDATE',[req.params.id,c.id])).rows[0];
    if(!found||found.privacy!=='campaign')throw bad(404,'Shared contact not found');
    if(found.claimed_by&&new Date(found.claim_expires_at).getTime()>Date.now())throw bad(409,'Wait until the current claim is released');

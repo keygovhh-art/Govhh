@@ -22,6 +22,7 @@ import organizationPortfolioRouter from './organization-portfolio.js';
 import organizationResourcesRouter from './organization-resources.js';
 import organizationMemoryRouter from './organization-memory.js';
 import customFocusRouter from './custom-focus.js';
+import {makePlanPolicy} from './plan-policy.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
@@ -135,21 +136,42 @@ app.use('/api', (req,res,next) => pool ? next() : res.status(503).json({error:'N
 app.use('/api/connect/service', (req,res,next)=>pool?next():res.status(503).json({error:'Neon not configured'}));
 app.use('/api/connect/service', connectServiceRouter({pool,bad,uuid,log}));
 app.use('/api', authenticate);
-app.use('/api/goals', goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log}));
+const planPolicy=makePlanPolicy({pool,bad});
+app.get('/api/organizations/:oid/entitlements',async(req,res,next)=>{
+  try{const plan=await planPolicy.forMember(pool,req.params.oid,req.userId);
+    res.set('Cache-Control','private,no-store');res.json({plan,...{limits:plan.limits},
+      usableFeatures:PLAN_FEATURES.filter(f=>planPolicy.allowFeature(plan,f.code)).map(f=>f.code),
+      unallocatedFeatures:PLAN_FEATURES.filter(f=>f.minTier===null).map(f=>f.code),
+      selfServiceUpgradeAvailable:false});
+  }catch(error){next(error);}
+});
+app.use('/api/goals', goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log,planPolicy}));
 app.use('/api/donation-links', donationLinksRouter({pool,campaignAccess,need,bad,trim,log}));
+app.use('/api/plus',planPolicy.scoped('askan_plus'));
 app.use('/api/plus',askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,log}));
 app.use('/api/plus',plusPledgesRouter({pool,campaignAccess,need,bad,uuid,trim,log}));
+app.use('/api/pro',planPolicy.scoped('askan_pro'));
 app.use('/api/pro',askanProRouter({pool,campaignAccess,bad,trim,log}));
 app.use('/api/pro',proSprintRouter({pool,campaignAccess,bad,log,uuid,trim}));
 app.use('/api/pro',proGuidanceRouter({pool,campaignAccess,bad,trim,uuid,log}));
 app.use('/api/pro',proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log}));
+app.use('/api/gabbai',planPolicy.scoped('gabbai_pro'));
 app.use('/api/gabbai',gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim,log}));
+app.use('/api/organization',planPolicy.scoped('organization'));
 app.use('/api/organization',organizationPortfolioRouter({pool,bad,uuid,trim,log}));
 app.use('/api/organization',organizationResourcesRouter({pool,bad,uuid,log}));
 app.use('/api/organization',organizationMemoryRouter({pool,bad,uuid,trim,log}));
+app.use('/api/custom',planPolicy.scoped('custom'));
 app.use('/api/custom',customFocusRouter({pool,campaignAccess,bad,log}));
 app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
-app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
+app.use('/api/team', (req,res,next)=>{
+  // CSV export is Askan Pro. No lower-tier alias via the old team router.
+  if(/^\/campaigns\/[a-f0-9-]{36}\/contacts\.csv$/i.test(req.path))return planPolicy.scoped('askan_pro','csv_import')(req,res,next);
+  next();
+});
+app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim,planPolicy}));
+// Preserve existing authenticated shared event pilot routes until their
+// final paid-tier placement is approved; these are not paid entitlements.
 app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/conferences',conferenceRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/rtc',rtcAudioRouter({pool,authenticate,member,campaignAccess,bad,uuid,log}));
@@ -176,6 +198,7 @@ app.use('/api/video',videoRouter({pool,authenticate,member,campaignAccess,need,l
 app.use('/api/floor',floorRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/floor-program',programRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/campaigns', campaignAdminRouter({pool,authenticate,campaignAccess,need,bad,log,trim}));
+app.use('/api/import',planPolicy.scoped('askan_pro','csv_import'));
 app.use('/api/import', contactsImportRouter({pool,authenticate,campaignAccess,need,bad,log}));
 app.get('/api/me', async (req,res,next) => {
   try {
@@ -210,6 +233,9 @@ app.post('/api/organizations/:oid/campaigns', async(req,res,next) => {
     if (!title || !Number.isFinite(goal) || goal<0 || goal>1000000000000) throw bad(400,'Invalid campaign details');
     const result=await transaction(async db=>{
       const role=await member(db,req.params.oid,req.userId);need(role,['owner','manager']);
+      await db.query('SELECT id FROM cc_organizations WHERE id=$1 FOR UPDATE',[req.params.oid]);
+      const access=await planPolicy.forMember(db,req.params.oid,req.userId);
+      await planPolicy.checkCapacity(db,access,req.params.oid,'campaigns');
       const c=(await db.query('INSERT INTO cc_campaigns(organization_id,title,goal_amount) VALUES($1,$2,$3) RETURNING *',[req.params.oid,title,goal])).rows[0];
       await db.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject) VALUES($1,$2,$3) ON CONFLICT DO NOTHING',[req.params.oid,c.id,req.userId]);
       await log(db,req.params.oid,c.id,req.userId,'campaign.created',c.id,{title});
