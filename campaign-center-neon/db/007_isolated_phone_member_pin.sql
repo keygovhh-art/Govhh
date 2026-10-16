@@ -22,3 +22,18 @@ ALTER TABLE public.cc_phone_member_pins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cc_phone_sessions ENABLE ROW LEVEL SECURITY;
 -- Zero RLS policies: the pinned server-side DB role handles access, and
 -- service routes recheck cc_memberships active membership per request.
+
+-- Separate Campaign Center hotline-origin account-opening requests.
+-- Never create a Neon Auth identity without the provider's verification flow.
+CREATE TABLE IF NOT EXISTS public.cc_phone_join_requests (
+ id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+ call_hash char(64) NOT NULL,
+ contact_phone text NOT NULL,
+ status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','contacted','closed')),
+ requested_at timestamptz NOT NULL DEFAULT now(),
+ reviewed_at timestamptz,
+ reviewed_by_subject text,
+ UNIQUE(call_hash,contact_phone)
+);
+CREATE UNIQUE INDEX IF NOT EXISTS cc_phone_one_pending_contact ON public.cc_phone_join_requests(contact_phone) WHERE status='pending';
+ALTER TABLE public.cc_phone_join_requests ENABLE ROW LEVEL SECURITY;
