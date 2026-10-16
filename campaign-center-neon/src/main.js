@@ -187,6 +187,9 @@ function yemotPanel(){
   '<form data-form="cc-phone-pin" class="inline"><label>Choose a separate 12–16 digit hotline PIN '+
   '<input name="pin" inputmode="numeric" type="password" autocomplete="new-password" pattern="[0-9]{12,16}" minlength="12" maxlength="16" required></label>'+
   '<button type="submit">Save My Campaign Center Phone PIN</button></form>'+
+  '<form data-form="cc-phone-activate" class="inline"><label>Activate an administrator-issued PIN '+
+  '<input name="pin" inputmode="numeric" type="password" autocomplete="new-password" pattern="[0-9]{12,16}" minlength="12" maxlength="16" required></label>'+
+  '<button type="submit">Activate My Campaign Center PIN</button></form>'+
   '<p>Use your normal Neon Auth website sign-in to manage this PIN. Existing web passwords do not need to be replaced. Numeric-only web passwords need at least 12 digits for security.</p>'+
   (management?'<form data-form="cc-phone-member-pin" class="inline"><h3>Organization Manager: Issue a member phone PIN</h3>'+
   '<label>Member <select name="subject">'+state.members.map(m=>'<option value="'+esc(m.subject)+'">'+esc(m.subject)+'</option>').join('')+'</select></label>'+
@@ -306,6 +309,11 @@ async function submit(event){
    case 'cc-phone-pin': {
      await api('/phone/pin',{method:'POST',body:JSON.stringify({pin:String(d.pin||'')})});
      state.notice='Your Campaign Center hotline PIN has been saved securely. It is different from the Gavhah account PIN.';
+     break;
+   }
+   case 'cc-phone-activate': {
+     await api('/phone/activate-pin',{method:'POST',body:JSON.stringify({pin:String(d.pin||'')})});
+     state.notice='Your manager-issued Campaign Center PIN is now activated for your own Neon Auth account.';
      break;
    }
    case 'cc-phone-member-pin': {
