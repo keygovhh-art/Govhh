@@ -10,6 +10,7 @@ import programRouter from './floor-programs.js';
 import campaignAdminRouter from './campaign-admin.js';
 import contactsImportRouter from './contacts-import.js';
 import personalRouter from './personal.js';
+import goalsRouter from './goals.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { randomUUID } from 'node:crypto';
@@ -121,6 +122,7 @@ app.use('/api/connect/service', (req,res,next)=>pool?next():res.status(503).json
 app.use('/api/connect/service', connectServiceRouter({pool,bad,uuid,log}));
 app.use('/api', authenticate);
 app.use('/api/personal', personalRouter({pool,bad,trim,uuid}));
+app.use('/api/goals', goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log}));
 app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
 app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
