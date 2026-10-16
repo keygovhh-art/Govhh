@@ -71,3 +71,5 @@ jobs:
         run: node --test tests/organization-resources.test.mjs
       - name: Organization private append-only knowledge, revisions and review dates
         run: node --test tests/organization-memory.test.mjs
+      - name: Custom Focus rule-scoring privacy, DNC and immutable config
+        run: node --test tests/custom-focus.test.mjs
