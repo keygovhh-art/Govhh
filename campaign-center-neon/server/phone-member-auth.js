@@ -21,15 +21,15 @@ function lookup(pin){
 async function slow(pin,salt){
  return (await derive(pin,salt,64)).toString('hex');
 }
-async function setPin(pool,subject,pin,actor){
+async function setPin(pool,subject,pin,actor,requiresActivation=false){
  const salt=randomBytes(16).toString('hex');
  const verifier=await slow(pin,salt);
  await pool.query(
-  'INSERT INTO cc_phone_member_pins(subject,pin_index,pin_salt,pin_verifier,assigned_by_subject,failed_attempts,updated_at) '+
-  'VALUES($1,$2,$3,$4,$5,0,now()) ON CONFLICT(subject) DO UPDATE SET '+
+  'INSERT INTO cc_phone_member_pins(subject,pin_index,pin_salt,pin_verifier,assigned_by_subject,activation_required,failed_attempts,updated_at) '+
+  'VALUES($1,$2,$3,$4,$5,$6,0,now()) ON CONFLICT(subject) DO UPDATE SET '+
   'pin_index=EXCLUDED.pin_index,pin_salt=EXCLUDED.pin_salt,pin_verifier=EXCLUDED.pin_verifier,'+
-  'failed_attempts=0,locked_until=NULL,assigned_by_subject=EXCLUDED.assigned_by_subject,updated_at=now()',
-  [subject,lookup(pin),salt,verifier,actor]
+  'failed_attempts=0,locked_until=NULL,activation_required=EXCLUDED.activation_required,assigned_by_subject=EXCLUDED.assigned_by_subject,updated_at=now()',
+  [subject,lookup(pin),salt,verifier,actor,requiresActivation]
  );
 }
 async function activeMember(pool,subject){
@@ -56,8 +56,8 @@ export function campaignPhoneWebRouter({pool,authenticate}){
  r.use(authenticate);
  r.get('/status',async(req,res,next)=>{
   try{
-   const row=await pool.query('SELECT updated_at FROM cc_phone_member_pins WHERE subject=$1',[req.userId]);
-   res.json({owner:'campaign-center',configured:!!row.rowCount,updatedAt:row.rows[0]?.updated_at||null,minDigits:12,maxDigits:16});
+   const row=await pool.query('SELECT updated_at,activation_required FROM cc_phone_member_pins WHERE subject=$1',[req.userId]);
+   res.json({owner:'campaign-center',configured:!!row.rowCount,requiresActivation:!!row.rows[0]?.activation_required,updatedAt:row.rows[0]?.updated_at||null,minDigits:12,maxDigits:16});
   }catch(e){next(e);}
  });
  r.post('/pin',async(req,res,next)=>{
@@ -96,7 +96,7 @@ export function campaignPhoneWebRouter({pool,authenticate}){
    const requested=req.body?.pin;
    const pin=requested===undefined?String(randomInt(0,1000000000000)).padStart(12,'0'):requested;
    if(!validPin(pin))throw bad(400,'PIN must have 12 to 16 digits');
-   try{await setPin(pool,subject,pin,req.userId);}
+   try{await setPin(pool,subject,pin,req.userId,true);}
    catch(e){if(e.code==='23505')throw bad(409,'PIN already belongs to an account');throw e;}
    // One-time display for generated PIN only. Must be shared securely.
    res.json({updated:true,owner:'campaign-center',...(requested===undefined?{oneTimePin:pin}:{})});
@@ -116,9 +116,9 @@ export function campaignPhoneServiceRouter({pool}){
    if(!validPin(pin)||!call(callHash))throw bad(400,'Invalid telephone login request');
    const digest=lookup(pin);
    const result=await pool.query(
-    'SELECT subject,pin_salt,pin_verifier,locked_until FROM cc_phone_member_pins WHERE pin_index=$1',[digest]);
+    'SELECT subject,pin_salt,pin_verifier,locked_until,activation_required FROM cc_phone_member_pins WHERE pin_index=$1',[digest]);
    const row=result.rows[0];
-   if(!row||row.locked_until&&new Date(row.locked_until)>new Date()||
+   if(!row||row.activation_required||row.locked_until&&new Date(row.locked_until)>new Date()||
       !await activeMember(pool,row.subject)){
     return res.status(401).json({authenticated:false});
    }
