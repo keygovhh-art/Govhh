@@ -5,6 +5,15 @@ export function gabbaiApprovalsView(state,esc,money){
  const categories={planned_expense:'געפלאנטע הוצאה',manual_adjustment:'פארשלאג צו קארעקטירן רעקארד',
   refund_review:'בקשה איבער א צוריקצאלונג',other:'אנדערע'};
  const statuses={pending:'ווארט אויף באשטעטיגונג',approved:'באשטעטיגט',rejected:'אפגעווארפן'};
+ const priorityTeams=state.gabbaiPriorities?.teams||[];
+ const priorityBoard=state.gabbaiPriorities?
+  '<section class="card"><h2>Gabbai Pro — וויכטיגע גרופע־שריט</h2>'+
+  '<p class="muted">דער סדר איז לויט פארשפעטיגטע אויפגאבן, דערנאך באריכטעטע שטערונגען. דער באריכט איז נאר פאר דער הנהלה און זאגט נישט ווער האט גוט אדער שלעכט געארבעט.</p>'+
+  (priorityTeams.map(x=>'<article class="item"><div><strong>'+esc(x.team_name||'נישט צוגעטיילט')+
+    '</strong><small>אקטיווע עסקנים: '+esc(x.active_members)+'</small>'+
+    '<p>אפענע אויפגאבן: '+esc(x.open_tasks)+' · פארשפעטיגט: '+esc(x.overdue_tasks)+
+    ' · באריכטעטע שטערונגען: '+esc(x.active_blockers)+'</p></div></article>').join('')||
+   '<p class="muted">קיין אקטיווע גרופעס אין דעם קאמפיין.</p>')+'</section>':'';
  const ledger=state.gabbaiLedger;
  const net=ledger?.totals||{};
  const ledgerRows=(ledger?.bySource||[]).map(x=>
@@ -46,7 +55,7 @@ export function gabbaiApprovalsView(state,esc,money){
   '<label>דעטאלן<textarea name="explanation" maxlength="1500"></textarea></label>'+
   '<button class="primary">אוועקשטעלן פאר באשטעטיגונג</button>'+
   '</form></section>':'';
- return ledgerPanel+'<section class="card"><h2>Gabbai Pro — פינאנציעלע באשטעטיגונגען</h2>'+
+ return priorityBoard+ledgerPanel+'<section class="card"><h2>Gabbai Pro — פינאנציעלע באשטעטיגונגען</h2>'+
   '<p class="muted">צוויי באזונדערע מענטשן: איינער בעט און אן אנדערער בארעכטיגטער מנהל באשליסט. דער סיסטעם מאכט נישט קיין באנק־באצאלונג, נישט קיין Refund און נישט קיין פינאנציעלע Ledger־קארעקטור.</p>'+
   (state.gabbaiError?'<p role="alert">'+esc(state.gabbaiError)+'</p>':'')+
   (rows||'<p class="muted">נאך קיין באשטעטיגונגס־בקשות.</p>')+'</section>'+form;
