@@ -21,6 +21,7 @@ import gabbaiApprovalsRouter from './gabbai-approvals.js';
 import organizationPortfolioRouter from './organization-portfolio.js';
 import organizationResourcesRouter from './organization-resources.js';
 import organizationMemoryRouter from './organization-memory.js';
+import customFocusRouter from './custom-focus.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
@@ -146,6 +147,7 @@ app.use('/api/gabbai',gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim,l
 app.use('/api/organization',organizationPortfolioRouter({pool,bad,uuid,trim,log}));
 app.use('/api/organization',organizationResourcesRouter({pool,bad,uuid,log}));
 app.use('/api/organization',organizationMemoryRouter({pool,bad,uuid,trim,log}));
+app.use('/api/custom',customFocusRouter({pool,campaignAccess,bad,log}));
 app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
 app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
