@@ -69,7 +69,12 @@ async function authenticate(req, _res, next) {
   try {
     const match = /^Bearer\s+([^\s]+)$/i.exec(req.get('authorization') || '');
     if (!match) throw bad(401, 'Please sign in');
-    const { payload } = await jwtVerify(match[1], jwks, { issuer: authBase.origin });
+    // Managed Neon Auth issues JWTs for the full auth service base path.
+    // Accept both documented and legacy issuer forms while JWKS stays pinned
+    // to the SAME database branch. Never accept arbitrary issuers.
+    const { payload } = await jwtVerify(match[1], jwks, {
+      issuer: [authBase.toString().replace(/\/$/,''),authBase.origin]
+    });
     if (typeof payload.sub !== 'string' || !payload.sub) throw bad(401, 'Invalid user');
     req.userId = payload.sub;
     next();
@@ -78,7 +83,7 @@ async function authenticate(req, _res, next) {
 async function member(db, org, user) {
   if (!uuid(org)) throw bad(400, 'Invalid organization');
   const found = await db.query("SELECT role FROM cc_memberships WHERE organization_id=$1 AND subject=$2 AND membership_status='active'", [org,user]);
-  if (!found.rowCount) throw bad(404, 'Organization not found');
+  if (!found.rowCount) throw bad(404, 'Workspace not found');
   return found.rows[0].role;
 }
 async function campaignAccess(db, id, user) {
@@ -122,7 +127,7 @@ app.use('/api/rtc',rtcAudioRouter({pool,authenticate,member,campaignAccess,bad,u
 // Global Yemot credentials now live only on Gavhah under the platform super-admin.
 // Deny legacy organization-level reads AND writes at the server layer.
 app.all('/api/yemot/organizations/{*path}', (_req,res) =>
-  res.status(410).json({error:'Organization Yemot credentials were retired. Manage the single central connection in Gavhah.'}));
+  res.status(410).json({error:'Individual Yemot credentials were retired. Manage the single central connection in Gavhah.'}));
 app.get('/api/yemot/central-status',async(_req,res)=>{
   const secret=process.env.YEMOT_CENTRAL_SHARED_SECRET||'';
   if(secret.length<32)return res.status(503).json({error:'Central connection is not configured on both services'});
@@ -152,7 +157,7 @@ app.get('/api/me', async (req,res,next) => {
 app.post('/api/organizations', async (req,res,next) => {
   try {
     const name = trim(req.body?.name,120);
-    if (name.length < 2) throw bad(400,'Please enter organization name');
+    if (name.length < 2) throw bad(400,'Please enter your workspace name');
     const result = await transaction(async db => {
       const o = (await db.query('INSERT INTO cc_organizations(name,owner_subject) VALUES($1,$2) RETURNING *',[name,req.userId])).rows[0];
       await db.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,'owner','active',now())",[o.id,req.userId]);

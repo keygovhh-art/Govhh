@@ -13,7 +13,7 @@ export function conferenceView(state,esc){
   '<p class="muted">דאס איז א באזונדערער צענטער פאר אסיפות און חיזוק — נישט דער קאמפיין־רוף־זאל.</p>'+
   '<form data-form="conference-new" class="stack"><label>נאמען<input required name="title" maxlength="180" placeholder="אסיפת התעוררות / מנהלים"></label>'+
   '<label>סארט<select name="category"><option value="assembly">אסיפה</option><option value="inspiration">חיזוק</option><option value="technical">טעכנישע פרטים</option><option value="advice">טרעפן עצות</option><option value="other">אנדערע</option></select></label>'+
-  '<label>ווער מעג אריינקומען?<select name="accessMode"><option value="members">מיטגלידער פונעם מוסד</option><option value="code">מיט איין־מאליג געוויזענעם צוטריט־קאוד</option></select></label>'+
+  '<label>ווער מעג אריינקומען?<select name="accessMode"><option value="members">מיטגלידער פון דיין ארבעטס־פלאץ</option><option value="code">מיט איין־מאליג געוויזענעם צוטריט־קאוד</option></select></label>'+
   '<label>רעדן־רעכטן<select name="speakingMode"><option value="moderated">מנהל געבט רשות</option><option value="listeners">בלויז צוהערן</option><option value="open">אפענע דיסקוסיע</option></select></label>'+
   '<label>וואס וויל מען אויסשמועסן?<textarea name="agenda" rows="3" maxlength="1500"></textarea></label>'+
   '<label class="confirm-check"><input type="checkbox" name="campaignOnly"> בלויז פארן איצטיגן קאמפיין</label>'+
@@ -52,7 +52,7 @@ export function conferenceView(state,esc){
     esc(({deny_entry:'פארשפארט פון אסיפה',skip_waiting:'מעג אריין אן ווארט־צימער',deny_messages:'נישט ערלויבט שרייבן'})[r.rule])+
     '</small></div></article>').join('');
   const policies=m?'<section class="card"><h3>באזונדערע צוטריט־און־רעדן־ליסטעס</h3>'+
-   '<p class="muted">דו קאנטראלירסט יעדער ליסטע באזונדער, אפילו אינמיטן אסיפה. נאר באשטעטיגטע מוסד־מיטגלידער קענען ווערן צוגעלייגט; א מוסד־מנהל קען נישט ווערן פארשפארט דורך דעם אויסשטעל.</p>'+
+   '<p class="muted">דו קאנטראלירסט יעדער ליסטע באזונדער, אפילו אינמיטן אסיפה. נאר באשטעטיגטע מיטגלידער פון דעם ארבעטס־פלאץ קענען ווערן צוגעלייגט; א מנהל פונעם ארבעטס־פלאץ קען נישט ווערן פארשפארט דורך דעם אויסשטעל.</p>'+
    '<form data-form="conference-policy" class="stack">'+
      '<label>מיטגליד־קאוד<input name="subject" required maxlength="128" placeholder="דער באנוצער־קאוד פונעם מיטגליד"></label>'+
      '<label>וועלכע ליסטע?<select name="rule">'+
