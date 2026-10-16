@@ -145,7 +145,7 @@ function authView(){
  <p>הייב אן אליין מיט דיין ערשטן קאמפיין. ווען דו וואקסט, קענסטו צולייגן א גאנצע מאנשאפט.</p><small>פאר יעדן — פון אנהייבער ביז א גרויסע מאנשאפט</small></div>
  <div class="auth-grid">
  <form data-form="signin" class="card"><h2>אריינגיין</h2><label>בליצפאסט <input type="email" name="email" autocomplete="email" required></label><label>פעסווארט <input type="password" name="password" autocomplete="current-password" required></label><button class="primary">אריינגיין</button></form>
- <form data-form="signup" class="card"><h2>אנהייבן אקאונט</h2><label>נאמען <input name="name" autocomplete="name" required maxlength="120"></label><label>בליצפאסט <input name="email" type="email" autocomplete="email" required></label><label>פעסווארט <input type="password" name="password" autocomplete="new-password" minlength="8" required></label><button>שאפן אקאונט</button></form></div></main>`;
+ <form data-form="signup" class="card"><h2>אנהייבן אקאונט</h2><label>נאמען <input name="name" autocomplete="name" required maxlength="120"></label><label>בליצפאסט <input name="email" type="email" autocomplete="email" required></label><label>פעסווארט <input type="password" name="password" autocomplete="new-password" minlength="8" required><small>Numbers-only website passwords require 12 or more digits; mixed-character passwords are also accepted.</small></label><button>שאפן אקאונט</button></form></div></main>`;
 }
 function toolbar() {
  const org=state.orgs.find(x=>x.id===state.orgId);
@@ -179,12 +179,20 @@ function campaignNav(){
 }
 function yemotPanel(){
  const setting=state.yemot||{configured:false,connected:false,lineNumber:null};
- return '<section class="card"><h2>ימות המשיח — איין צענטראלער האטליין</h2>'+
-  '<p class="muted">נאר דער גבהה־סופער־עדמין קען פארבינדן דעם איינציגן ימות API־שליסל. אנדערע באנוצער קענען נישט אויפשטעלן באזונדערע שליסלען.</p>'+
-  '<p>נומער: <strong>'+esc(setting.lineNumber||'נאכנישט באשטימט')+'</strong> · פארבינדונג: <strong>'+(setting.connected?'אקטיוו':'נאכנישט אקטיוו')+'</strong></p>'+
-  '<p>מעניו: <strong>1 — גבהה</strong> · <strong>2 — קאמפיין סענטער</strong> (דערווייל פלאן; נישט ארויפגעלייגט אויף ימות).</p>'+
-  '<p class="muted">צו פארוואלטן דעם איינציגן API שליסל: גיי צו גבהה → אדמיניסטראציע → ימות API — צענטראל.</p>'+
-  '</section>';
+ const management=state.orgs.some(o=>o.id===state.orgId&&['owner','manager'].includes(o.role));
+ return '<section class="card"><h2>Campaign Center — Independent Hotline Membership</h2>'+
+  '<p>Hotline: <strong>'+esc(setting.lineNumber||'1-605-562-1286')+
+  '</strong> · Connection: '+(setting.connected?'connected':'not verified')+'</p>'+
+  '<p>This Campaign Center account is separate from Gavhah. A Gavhah PIN never logs you in here.</p>'+
+  '<form data-form="cc-phone-pin" class="inline"><label>Choose a separate 12–16 digit hotline PIN '+
+  '<input name="pin" inputmode="numeric" type="password" autocomplete="new-password" pattern="[0-9]{12,16}" minlength="12" maxlength="16" required></label>'+
+  '<button type="submit">Save My Campaign Center Phone PIN</button></form>'+
+  '<p>Use your normal Neon Auth website sign-in to manage this PIN. Existing web passwords do not need to be replaced. Numeric-only web passwords need at least 12 digits for security.</p>'+
+  (management?'<form data-form="cc-phone-member-pin" class="inline"><h3>Organization Manager: Issue a member phone PIN</h3>'+
+  '<label>Member <select name="subject">'+state.members.map(m=>'<option value="'+esc(m.subject)+'">'+esc(m.subject)+'</option>').join('')+'</select></label>'+
+  '<label>Optional chosen 12–16 digit PIN <input type="password" autocomplete="new-password" name="pin" inputmode="numeric" pattern="[0-9]{12,16}" maxlength="16" placeholder="Leave empty for secure random PIN"></label>'+
+  '<button type="submit">Issue / Replace Member Phone PIN</button></form>':'')+
+  '<p class="muted">Phone sign-in will use the independent Campaign Center Neon database and membership roles. This staging build does not activate new phone routes until reviewed and released.</p></section>';
 }
 function campaignAdminPanel(){
  const campaign=state.overview?.campaign;
@@ -286,11 +294,31 @@ async function submit(event){
      break;
    }
    case 'signup': {
+     if(/^[0-9]+$/.test(String(d.password||''))&&d.password.length<12)
+       throw new Error('A numeric-only website password must contain at least 12 digits');
      let r;
      try {r=await state.auth.signUp.email({name:d.name,email:d.email,password:d.password});}
      catch(e){throw new Error(authError(e));}
      if(r.error)throw new Error(authError(r.error));
      state.notice='אקאונט געשאפן. דו קענסט זיך אריינלאגירן מיט דעם בליצפאסט און פעסווארט.';
+     break;
+   }
+   case 'cc-phone-pin': {
+     await api('/phone/pin',{method:'POST',body:JSON.stringify({pin:String(d.pin||'')})});
+     state.notice='Your Campaign Center hotline PIN has been saved securely. It is different from the Gavhah account PIN.';
+     break;
+   }
+   case 'cc-phone-member-pin': {
+     if(!state.orgId)throw new Error('Select your organization');
+     const result=await api('/phone/admin/assign-pin',{
+      method:'POST',body:JSON.stringify({
+       organizationId:state.orgId,subject:String(d.subject||''),
+       ...(d.pin?{pin:String(d.pin)}:{})
+      })
+     });
+     state.notice=result.oneTimePin?
+      'New temporary hotline PIN — show only once to the member: '+result.oneTimePin:
+      'Campaign Center member PIN updated.';
      break;
    }
    case 'org': await api('/organizations',{method:'POST',body:JSON.stringify({name:d.name})});break;
