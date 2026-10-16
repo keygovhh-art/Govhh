@@ -89,16 +89,87 @@ export function makePlanPolicy({pool,bad}){
   }
   return null;
  }
+ // Never grant a future premium API route just because its prefix is gated.
+ const routeSpecs={
+ plus: [
+  ["GET","campaigns/:id/member-desk","member_dashboard"],
+  ["GET","campaigns/:id/credit-report","team_credit"],
+  ["GET","campaigns/:id/alerts","basic_alerts"],
+  ["GET","campaigns/:id/teams-report","detailed_reports"],
+  ["PATCH","tasks/:id/handoff","advanced_tasks"],
+  ["GET","campaigns/:id/donation-levels","donation_levels"],
+  ["PUT","campaigns/:id/donation-levels","donation_levels"],
+  ["GET","campaigns/:id/pledges","partial_pledges"],
+  ["POST","campaigns/:id/pledges/:id/partial-receipts","partial_pledges"]
+ ],
+ pro: [
+  ["GET","campaigns/:id/clarity","clarity"],
+  ["GET","campaigns/:id/contacts","crm"],
+  ["GET","contacts/:id/timeline","relationship_history"],
+  ["PUT","contacts/:id/profile","crm"],
+  ["POST","contacts/:id/interactions","relationship_history"],
+  ["GET","campaigns/:id/sprints","sprint_memory"],
+  ["POST","campaigns/:id/sprints","sprint_memory"],
+  ["PATCH","sprints/:id/steps/:id","sprint_memory"],
+  ["PATCH","sprints/:id/status","sprint_memory"],
+  ["GET","campaigns/:id/focus-history","sprint_memory"],
+  ["GET","campaigns/:id/guidance","guidance"],
+  ["POST","campaigns/:id/guidance","guidance"],
+  ["GET","guidance/:id/messages","guidance"],
+  ["POST","guidance/:id/messages","guidance"],
+  ["PATCH","guidance/:id/close","guidance"],
+  ["GET","campaigns/:id/blockers","blocker_intelligence"],
+  ["PUT","tasks/:id/blocker","blocker_intelligence"]
+ ],
+ gabbai: [
+  ["GET","campaigns/:id/approvals","approvals"],
+  ["POST","campaigns/:id/approvals","approvals"],
+  ["GET","campaigns/:id/priority-oversight","priority_oversight"],
+  ["GET","campaigns/:id/ledger-review","ledger"],
+  ["POST","approvals/:id/decision","approvals"]
+ ],
+ organization: [
+  ["GET","organizations/:id/portfolio","portfolio"],
+  ["GET","organizations/:id/decisions","leadership_decisions"],
+  ["POST","organizations/:id/decisions","leadership_decisions"],
+  ["POST","decisions/:id/resolve","leadership_decisions"],
+  ["GET","organizations/:id/resources","resource_allocation"],
+  ["POST","organizations/:id/resources","resource_allocation"],
+  ["PUT","organizations/:id/resources/:id","resource_allocation"],
+  ["PUT","organizations/:id/resources/:id/allocations/:id","resource_allocation"],
+  ["GET","organizations/:id/memory","organization_memory"],
+  ["POST","organizations/:id/memory","organization_memory"]
+ ],
+ custom: [
+  ["GET","campaigns/:id/focus-rules","custom_focus"],
+  ["PUT","campaigns/:id/focus-rules","custom_focus"],
+  ["GET","campaigns/:id/focus-preview","custom_focus"]
+ ]
+ };
+ const featureForRoute=(tier,method,path)=>{
+  const uid=/^[a-f0-9-]{36}$/i;
+  const parts=path.split('/').filter(Boolean);
+  for(const [verb,pattern,feature] of routeSpecs[tier]||[]){
+   if(method!==verb)continue;
+   const segments=pattern.split('/');
+   if(parts.length===segments.length&&segments.every((x,i)=>x===':id'?uid.test(parts[i]):x===parts[i]))return feature;
+  }
+  return null;
+ };
  const scoped=(code,feature)=>{
   if(!byCode.has(code))throw Error('Unknown plan');
   return async(req,res,next)=>{
    try {
-    const org=await orgFromScopedPath(req,code==='askan_plus'?'plus':code==='askan_pro'?'pro':code==='gabbai_pro'?'gabbai':code);
+    const routeType=code==='askan_plus'?'plus':code==='askan_pro'?'pro':code==='gabbai_pro'?'gabbai':code;
+    const routeFeature=featureForRoute(routeType,req.method,req.path);
+    if(!routeFeature)throw bad(404,'Unknown or unallocated plan route');
+    const org=await orgFromScopedPath(req,routeType);
     if(!org)throw bad(404,'Campaign or organization not found');
     const access=await forMember(pool,org,req.userId);
     if(access.tierIndex<byCode.get(code).index)throw bad(403,'Plan upgrade required: '+code);
     // An implementation still marked "missing" cannot become usable via a
     // broad tier grant. For these routers, only shipped route families map here.
+    requireFeature(access,routeFeature);
     if(feature)requireFeature(access,feature);
     req.planAccess=access;
     next();
