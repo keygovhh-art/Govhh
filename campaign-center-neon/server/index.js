@@ -69,7 +69,12 @@ async function authenticate(req, _res, next) {
   try {
     const match = /^Bearer\s+([^\s]+)$/i.exec(req.get('authorization') || '');
     if (!match) throw bad(401, 'Please sign in');
-    const { payload } = await jwtVerify(match[1], jwks, { issuer: authBase.origin });
+    // Managed Neon Auth issues JWTs for the full auth service base path.
+    // Accept both documented and legacy issuer forms while JWKS stays pinned
+    // to the SAME database branch. Never accept arbitrary issuers.
+    const { payload } = await jwtVerify(match[1], jwks, {
+      issuer: [authBase.toString().replace(/\/$/,''),authBase.origin]
+    });
     if (typeof payload.sub !== 'string' || !payload.sub) throw bad(401, 'Invalid user');
     req.userId = payload.sub;
     next();
