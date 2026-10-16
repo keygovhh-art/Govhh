@@ -35,7 +35,7 @@ export function teamView(state,esc,money) {
   esc(p.phone)+' · '+(p.do_not_call?'נישט רופן':p.claimed_by?'געכאפט דורך אן עסקן':'פאראן')+
   '</small></div>'+ (leader?'<form data-form="contact-team" class="inline"><input type="hidden" name="contactId" value="'+esc(p.id)+'"><select name="teamName"><option value="">אלע אומצוגעטיילטע</option>'+groups.map(g=>'<option value="'+esc(g)+'" '+(g===p.assigned_team?'selected':'')+'>'+esc(g)+'</option>').join('')+'</select><button>צוטיילן</button></form>':'')+
   '<div class="actions">'+
-  (p.do_not_call?'':p.claimed_by===state.user?.id?
+  (p.do_not_call?'':p.claimed_by===state.subject?
     '<button data-action="release-lead" data-id="'+esc(p.id)+'">צוריקגעבן</button>':
     !p.claimed_by||new Date(p.claim_expires_at).getTime()<Date.now()?
     '<button data-action="claim-lead" data-id="'+esc(p.id)+'">איך נעם עס</button>':'')+

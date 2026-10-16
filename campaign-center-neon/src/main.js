@@ -7,6 +7,8 @@ import { goalsView } from './goals-view.js';
 import { campaignFocusBoard } from './focus-board.js';
 import { donationLinkView } from './donation-links-view.js';
 import { teamView } from './team-view.js';
+import { askanPlusView } from './askan-plus-view.js';
+import { plusPledgesView } from './plus-pledges-view.js';
 import { hallView } from './hall-view.js';
 import { eventView } from './event-view.js';
 import { conferenceView } from './conference-view.js';
@@ -16,7 +18,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -88,7 +90,17 @@ async function refresh() {
     try{const goalResult=await api('/goals/campaigns/'+id);state.goals=goalResult.goals||[];state.goalsError='';}
     catch(error){state.goals=[];state.goalsError=error.message||'נישט צוטריטבאר';}
     try{state.donationLink=await api('/donation-links/'+id);}catch(error){state.donationLink={link:null,error:error.message};}
-  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.donationLink=null;}
+    try{state.plusDesk=await api('/plus/campaigns/'+id+'/member-desk');}catch(error){state.plusDesk=null;}
+    try{const credits=await api('/plus/campaigns/'+id+'/credit-report');state.plusCredits=credits.credits||[];}catch(error){state.plusCredits=[];}
+    try{state.plusAlerts=await api('/plus/campaigns/'+id+'/alerts');}catch(error){state.plusAlerts=null;}
+    try{const levels=await api('/plus/campaigns/'+id+'/donation-levels');state.donationLevels=levels.levels||[];state.donationLevelsError='';}
+    catch(error){state.donationLevels=[];state.donationLevelsError=error.message;}
+    try{const pledges=await api('/plus/campaigns/'+id+'/pledges');state.plusPledges=pledges.pledges||[];state.plusPledgesError='';}
+    catch(error){state.plusPledges=[];state.plusPledgesError=error.message;}
+    if(['owner','manager','finance','auditor'].includes(state.overview?.campaign?.role)){
+      try{state.plusReport=await api('/plus/campaigns/'+id+'/teams-report?days='+state.plusDays);}catch(error){state.plusReport=null;}
+    }else state.plusReport=null;
+  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;state.plusAlerts=null;state.plusCredits=[];state.donationLevels=[];state.donationLevelsError='';state.plusPledges=[];state.plusPledgesError='';}
   state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.videoStatus.floor=null;state.videoGrants.floor=[];state.helpMessages=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
@@ -209,7 +221,7 @@ function today(){
  ${campaignAdminPanel()}
  ${donationLinkView(state,esc)}
  <section class="card"><h2>נייע אויפגאבע</h2><form data-form="task" class="inline"><input name="title" required placeholder="וואס דארף געטון ווערן?"><select name="priority"><option value="normal">נארמאל</option><option value="high">וויכטיג</option><option value="critical">קריטיש</option></select><select name="kind"><option value="task">אויפגאבע</option><option value="followup">נאכפאלג</option><option value="call_lead">רופן</option></select><select name="assigneeSubject"><option value="">פאר מיר</option>${state.assignees.map(m=>`<option value="${esc(m.subject)}">${esc(m.subject)} — ${esc(m.team_name||"אנדערע")}</option>`).join("")}</select><button>צולייגן</button></form></section>
- <section class="card"><h2>אויפגאבן <span class="count">${state.tasks.length}</span></h2>${state.tasks.length?state.tasks.map(t=>`<article class="item"><div><strong>${esc(t.title)}</strong><small>${esc(t.kind)} · ${esc(t.priority)} · ${esc(t.status)}</small></div><div class="actions">${t.status!=='done'?`<button data-action="done" data-id="${esc(t.id)}">פארענדיגט</button>`:''}</div></article>`).join(''):'<p class="muted">נאך קיין אויפגאבן.</p>'}</section>`;
+ <section class="card"><h2>אויפגאבן <span class="count">${state.tasks.length}</span></h2>${state.tasks.length?state.tasks.map(t=>`<article class="item"><div><strong>${esc(t.title)}</strong><small>${esc(t.kind)} · ${esc(t.priority)} · ${esc(t.status)} · ${esc(t.assignee_subject===state.subject?'מיין אויפגאבע':'צוגעטיילט: '+t.assignee_subject)}</small></div><div class="actions">${t.status!=='done'?`<button data-action="done" data-id="${esc(t.id)}">פארענדיגט</button>`:''}</div>${['owner','manager','squad_leader'].includes(state.overview?.campaign?.role)&&!['done','cancelled'].includes(t.status)?`<form data-form="plus-handoff" data-task-id="${esc(t.id)}" class="inline"><label>איבערגעבן פאר<select name="assigneeSubject" required>${state.assignees.map(a=>`<option value="${esc(a.subject)}" ${a.subject===t.assignee_subject?'selected':''}>${esc(a.subject)} — ${esc(a.team_name||'נישט צוגעטיילט')}</option>`).join('')}</select></label><label>טערמין<input type="datetime-local" name="dueAt"></label><button type="submit">איבערגעבן מיט Audit</button></form>`:''}</article>`).join(''):'<p class="muted">נאך קיין אויפגאבן.</p>'}</section>`;
 }
 function people(){
  const role=state.overview?.campaign?.role;
@@ -230,9 +242,11 @@ function people(){
 }
 function finance(){
  const role=state.overview?.campaign?.role;
- return `<div class="card"><h2>פלעדזשעס און באצאלונגען</h2><p class="muted">א פלעדזש איז נישט באקומען געלט. בלויז א באשטעטיגטע האנטליכע קבלה ווערט גערעכנט אלס באצאלט. דאס איז נישט קיין צאלונג־פראוויידער.</p>
- <form data-form="finance" class="stack"><select name="kind"><option value="pledge">צוגעזאגט</option>${['owner','finance'].includes(role)?'<option value="receipt">באשטעטיגט באקומען</option>':''}</select><input name="amount" required type="number" min=".01" step=".01" placeholder="$ סכום"><input name="verificationReference" placeholder="באשטעטיגונג־רעפערענץ (פאר באקומען געלט)"><button class="primary">אפהיטן</button></form></div>
- <section class="card"><h2>געלט־היסטאריע</h2>${state.finance.length?state.finance.map(x=>`<article class="item"><div><strong>${money(x.amount)}</strong><small>${esc(x.event_kind)} · ${x.verified_at?'באשטעטיגט':'נישט באשטעטיגט'} · ${esc(x.created_at?.slice(0,10)||'')}</small></div></article>`).join(''):'<p class="muted">נאכנישטא קיין פינאנציעלע רעקארדס.</p>'}</section>`;
+ const manager=['owner','manager'].includes(role);
+ const suggested='<section class="card"><h2>עסקן פלאס — פארגעשלאגענע נדבה־סכומים</h2><p class="muted">קלייב א סכום פאר א מאנועלן באריכט. דאס איז נישט א באצאל־קנעפל, און מאכט קיין נדבה נישט אויטאמאטיש באצאלט.</p><div class="inline">'+state.donationLevels.map(x=>'<button type="button" data-action="plus-preset" data-amount="'+esc(x.amount)+'">'+esc(x.label)+' — '+money(x.amount)+'</button>').join('')+'</div>'+(state.donationLevelsError?'<p role="alert">די נייער סעטינג־טאבעלע איז נאך נישט גרייט: '+esc(state.donationLevelsError)+'</p>':'')+(manager?'<form data-form="plus-donation-levels" class="stack"><label>סכומים און נעמען, איינס פער שורה (סכום | נאמען)<textarea name="levels" rows="5" placeholder="50 | קליינע נדבה\n150 | שטיצע\n1000 | גרויסע נדבה">'+esc(state.donationLevels.map(x=>x.amount+' | '+x.label).join('\n'))+'</textarea></label><p class="muted">ביז אכט סכומים. א ליידיגע ליסטע נעמט אראפ אלע פארשלאגן, נישט קיין אמתע געלט־רעקארדס.</p><button>אפהיטן נדבה־סכומים</button></form>':'')+'</section>';
+ return `${suggested}<div class="card"><h2>פלעדזשעס און באצאלונגען</h2><p class="muted">א פלעדזש איז נישט באקומען געלט. בלויז א באשטעטיגטע האנטליכע קבלה ווערט גערעכנט אלס באצאלט. דאס איז נישט קיין צאלונג־פראוויידער.</p>
+ <form data-form="finance" class="stack"><select name="kind"><option value="pledge">צוגעזאגט</option>${['owner','finance'].includes(role)?'<option value="receipt">מאנועל באקומען — לויטן געלט־פארוואלטער</option>':''}</select><input name="amount" required type="number" min=".01" step=".01" placeholder="$ סכום"><input name="verificationReference" placeholder="באשטעטיגונג־רעפערענץ (פאר באקומען געלט)"><button class="primary">אפהיטן</button></form></div>
+ <section class="card"><h2>געלט־היסטאריע</h2>${state.finance.length?state.finance.map(x=>`<article class="item"><div><strong>${money(x.amount)}</strong><small>${esc(x.event_kind)} · ${x.source_system==='askan-plus-manual'?'מאנועל באריכטעט — נישט באנק־באשטעטיגט':x.verified_at?'אינערליך באשטעטיגט — נישט באנק־באשטעטיגט':'נישט אויסערליך באשטעטיגט'} · ${esc(x.created_at?.slice(0,10)||'')}</small></div></article>`).join(''):'<p class="muted">נאכנישטא קיין פינאנציעלע רעקארדס.</p>'}</section>`;
 }
 function history(){
  const visible=state.activity||[];
@@ -276,7 +290,7 @@ async function exportContactsPage(){
 }
 
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='finance'?finance()+plusPledgesView(state,esc,money):state.tab==='team'?teamView(state,esc,money)+askanPlusView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -322,6 +336,29 @@ async function submit(event){
      });break;
    }
    case 'member-team': await api('/team/campaigns/'+state.campaignId+'/members/'+encodeURIComponent(d.subject)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
+   case 'plus-partial-receipt': {
+     const id=form.dataset.pledgeId;
+     if(!state.plusPledges.some(p=>p.id===id))throw new Error('די התחייבות איז נישט פאראן אין דעם קאמפיין');
+     const signature=[id,d.amount,d.method,d.reference||''].join('|');
+     if(!state.receiptRequests[signature])state.receiptRequests[signature]=crypto.randomUUID();
+     await api('/plus/campaigns/'+state.campaignId+'/pledges/'+id+'/partial-receipts',{
+       method:'POST',body:JSON.stringify({requestId:state.receiptRequests[signature],amount:d.amount,method:d.method,reference:d.reference||''})
+     });
+     delete state.receiptRequests[signature];
+     break;
+   }
+   case 'plus-donation-levels': {
+     const levels=String(d.levels||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
+       const parts=line.split('|');if(parts.length!==2)throw new Error('יעדע שורה דארף זיין: סכום | נאמען');
+       return {amount:parts[0].trim(),label:parts[1].trim()};
+     });
+     await api('/plus/campaigns/'+state.campaignId+'/donation-levels',{method:'PUT',body:JSON.stringify({levels})});break;
+   }
+   case 'plus-handoff': {
+     if(!state.campaignId||!state.tasks.some(t=>t.id===form.dataset.taskId))throw new Error('אויפגאבע נישט געפונען');
+     const dueAt=d.dueAt?new Date(d.dueAt).toISOString():undefined;
+     await api('/plus/tasks/'+form.dataset.taskId+'/handoff',{method:'PATCH',body:JSON.stringify({assigneeSubject:d.assigneeSubject,dueAt})});break;
+   }
    case 'video-config': {
      const kind=d.kind;
      const id=kind==='floor'?state.joinedRoomId:kind==='conference'?state.conferenceId:null;
@@ -482,6 +519,10 @@ async function click(event){
   }
 
 
+  if(a==='plus-preset'){
+    const amountField=document.querySelector('form[data-form="finance"] input[name="amount"]');
+    if(amountField){amountField.value=btn.dataset.amount;amountField.focus();}return;
+  }
   if(a==='new-campaign'){state.showCampaignForm=!state.showCampaignForm;draw();return;}
   if(a==='done'){await api('/tasks/'+btn.dataset.id,{method:'PATCH',body:JSON.stringify({status:'done'})});await refresh();return;}
   if(a==='new-connect-code'){const r=await api('/connect/code',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.connectCode=r.code;draw();return;}
@@ -595,6 +636,7 @@ document.addEventListener('change',async e=>{
  try {
   if(e.target?.dataset?.action==='org-select'){state.orgId=e.target.value;state.campaignId=null;state.joinedRoomId=null;state.showCampaignForm=false;state.invitationCode='';state.connectCode='';state.csvPage=1;state.importRows=null;state.importPreview=null;await refresh();}
   if(e.target?.dataset?.action==='campaign-select'){state.campaignId=e.target.value;state.csvPage=1;state.joinedRoomId=null;await refresh();}
+  if(e.target?.dataset?.action==='plus-days'){state.plusDays=Number(e.target.value);await refresh();}
  }catch(error){say(error.message);}
 });
 async function boot(){
