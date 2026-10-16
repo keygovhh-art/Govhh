@@ -317,7 +317,7 @@ app.get('/api/campaigns/:cid/finance',async(req,res,next)=>{
   try {
     const c=await campaignAccess(pool,req.params.cid,req.userId);
     const viewAll=['owner','manager','finance','auditor'].includes(c.role);
-    const r=await q('SELECT id,credited_member_subject,event_kind,amount,currency,verified_at,verification_reference,created_at FROM cc_finance_events WHERE campaign_id=$1 AND organization_id=$2 AND ($3::boolean OR credited_member_subject=$4) ORDER BY created_at DESC LIMIT 200',[c.id,c.organization_id,viewAll,req.userId]);
+    const r=await q('SELECT id,credited_member_subject,event_kind,amount,currency,source_system,verified_at,verification_reference,created_at FROM cc_finance_events WHERE campaign_id=$1 AND organization_id=$2 AND ($3::boolean OR credited_member_subject=$4) ORDER BY created_at DESC LIMIT 200',[c.id,c.organization_id,viewAll,req.userId]);
     res.json(r.rows);
   } catch(error){next(error);}
 });
