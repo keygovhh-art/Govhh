@@ -51,3 +51,5 @@ jobs:
         run: node --test tests/focus-board.test.mjs
       - name: External donation URL audit, tenant and gateway honesty
         run: node --test tests/donation-links.test.mjs
+      - name: Askan Plus member and team privacy, audited hand-offs
+        run: node --test tests/askan-plus.test.mjs
