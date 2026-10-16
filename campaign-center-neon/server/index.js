@@ -4,7 +4,6 @@ import teamRouter from './team.js';
 import webHallRouter from './web-hall.js';
 import conferenceRouter from './conferences.js';
 import rtcAudioRouter from './rtc-audio.js';
-import yemotRouter from './yemot.js';
 import videoRouter from './video.js';
 import floorRouter from './floor.js';
 import programRouter from './floor-programs.js';
@@ -120,7 +119,25 @@ app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,lo
 app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/conferences',conferenceRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/rtc',rtcAudioRouter({pool,authenticate,member,campaignAccess,bad,uuid,log}));
-app.use('/api/yemot',yemotRouter({pool,authenticate,member,log,bad,uuid}));
+// Global Yemot credentials now live only on Gavhah under the platform super-admin.
+// Deny legacy organization-level reads AND writes at the server layer.
+app.all('/api/yemot/organizations/{*path}', (_req,res) =>
+  res.status(410).json({error:'Organization Yemot credentials were retired. Manage the single central connection in Gavhah.'}));
+app.get('/api/yemot/central-status',async(_req,res)=>{
+  const secret=process.env.YEMOT_CENTRAL_SHARED_SECRET||'';
+  if(secret.length<32)return res.status(503).json({error:'Central connection is not configured on both services'});
+  try {
+    const url=new URL('/api/yemot/service/status',process.env.GAVHAH_API_BASE_URL||'https://gavhah.onrender.com');
+    if(url.protocol!=='https:'||url.username||url.password)throw Error('Invalid central API endpoint');
+    const reply=await fetch(url,{headers:{'x-gavhah-connect-secret':secret},
+      signal:AbortSignal.timeout(9000),redirect:'error',cache:'no-store'});
+    if(!reply.ok)throw Error('Central service unavailable');
+    const data=await reply.json();
+    res.set('Cache-Control','private, no-store');
+    res.json({configured:!!data.configured,connected:!!data.connectedToGlobalProvider,
+      lineNumber:data.lineNumber||null, routes:['1 — גבהה','2 — קאמפיין סענטער']});
+  }catch{res.status(502).json({error:'Central Gavhah Yemot status unavailable'});}
+});
 app.use('/api/video',videoRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/floor',floorRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/floor-program',programRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
