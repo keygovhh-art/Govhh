@@ -184,6 +184,8 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await req('/team/contacts/'+contact+'/release',{user:first,method:'POST'})).status,200);
   assert.equal((await req('/team/contacts/'+contact+'/claim',{user:second,method:'POST'})).status,200);
   assert.equal((await req('/team/contacts/'+contact+'/release',{user:second,method:'POST'})).status,200);
+   assert.equal((await req('/team/campaigns/'+c1+'/members/'+first+'/team',{user:owner,method:'PATCH',data:{teamName:'Group A'}})).status,403,'Chesed Quick cannot use Askan Plus squad assignment');
+   await pool.query("INSERT INTO cc_plan_entitlements(organization_id,plan_code,provision_reference,provisioned_by) VALUES($1,'askan_plus','approved-ci-team-pilot-20261016','CI-operator')",[org1]);
   assert.equal((await req('/team/campaigns/'+c1+'/members/'+first+'/team',{user:owner,method:'PATCH',data:{teamName:'Group A'}})).status,200);
   assert.equal((await req('/team/campaigns/'+c1+'/members/'+second+'/team',{user:owner,method:'PATCH',data:{teamName:'Group B'}})).status,200);
   assert.equal((await req('/team/campaigns/'+c1+'/contacts/'+contact+'/team',{user:owner,method:'PATCH',data:{teamName:'Group B'}})).status,200);
