@@ -24,6 +24,11 @@ if(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(deepCampaign||'') &&
 // .getJWTToken(). Never send an opaque session identifier as the API bearer JWT.
 async function getApiJwt(){
   if(!state.auth)return null;
+  // Neon injects a JWT into session.token when available; an opaque session
+  // cookie cannot be used as a bearer token.
+  const session=await state.auth.getSession();
+  const stored=session.data?.session?.token;
+  if(typeof stored==='string' && stored.split('.').length===3)return stored;
   const result=await state.auth.token();
   if(result.error)throw new Error(result.error.message||'נישט געלונגען צו באקומען אן אריינלאגיר־באשטעטיגונג');
   const token=result.data?.token;
