@@ -43,3 +43,5 @@ jobs:
       - run: npm run build
       - name: Multi-member campaign team and Connect end-to-end test on disposable Postgres
         run: node --test tests/team-connect.test.mjs
+      - name: Personal Askan privacy and six-plan catalogue on disposable Postgres
+        run: node --test tests/personal-askan.test.mjs
