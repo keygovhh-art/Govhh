@@ -272,7 +272,7 @@ export const PLAN_FEATURES = [
     "code": "guidance",
     "yi": "פראפעסיאנעלע Guidance Requests",
     "minTier": 2,
-    "status": "missing",
+    "status": "partial",
     "allocation": "planned"
   },
   {
