@@ -37,6 +37,31 @@ export default function askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,
    teamName:team.rows[0]?.team_name||'',tasks:tasks.rows[0],calls:calls.rows[0],
    finance:money.rows[0],moneyIsManualNotProcessorVerified:true});
  }));
+ router.get('/campaigns/:cid/credit-report',handler(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);
+  need(c.role,workRoles);
+  const elevated=['owner','manager','finance','auditor'].includes(c.role);
+  // Each event is counted ONCE; original credited_member_subject remains
+  // immutable. This is internal campaign credit, not payment verification.
+  const r=await pool.query(
+   "SELECT f.credited_member_subject subject,cm.team_name,"+
+   " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='pledge'),0)::text pledged,"+
+   " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='receipt'),0)::text receipts,"+
+   " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='refund'),0)::text refunds,"+
+   " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='receipt'),0)::numeric"+
+   " -COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='refund'),0)::numeric AS manual_net"+
+   " FROM cc_finance_events f"+
+   " JOIN cc_campaign_members cm ON cm.organization_id=f.organization_id AND cm.campaign_id=f.campaign_id"+
+   " AND cm.subject=f.credited_member_subject"+
+   " JOIN cc_memberships m ON m.organization_id=cm.organization_id AND m.subject=cm.subject"+
+   " AND m.membership_status='active'"+
+   " WHERE f.organization_id=$1 AND f.campaign_id=$2 AND ($3::boolean OR f.credited_member_subject=$4)"+
+   " GROUP BY f.credited_member_subject,cm.team_name ORDER BY manual_net DESC,f.credited_member_subject LIMIT 500",
+   [c.organization_id,c.id,elevated,req.userId]);
+  res.set('Cache-Control','private,no-store');
+  res.json({scope:elevated?'leadership':'self',credits:r.rows,immutableAttribution:true,
+   explanation:'Original ledger attribution, not a verified payment, and not evidence of individual fundraiser effort. Current team membership is used for grouping.'});
+ }));
  router.get('/campaigns/:cid/alerts',handler(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,workRoles);
   const manager=isLeader(c.role);
