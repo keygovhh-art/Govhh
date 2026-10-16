@@ -405,7 +405,7 @@ export const PLAN_FEATURES = [
     "code": "organization_memory",
     "yi": "מוסדישע Cross-Campaign Memory",
     "minTier": 4,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
