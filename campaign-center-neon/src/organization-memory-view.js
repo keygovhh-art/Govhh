@@ -8,6 +8,8 @@ export function organizationMemoryView(state,esc){
  const notes=entries.map(x=>{
   const form='<form data-form="organization-memory-revise" data-memory-id="'+esc(x.id)+'" class="stack">'+
    '<h4>אפהיטן א נייע ווערסיע</h4>'+
+   '<input type="hidden" name="sourceCampaignId" value="'+esc(x.source_campaign_id||'')+'">'+
+   '<input type="hidden" name="reviewDueAt" value="'+esc(x.review_due_at||'')+'">'+
    '<label>סארט<select name="category">'+Object.entries(kinds).map(([code,label])=>
      '<option value="'+code+'" '+(x.category===code?'selected':'')+'>'+label+'</option>').join('')+'</select></label>'+
    '<label>ענין<input name="title" maxlength="180" required value="'+esc(x.title)+'"></label>'+
