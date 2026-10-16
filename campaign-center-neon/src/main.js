@@ -252,7 +252,10 @@ function campaignNav(){
   ['hall','עסקנים־זאל','virtual_floor'],['conference','התקבצו אסיפות','hitkabtzu'],
   ['yemot','ימות — צענטראל',null],['plans','די 6 פלענער',null]];
  return '<nav class="tabs">'+nav.map(([key,label,feature])=>{
-  const enabled=!feature||allowed.has(feature);
+  // Shared meeting/floor pilots existed before pricing decisions and remain accessible
+  // under their original authenticated team/privacy rules (NOT paid plan rights).
+  const legacyPilot=feature==='virtual_floor'||feature==='hitkabtzu';
+  const enabled=!feature||allowed.has(feature)||legacyPilot;
   return '<button type="button" data-action="tab" data-tab="'+key+'" '+
    (enabled?'':'disabled title="דעם פלאן־רעכט דארף מען באשטעטיגן" ')+
    'class="'+(state.tab===key?'current':'')+'">'+(enabled?'':'🔒 ')+label+'</button>';
