@@ -34,6 +34,38 @@ export default function gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim
   res.json({requests:q.rows,limit:200,role:c.role,approvalDoesNotMoveMoney:true,
    dualControl:true});
  }));
+ router.get('/campaigns/:cid/ledger-review',run(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);
+  if(!readers.includes(c.role))throw bad(403,'Finance review access required');
+  const days=Number(req.query.days||30);
+  if(![7,30,90,365].includes(days))throw bad(400,'Choose 7, 30, 90 or 365 days');
+  const params=[c.organization_id,c.id,days];
+  const [bySource,net,unlinked]=await Promise.all([
+   pool.query(
+    "SELECT event_kind,source_system,COUNT(*)::int event_count,"+
+    " COALESCE(SUM(amount),0)::text total_amount,COUNT(*) FILTER(WHERE verified_at IS NOT NULL)::int internally_marked_verified"+
+    " FROM cc_finance_events WHERE organization_id=$1 AND campaign_id=$2"+
+    " AND created_at>=now()-($3::int*interval '1 day')"+
+    " GROUP BY event_kind,source_system ORDER BY event_kind,source_system",params),
+   pool.query(
+    "SELECT COALESCE(SUM(amount) FILTER(WHERE event_kind='pledge'),0)::text pledged,"+
+    " COALESCE(SUM(amount) FILTER(WHERE event_kind='receipt'),0)::text receipts,"+
+    " COALESCE(SUM(amount) FILTER(WHERE event_kind='refund'),0)::text refunds,"+
+    " (COALESCE(SUM(amount) FILTER(WHERE event_kind='receipt'),0)-"+
+    " COALESCE(SUM(amount) FILTER(WHERE event_kind='refund'),0))::text reported_net"+
+    " FROM cc_finance_events WHERE organization_id=$1 AND campaign_id=$2"+
+    " AND created_at>=now()-($3::int*interval '1 day')",params),
+   pool.query(
+    "SELECT COUNT(*)::int count FROM cc_finance_events WHERE organization_id=$1 AND campaign_id=$2"+
+    " AND event_kind='receipt' AND related_pledge_id IS NULL"+
+    " AND created_at>=now()-($3::int*interval '1 day')",params)
+  ]);
+  res.set('Cache-Control','private,no-store');
+  res.json({days,totals:net.rows[0],bySource:bySource.rows,
+   receiptsWithoutPledgeLink:unlinked.rows[0].count,
+   internalStampsNotBankVerification:true,noExternalReconciliation:true,
+   note:'This review summarizes existing immutable manual ledger entries. It does not confirm payment settlement, bank clearing or payment processor synchronization.'});
+ }));
  router.post('/campaigns/:cid/approvals',run(async(req,res)=>{
   if(!categories.includes(req.body?.category)||typeof req.body?.subject!=='string'||!req.body.subject.trim()||
     req.body.subject.length>180||typeof req.body?.explanation!=='string'||req.body.explanation.length>1500)
