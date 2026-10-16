@@ -1,0 +1,82 @@
+import {Router} from 'express';
+
+// Gabbai Pro maker-checker requests. Human approval is documentation only:
+// this NEVER executes a charge, refund, transfer or ledger correction.
+export default function gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim,log}){
+ const router=Router(),run=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
+ const readers=['owner','manager','finance','auditor'];
+ const makers=['owner','manager','finance'];
+ const reviewers=['owner','manager'];
+ const categories=['planned_expense','manual_adjustment','refund_review','other'];
+ const money=raw=>{
+  if(typeof raw!=='string'&&typeof raw!=='number')throw bad(400,'Invalid amount');
+  const s=String(raw);
+  if(!/^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/.test(s)||Number(s)<=0||Number(s)>1000000000000)
+   throw bad(400,'Invalid amount');
+  return Number(s).toFixed(2);
+ };
+ async function tx(fn){
+  const db=await pool.connect();
+  try{await db.query('BEGIN');const answer=await fn(db);await db.query('COMMIT');return answer;}
+  catch(err){await db.query('ROLLBACK');throw err;}finally{db.release();}
+ }
+ router.get('/campaigns/:cid/approvals',run(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);
+  if(!readers.includes(c.role))throw bad(403,'Finance access required');
+  const status=req.query.status||'all';
+  if(!['all','pending','approved','rejected'].includes(status))throw bad(400,'Invalid status filter');
+  const q=await pool.query(
+   "SELECT id,category,amount::text amount,currency,subject,explanation,status,requested_by,created_at,decided_by,decided_at"+
+   " FROM cc_gabbai_approval_requests WHERE organization_id=$1 AND campaign_id=$2"+
+   " AND ($3='all' OR status=$3) ORDER BY created_at DESC,id DESC LIMIT 200",
+   [c.organization_id,c.id,status]);
+  res.set('Cache-Control','private,no-store');
+  res.json({requests:q.rows,limit:200,role:c.role,approvalDoesNotMoveMoney:true,
+   dualControl:true});
+ }));
+ router.post('/campaigns/:cid/approvals',run(async(req,res)=>{
+  if(!categories.includes(req.body?.category)||typeof req.body?.subject!=='string'||!req.body.subject.trim()||
+    req.body.subject.length>180||typeof req.body?.explanation!=='string'||req.body.explanation.length>1500)
+   throw bad(400,'Invalid approval request');
+  const amount=money(req.body.amount);
+  const result=await tx(async db=>{
+   const c=await campaignAccess(db,req.params.cid,req.userId);
+   if(!makers.includes(c.role))throw bad(403,'Only campaign leaders or treasurer may propose an approval');
+   if(c.status==='closed')throw bad(409,'Campaign closed');
+   const row=(await db.query(
+    "INSERT INTO cc_gabbai_approval_requests(organization_id,campaign_id,requested_by,category,amount,currency,subject,explanation) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id,status,amount::text amount",
+    [c.organization_id,c.id,req.userId,req.body.category,amount,c.currency,trim(req.body.subject,180),trim(req.body.explanation,1500)])).rows[0];
+   // Audit never contains financial explanation or private donor context.
+   await log(db,c.organization_id,c.id,req.userId,'gabbai.approval.created',row.id,
+    {category:req.body.category,amount});
+   return row;
+  });
+  res.status(201).json({...result,approvalDoesNotMoveMoney:true});
+ }));
+ router.post('/approvals/:id/decision',run(async(req,res)=>{
+  if(!uuid(req.params.id)||!['approved','rejected'].includes(req.body?.decision)||
+     (req.body.reason!==undefined&&(typeof req.body.reason!=='string'||req.body.reason.length>500)))
+   throw bad(400,'Invalid review');
+  const result=await tx(async db=>{
+   const item=(await db.query('SELECT * FROM cc_gabbai_approval_requests WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
+   if(!item)throw bad(404,'Approval not found');
+   const c=await campaignAccess(db,item.campaign_id,req.userId);
+   if(c.organization_id!==item.organization_id)throw bad(404,'Approval not found');
+   if(!reviewers.includes(c.role))throw bad(403,'Owner or manager reviewer required');
+   if(item.requested_by===req.userId)throw bad(403,'Two-person control: cannot approve your own request');
+   if(c.status==='closed')throw bad(409,'Campaign closed');
+   if(item.status!=='pending')throw bad(409,'Request was already decided');
+   const reason=trim(req.body.reason||'',500);
+   const d=(await db.query(
+    'INSERT INTO cc_gabbai_approval_decisions(request_id,organization_id,campaign_id,reviewer_subject,decision,reason) VALUES($1,$2,$3,$4,$5,$6) RETURNING id,decision,decided_at',
+    [item.id,c.organization_id,c.id,req.userId,req.body.decision,reason])).rows[0];
+   await db.query('UPDATE cc_gabbai_approval_requests SET status=$1,decided_by=$2,decided_at=$3 WHERE id=$4',
+    [d.decision,req.userId,d.decided_at,item.id]);
+   await log(db,c.organization_id,c.id,req.userId,'gabbai.approval.decided',item.id,
+    {decision:d.decision,reviewer:req.userId});
+   return {id:item.id,status:d.decision,decidedBy:req.userId,doesNotMoveMoney:true};
+  });
+  res.json(result);
+ }));
+ return router;
+}
