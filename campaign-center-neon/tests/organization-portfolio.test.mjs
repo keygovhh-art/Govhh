@@ -32,7 +32,7 @@ test('Organization portfolio is workspace-leadership-only, no donor leak, curren
   await pool.query("INSERT INTO cc_finance_events(organization_id,campaign_id,credited_member_subject,source_system,source_event_key,event_kind,amount) VALUES($1,$2,$3,'portfolio-qa',$4,$5,$6)",
    [org,camp,person,id+key,kind,amount]);
  await pool.query("INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,notes,privacy) VALUES($1,$2,$3,'SECRET DONOR 100','5559991111','SECRET DONOR NOTES','private')",[org,a,worker]);
- const app=express();
+ const app=express();app.use(express.json());
  app.use('/api/organization',(req,_res,next)=>{req.userId=req.get('x-member')||'anonymous';next();});
  app.use('/api/organization',organizationPortfolioRouter({pool,bad,uuid,trim,log}));
  app.use((err,_req,res,_next)=>res.status(err.status||500).json({error:err.message}));
