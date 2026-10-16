@@ -14,6 +14,7 @@ import { proSprintsView } from './pro-sprints-view.js';
 import { proGuidanceView } from './pro-guidance-view.js';
 import { proBlockersView } from './pro-blockers-view.js';
 import { gabbaiApprovalsView } from './gabbai-approvals-view.js';
+import { organizationPortfolioView } from './organization-portfolio-view.js';
 import { hallView } from './hall-view.js';
 import { eventView } from './event-view.js';
 import { conferenceView } from './conference-view.js';
@@ -23,7 +24,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -64,6 +65,12 @@ async function refresh() {
   state.orgs=me.organizations;
   if(!state.orgs.some(x=>x.id===state.orgId))state.orgId=state.orgs[0]?.id||null;
   state.campaigns=state.orgId?await api('/organizations/'+state.orgId+'/campaigns'):[];
+  const orgRole=state.orgs.find(o=>o.id===state.orgId)?.role;
+  if(state.orgId&&['owner','manager'].includes(orgRole)){
+    try{state.organizationPortfolio=await api('/organization/organizations/'+state.orgId+'/portfolio');
+      const decisions=await api('/organization/organizations/'+state.orgId+'/decisions');state.organizationDecisions=decisions.decisions||[];state.organizationError='';}
+    catch(error){state.organizationPortfolio=null;state.organizationDecisions=[];state.organizationError=error.message;}
+  }else{state.organizationPortfolio=null;state.organizationDecisions=[];state.organizationError='';}
   // Centralized, read-only status; never fetch organization-specific credentials.
   state.yemot=await api('/yemot/central-status').catch(()=>({configured:false,connected:false,lineNumber:null}));
   state.conferences=[];
@@ -217,7 +224,7 @@ function campaignSetup(){
  return `<section class="card"><h2>קאמפיין שאפן</h2><form data-form="campaign" class="inline"><input name="title" required maxlength="160" placeholder="קאמפיין־נאמען"><input name="goalAmount" type="number" min="0" step="0.01" placeholder="ציל אין $"><button class="primary">שאפן קאמפיין</button></form></section>`;
 }
 function campaignNav(){
- return `<nav class="tabs">${[['today','היינט'],['goals','צילן'],['people','קשרים'],['crm','Askan Pro CRM'],['sprint','7־טאג Focus'],['guidance','עצה און הילף'],['blockers','שוועריקייטן'],['gabbai','Gabbai Pro — באשטעטיגונגען'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל'],['conference','התקבצו אסיפות'],['yemot','ימות — צענטראל'],['plans','די 6 פלענער']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
+ return `<nav class="tabs">${[['today','היינט'],['goals','צילן'],['people','קשרים'],['crm','Askan Pro CRM'],['sprint','7־טאג Focus'],['guidance','עצה און הילף'],['blockers','שוועריקייטן'],['gabbai','Gabbai Pro — באשטעטיגונגען'],['organization','Organization — מוסד'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל'],['conference','התקבצו אסיפות'],['yemot','ימות — צענטראל'],['plans','די 6 פלענער']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
 }
 function yemotPanel(){
  const setting=state.yemot||{configured:false,connected:false,lineNumber:null};
@@ -312,7 +319,7 @@ async function exportContactsPage(){
 }
 
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='crm'?proCrmView(state,esc):state.tab==='sprint'?proSprintsView(state,esc):state.tab==='guidance'?proGuidanceView(state,esc):state.tab==='blockers'?proBlockersView(state,esc):state.tab==='gabbai'?gabbaiApprovalsView(state,esc,money):state.tab==='finance'?finance()+plusPledgesView(state,esc,money):state.tab==='team'?teamView(state,esc,money)+askanPlusView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='crm'?proCrmView(state,esc):state.tab==='sprint'?proSprintsView(state,esc):state.tab==='guidance'?proGuidanceView(state,esc):state.tab==='blockers'?proBlockersView(state,esc):state.tab==='gabbai'?gabbaiApprovalsView(state,esc,money):state.tab==='organization'?organizationPortfolioView(state,esc,money):state.tab==='finance'?finance()+plusPledgesView(state,esc,money):state.tab==='team'?teamView(state,esc,money)+askanPlusView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -323,6 +330,12 @@ async function submit(event){
  const d=Object.fromEntries(new FormData(form).entries());
  try {
   switch(form.dataset.form){
+   case 'organization-decision': {
+     await api('/organization/organizations/'+state.orgId+'/decisions',{method:'POST',body:JSON.stringify({title:d.title,context:d.context||'',campaignId:d.campaignId||null})});break;
+   }
+   case 'organization-resolve': {
+     await api('/organization/decisions/'+form.dataset.id+'/resolve',{method:'POST',body:JSON.stringify({resolution:d.resolution})});break;
+   }
    case 'gabbai-approval-new': {
      await api('/gabbai/campaigns/'+state.campaignId+'/approvals',{method:'POST',body:JSON.stringify({category:d.category,subject:d.subject,amount:d.amount,explanation:d.explanation||''})});break;
    }
@@ -555,6 +568,10 @@ async function click(event){
      await refresh();return;
    }
    if(a==='plan-tier'){const n=Number(btn.dataset.index);if(Number.isInteger(n)&&n>=0&&n<6){state.planTierIndex=n;draw();}return;}
+  if(a==='organization-campaign'){
+    if(!state.organizationPortfolio?.campaigns?.some(c=>c.id===btn.dataset.id))throw new Error('קאמפיין נישט געפונען');
+    state.campaignId=btn.dataset.id;state.tab='today';await refresh();return;
+  }
   if(a==='gabbai-decision'){
     if(!confirm('באשליסן דעם פינאנציעלן פארלאנג? מען קען די החלטה נישט צוריקדרייען.'))return;
     await api('/gabbai/approvals/'+btn.dataset.id+'/decision',{method:'POST',body:JSON.stringify({decision:btn.dataset.decision})});
