@@ -31,7 +31,7 @@ async function campaignAccess(db,cid,subject){
 
 test('Askan Plus: each member has private KPIs; manager teams totals; handoff is permissioned and audited',async()=>{
  // Reviewed base schema is safe to re-apply only to this disposable CI instance.
- for(const file of ['001_core.sql','002_team_connect.sql'])
+ for(const file of ['001_core.sql','002_team_connect.sql','015_donation_levels.sql'])
   await pool.query(await readFile(join(import.meta.dirname,'../db',file),'utf8'));
  const unique='ap-ci-'+Date.now();
  const owner=unique+'owner',leader=unique+'leader',a=unique+'askana',b=unique+'askanb',c=unique+'askanc',outsider=unique+'outside';
@@ -87,6 +87,31 @@ test('Askan Plus: each member has private KPIs; manager teams totals; handoff is
   assert.equal(Number(tb.pledged),200);
   assert.ok(!JSON.stringify(report.data).includes('QA Donor'),'Never export donor identity');
   assert.equal((await get(owner,'/campaigns/'+campaign+'/teams-report?days=999')).status,400);
+  const amounts='/campaigns/'+campaign+'/donation-levels';
+  assert.equal((await get(outsider,amounts)).status,404);
+  assert.equal((await patch(a,amounts,{levels:[]})).status,404,'No PATCH route intentionally');
+  async function put(who,values) {
+   const r=await fetch('http://127.0.0.1:'+server.address().port+'/api/plus'+amounts,{
+    method:'PUT',headers:{'x-ci-user':who,'content-type':'application/json'},
+    body:JSON.stringify({levels:values})});return {status:r.status,data:await r.json()};
+  }
+  const presets=[{amount:'50',label:'ברכה'},{amount:'150',label:'נדבה'},{amount:'1000',label:'גדולה'}];
+  assert.equal((await put(a,presets)).status,403);
+  assert.equal((await put(owner,[{amount:'-10',label:'bad'}])).status,400);
+  assert.equal((await put(owner,[{amount:'50',label:'test'},{amount:'150',label:'TEST'}])).status,400);
+  const saved=await put(owner,presets);
+  assert.equal(saved.status,200);
+  assert.equal(saved.data.levels.length,3);
+  assert.equal(saved.data.paymentProcessing,false);
+  const memberPresets=await get(a,amounts);
+  assert.equal(memberPresets.status,200);
+  assert.equal(Number(memberPresets.data.levels[1].amount),150);
+  const otherCannotSee=await get(outsider,amounts);
+  assert.equal(otherCannotSee.status,404);
+  assert.equal((await put(owner,[])).status,200);
+  assert.deepEqual((await get(a,amounts)).data.levels,[]);
+  const presetAudit=await pool.query("SELECT COUNT(*)::int total FROM cc_activity_events WHERE campaign_id=$1 AND event_type='donation_levels.updated'",[campaign]);
+  assert.equal(presetAudit.rows[0].total,2,'All level edits leave audit events');
   const handoff='/tasks/'+task+'/handoff';
   assert.equal((await patch(outsider,handoff,{assigneeSubject:b})).status,404);
   assert.equal((await patch(a,handoff,{assigneeSubject:c})).status,403);
