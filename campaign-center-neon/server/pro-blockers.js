@@ -66,7 +66,7 @@ export default function proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log
    const {task:t,campaign:c}=await scopedTask(db,req.params.id,req.userId,true);
    if(c.status==='closed'||!['open','in_progress'].includes(t.status))
     throw bad(409,'Task not open');
-   if(!elevated.includes(c.role) && t.assignee_subject!==req.userId)
+   if(!['owner','manager'].includes(c.role) && t.assignee_subject!==req.userId)
     throw bad(403,'Only assignee or campaign manager may update a blocker');
    const previous=(await db.query('SELECT * FROM cc_pro_task_blockers WHERE task_id=$1 FOR UPDATE',[t.id])).rows[0];
    if(!previous&&!isActive)throw bad(404,'No blocker to resolve');
