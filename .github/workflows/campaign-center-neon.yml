@@ -53,3 +53,5 @@ jobs:
         run: node --test tests/donation-links.test.mjs
       - name: Askan Plus member and team privacy, audited hand-offs
         run: node --test tests/askan-plus.test.mjs
+      - name: Askan Plus accurate cash/check installments and receipt immutability
+        run: node --test tests/plus-pledges.test.mjs
