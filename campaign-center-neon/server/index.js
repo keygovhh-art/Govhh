@@ -170,11 +170,10 @@ app.use('/api/team', (req,res,next)=>{
   next();
 });
 app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim,planPolicy}));
-app.use('/api/rooms',(_req,res)=>res.status(403).json({error:'Feature tier not allocated yet; no implicit subscription grant'}));
+// Preserve existing authenticated shared event pilot routes until their
+// final paid-tier placement is approved; these are not paid entitlements.
 app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
-app.use('/api/conferences',(_req,res)=>res.status(403).json({error:'Feature tier not allocated yet; no implicit subscription grant'}));
 app.use('/api/conferences',conferenceRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
-app.use('/api/rtc',(_req,res)=>res.status(403).json({error:'Feature tier not allocated yet; no implicit subscription grant'}));
 app.use('/api/rtc',rtcAudioRouter({pool,authenticate,member,campaignAccess,bad,uuid,log}));
 // Global Yemot credentials now live only on Gavhah under the platform super-admin.
 // Deny legacy organization-level reads AND writes at the server layer.
@@ -195,11 +194,8 @@ app.get('/api/yemot/central-status',async(_req,res)=>{
       lineNumber:data.lineNumber||null, routes:['1 — גבהה','2 — קאמפיין סענטער']});
   }catch{res.status(502).json({error:'Central Gavhah Yemot status unavailable'});}
 });
-app.use('/api/video',(_req,res)=>res.status(403).json({error:'Feature tier not allocated yet; no implicit subscription grant'}));
 app.use('/api/video',videoRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
-app.use('/api/floor',(_req,res)=>res.status(403).json({error:'Feature tier not allocated yet; no implicit subscription grant'}));
 app.use('/api/floor',floorRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
-app.use('/api/floor-program',(_req,res)=>res.status(403).json({error:'Feature tier not allocated yet; no implicit subscription grant'}));
 app.use('/api/floor-program',programRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/campaigns', campaignAdminRouter({pool,authenticate,campaignAccess,need,bad,log,trim}));
 app.use('/api/import',planPolicy.scoped('askan_pro','csv_import'));
