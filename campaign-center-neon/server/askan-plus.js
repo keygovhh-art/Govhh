@@ -103,5 +103,48 @@ export default function askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,
   });
   res.json(record);
  }));
+
+ // Donation amount PRESETS, not a money ledger or a checkout.
+ router.get('/campaigns/:cid/donation-levels',handler(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,workRoles);
+  const data=await pool.query('SELECT id,label,amount,display_order FROM cc_donation_levels WHERE organization_id=$1 AND campaign_id=$2 ORDER BY display_order',
+   [c.organization_id,c.id]);
+  res.set('Cache-Control','private,no-store');
+  res.json({levels:data.rows,paymentProcessing:false});
+ }));
+ router.put('/campaigns/:cid/donation-levels',handler(async(req,res)=>{
+  const submitted=req.body?.levels;
+  if(!Array.isArray(submitted)||submitted.length>8)throw bad(400,'Choose 0 to 8 donation levels');
+  const levels=[],names=new Set();
+  for(const [index,item] of submitted.entries()){
+   if(!item||typeof item!=='object'||Array.isArray(item)||
+     typeof item.label!=='string'||item.label.length>60)throw bad(400,'Invalid donation level label');
+   const label=item.label.trim();
+   const raw=String(item.amount??'');
+   if(!label||!/^(?:0|[1-9]\d{0,11})(?:\.\d{1,2})?$/.test(raw))throw bad(400,'Invalid suggested amount');
+   const amount=Number(raw);
+   if(!Number.isFinite(amount)||amount<=0||amount>1000000000000)throw bad(400,'Invalid suggested amount');
+   const key=label.toLocaleLowerCase();
+   if(names.has(key))throw bad(400,'Duplicate donation level label');
+   names.add(key);levels.push({label,amount:amount.toFixed(2),order:index});
+  }
+  const saved=await transaction(async db=>{
+   const c=await campaignAccess(db,req.params.cid,req.userId);
+   need(c.role,['owner','manager']);
+   if(c.status==='closed')throw bad(409,'Closed campaign settings cannot be edited');
+   // Lock campaign row so concurrent managers cannot interleave preset writes.
+   await db.query('SELECT id FROM cc_campaigns WHERE id=$1 AND organization_id=$2 FOR UPDATE',[c.id,c.organization_id]);
+   await db.query('DELETE FROM cc_donation_levels WHERE campaign_id=$1 AND organization_id=$2',[c.id,c.organization_id]);
+   for(const item of levels){
+    await db.query('INSERT INTO cc_donation_levels(organization_id,campaign_id,label,amount,display_order,created_by) VALUES($1,$2,$3,$4,$5,$6)',
+     [c.organization_id,c.id,item.label,item.amount,item.order,req.userId]);
+   }
+   await log(db,c.organization_id,c.id,req.userId,'donation_levels.updated',c.id,{
+    count:levels.length,labels:levels.map(x=>x.label),amounts:levels.map(x=>x.amount),
+    disclaimer:'Suggested amounts only, never real received funds'});
+   return levels;
+  });
+  res.json({levels:saved,paymentProcessing:false});
+ }));
  return router;
 }
