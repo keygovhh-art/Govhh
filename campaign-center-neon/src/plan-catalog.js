@@ -125,7 +125,7 @@ export const PLAN_FEATURES = [
     "code": "member_dashboard",
     "yi": "אייגענער עסקן־דעשבאורד אין קאמפיין",
     "minTier": 1,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
@@ -153,14 +153,14 @@ export const PLAN_FEATURES = [
     "code": "partial_pledges",
     "yi": "טיילווייז באצאלטע התחייבויות",
     "minTier": 1,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
     "code": "checks_cash",
     "yi": "באזונדערע טשעק און קעש־רעקארדס",
     "minTier": 1,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
@@ -174,7 +174,7 @@ export const PLAN_FEATURES = [
     "code": "donation_levels",
     "yi": "נדבה־סכומים און צילן",
     "minTier": 1,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
@@ -202,7 +202,7 @@ export const PLAN_FEATURES = [
     "code": "detailed_reports",
     "yi": "טיפערע מאנשאפט־באריכטן",
     "minTier": 1,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
