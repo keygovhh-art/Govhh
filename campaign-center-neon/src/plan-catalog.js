@@ -216,14 +216,14 @@ export const PLAN_FEATURES = [
     "code": "crm",
     "yi": "פארגעשריטענע CRM",
     "minTier": 2,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
     "code": "relationship_history",
     "yi": "פולערע קשר־באציאונג־געשיכטע",
     "minTier": 2,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
@@ -251,14 +251,14 @@ export const PLAN_FEATURES = [
     "code": "clarity",
     "yi": "Clarity Engine",
     "minTier": 2,
-    "status": "missing",
+    "status": "partial",
     "allocation": "planned"
   },
   {
     "code": "next_action",
     "yi": "Next Best Action",
     "minTier": 2,
-    "status": "missing",
+    "status": "partial",
     "allocation": "planned"
   },
   {
@@ -272,14 +272,14 @@ export const PLAN_FEATURES = [
     "code": "guidance",
     "yi": "פראפעסיאנעלע Guidance Requests",
     "minTier": 2,
-    "status": "missing",
+    "status": "partial",
     "allocation": "planned"
   },
   {
     "code": "sprint_memory",
     "yi": "7-Day Sprint און 30-Day Memory",
     "minTier": 2,
-    "status": "missing",
+    "status": "partial",
     "allocation": "planned"
   },
   {

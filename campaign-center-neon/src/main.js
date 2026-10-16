@@ -9,6 +9,9 @@ import { donationLinkView } from './donation-links-view.js';
 import { teamView } from './team-view.js';
 import { askanPlusView } from './askan-plus-view.js';
 import { plusPledgesView } from './plus-pledges-view.js';
+import { proCrmView } from './pro-crm-view.js';
+import { proSprintsView } from './pro-sprints-view.js';
+import { proGuidanceView } from './pro-guidance-view.js';
 import { hallView } from './hall-view.js';
 import { eventView } from './event-view.js';
 import { conferenceView } from './conference-view.js';
@@ -18,7 +21,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -97,10 +100,20 @@ async function refresh() {
     catch(error){state.donationLevels=[];state.donationLevelsError=error.message;}
     try{const pledges=await api('/plus/campaigns/'+id+'/pledges');state.plusPledges=pledges.pledges||[];state.plusPledgesError='';}
     catch(error){state.plusPledges=[];state.plusPledgesError=error.message;}
+    try{const pro=await api('/pro/campaigns/'+id+'/contacts?q='+encodeURIComponent(state.proQuery)+'&overdue='+state.proOverdue);state.proContacts=pro.contacts||[];state.proError='';}
+    catch(error){state.proContacts=[];state.proError=error.message;}
+    try{const next=await api('/pro/campaigns/'+id+'/clarity');state.proRecommendations=next.recommendations||[];}catch(error){state.proRecommendations=[];}
+    try{const sprintData=await api('/pro/campaigns/'+id+'/sprints');state.proSprints=sprintData.sprints||[];}catch(error){state.proSprints=[];}
+    try{const memory=await api('/pro/campaigns/'+id+'/focus-history');state.proHistory=memory.events||[];}catch(error){state.proHistory=[];}
+    try{const help=await api('/pro/campaigns/'+id+'/guidance');state.proGuidance=help.requests||[];state.proGuidanceError='';}catch(error){state.proGuidance=[];state.proGuidanceError=error.message;}
+    if(state.proGuidanceId&&!state.proGuidance.some(g=>g.id===state.proGuidanceId)){state.proGuidanceId=null;state.proGuidanceMessages=[];}
+    if(state.proGuidanceId){try{const thread=await api('/pro/guidance/'+state.proGuidanceId+'/messages');state.proGuidanceMessages=thread.messages||[];}catch(error){state.proGuidanceMessages=[];}}
+    if(state.proContactId){try{state.proSelected=await api('/pro/contacts/'+state.proContactId+'/timeline');}
+    catch(error){state.proSelected=null;state.proContactId=null;}}
     if(['owner','manager','finance','auditor'].includes(state.overview?.campaign?.role)){
       try{state.plusReport=await api('/plus/campaigns/'+id+'/teams-report?days='+state.plusDays);}catch(error){state.plusReport=null;}
     }else state.plusReport=null;
-  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;state.plusAlerts=null;state.plusCredits=[];state.donationLevels=[];state.donationLevelsError='';state.plusPledges=[];state.plusPledgesError='';}
+  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;state.plusAlerts=null;state.plusCredits=[];state.donationLevels=[];state.donationLevelsError='';state.plusPledges=[];state.plusPledgesError='';state.proContacts=[];state.proGuidance=[];state.proGuidanceId=null;state.proGuidanceMessages=[];state.proSprints=[];state.proHistory=[];state.proRecommendations=[];state.proSelected=null;state.proContactId=null;state.proError='';}
   state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.videoStatus.floor=null;state.videoGrants.floor=[];state.helpMessages=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
@@ -195,7 +208,7 @@ function campaignSetup(){
  return `<section class="card"><h2>קאמפיין שאפן</h2><form data-form="campaign" class="inline"><input name="title" required maxlength="160" placeholder="קאמפיין־נאמען"><input name="goalAmount" type="number" min="0" step="0.01" placeholder="ציל אין $"><button class="primary">שאפן קאמפיין</button></form></section>`;
 }
 function campaignNav(){
- return `<nav class="tabs">${[['today','היינט'],['goals','צילן'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל'],['conference','התקבצו אסיפות'],['yemot','ימות — צענטראל'],['plans','די 6 פלענער']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
+ return `<nav class="tabs">${[['today','היינט'],['goals','צילן'],['people','קשרים'],['crm','Askan Pro CRM'],['sprint','7־טאג Focus'],['guidance','עצה און הילף'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל'],['conference','התקבצו אסיפות'],['yemot','ימות — צענטראל'],['plans','די 6 פלענער']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
 }
 function yemotPanel(){
  const setting=state.yemot||{configured:false,connected:false,lineNumber:null};
@@ -290,7 +303,7 @@ async function exportContactsPage(){
 }
 
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='finance'?finance()+plusPledgesView(state,esc,money):state.tab==='team'?teamView(state,esc,money)+askanPlusView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='crm'?proCrmView(state,esc):state.tab==='sprint'?proSprintsView(state,esc):state.tab==='guidance'?proGuidanceView(state,esc):state.tab==='finance'?finance()+plusPledgesView(state,esc,money):state.tab==='team'?teamView(state,esc,money)+askanPlusView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -301,6 +314,37 @@ async function submit(event){
  const d=Object.fromEntries(new FormData(form).entries());
  try {
   switch(form.dataset.form){
+   case 'pro-guidance-new': {
+     await api('/pro/campaigns/'+state.campaignId+'/guidance',{method:'POST',
+       body:JSON.stringify({category:d.category,subject:d.subject,description:d.description})});break;
+   }
+   case 'pro-guidance-reply': {
+     if(!state.proGuidanceId)throw new Error('עפען א בקשה');
+     await api('/pro/guidance/'+state.proGuidanceId+'/messages',{method:'POST',body:JSON.stringify({body:d.body})});break;
+   }
+   case 'pro-sprint-new': {
+     const steps=String(d.steps||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{
+       const split=line.indexOf('|');
+       if(split<0)throw new Error('יעדע שורה: טאג | אויפגאבע');
+       return {day:Number(line.slice(0,split).trim()),title:line.slice(split+1).trim()};
+     });
+     await api('/pro/campaigns/'+state.campaignId+'/sprints',{method:'POST',body:JSON.stringify({title:d.title,startsOn:d.startsOn,steps})});break;
+   }
+   case 'pro-search': {
+     state.proQuery=String(d.query||'').trim();state.proOverdue=d.overdue==='on';
+     state.proSelected=null;state.proContactId=null;break;
+   }
+   case 'pro-profile': {
+     if(!state.proContactId)throw new Error('ערשט עפענען א קשר');
+     const tags=String(d.tags||'').split(',').map(x=>x.trim()).filter(Boolean);
+     const date=d.nextFollowupAt?new Date(d.nextFollowupAt):null;
+     if(date&&!Number.isFinite(date.getTime()))throw new Error('די נאכפאלג־צייט איז נישט ריכטיג');
+     await api('/pro/contacts/'+state.proContactId+'/profile',{method:'PUT',body:JSON.stringify({stage:d.stage,priority:d.priority,tags,nextFollowupAt:date?date.toISOString():null})});break;
+   }
+   case 'pro-interaction': {
+     if(!state.proContactId)throw new Error('ערשט עפענען א קשר');
+     await api('/pro/contacts/'+state.proContactId+'/interactions',{method:'POST',body:JSON.stringify({kind:d.kind,note:d.note})});break;
+   }
    case 'signin': {
      let r;
      try {r=await state.auth.signIn.email({email:d.email,password:d.password});}
@@ -496,6 +540,28 @@ async function click(event){
      await refresh();return;
    }
    if(a==='plan-tier'){const n=Number(btn.dataset.index);if(Number.isInteger(n)&&n>=0&&n<6){state.planTierIndex=n;draw();}return;}
+  if(a==='pro-guidance-open'){
+    state.proGuidanceId=btn.dataset.id;
+    const thread=await api('/pro/guidance/'+state.proGuidanceId+'/messages');
+    state.proGuidanceMessages=thread.messages||[];draw();return;
+  }
+  if(a==='pro-guidance-back'){state.proGuidanceId=null;state.proGuidanceMessages=[];draw();return;}
+  if(a==='pro-guidance-close'){
+    if(!confirm('די בקשה פארמאכן? די פריערדיגע שמועס בלייבט.'))return;
+    await api('/pro/guidance/'+btn.dataset.id+'/close',{method:'PATCH',body:'{}'});
+    await refresh();return;
+  }
+  if(a==='pro-step'){
+    await api('/pro/sprints/'+btn.dataset.sprintId+'/steps/'+btn.dataset.id,{
+      method:'PATCH',body:JSON.stringify({status:btn.dataset.status})});await refresh();return;
+  }
+  if(a==='pro-sprint-close'){
+    if(!confirm('דעם Sprint '+(btn.dataset.status==='completed'?'פארענדיגן':'ארכיווירן')+'? די געשיכטע בלייבט.'))return;
+    await api('/pro/sprints/'+btn.dataset.id+'/status',{method:'PATCH',body:JSON.stringify({status:btn.dataset.status})});
+    await refresh();return;
+  }
+  if(a==='pro-open'){state.proContactId=btn.dataset.id;state.proSelected=await api('/pro/contacts/'+state.proContactId+'/timeline');draw();return;}
+  if(a==='pro-close'){state.proSelected=null;state.proContactId=null;draw();return;}
   if(a==='refresh-history'){await refresh();return;}
   if(a==='more-history'){
     if(!state.campaignId||state.activityNextOffset===null)return;
@@ -634,8 +700,8 @@ document.addEventListener('submit',submit);
 document.addEventListener('click',click);
 document.addEventListener('change',async e=>{
  try {
-  if(e.target?.dataset?.action==='org-select'){state.orgId=e.target.value;state.campaignId=null;state.joinedRoomId=null;state.showCampaignForm=false;state.invitationCode='';state.connectCode='';state.csvPage=1;state.importRows=null;state.importPreview=null;await refresh();}
-  if(e.target?.dataset?.action==='campaign-select'){state.campaignId=e.target.value;state.csvPage=1;state.joinedRoomId=null;await refresh();}
+  if(e.target?.dataset?.action==='org-select'){state.orgId=e.target.value;state.campaignId=null;state.proContactId=null;state.proSelected=null;state.proGuidanceId=null;state.proGuidanceMessages=[];state.proQuery='';state.joinedRoomId=null;state.showCampaignForm=false;state.invitationCode='';state.connectCode='';state.csvPage=1;state.importRows=null;state.importPreview=null;await refresh();}
+  if(e.target?.dataset?.action==='campaign-select'){state.campaignId=e.target.value;state.csvPage=1;state.joinedRoomId=null;state.proContactId=null;state.proSelected=null;state.proGuidanceId=null;state.proGuidanceMessages=[];state.proQuery='';await refresh();}
   if(e.target?.dataset?.action==='plus-days'){state.plusDays=Number(e.target.value);await refresh();}
  }catch(error){say(error.message);}
 });

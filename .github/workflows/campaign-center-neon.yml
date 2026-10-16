@@ -55,3 +55,9 @@ jobs:
         run: node --test tests/askan-plus.test.mjs
       - name: Askan Plus accurate cash/check installments and receipt immutability
         run: node --test tests/plus-pledges.test.mjs
+      - name: Askan Pro CRM privacy, append-only relationship history, followups and two-team permissions
+        run: node --test tests/askan-pro-crm.test.mjs
+      - name: Askan Pro seven-day personal Sprints and immutable 30-day activity
+        run: node --test tests/pro-sprints.test.mjs
+      - name: Askan Pro private Guidance inbox and manager-message security
+        run: node --test tests/pro-guidance.test.mjs
