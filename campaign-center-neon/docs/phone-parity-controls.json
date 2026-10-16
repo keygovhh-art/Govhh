@@ -1,0 +1,760 @@
+{
+  "version": 1,
+  "scope": "User-facing Campaign Center web forms and button actions detected from the six active JS modules.",
+  "warning": "This is an audited lower bound. Dynamic controls, backend APIs, non-button interactions and Gavhah React widgets require separate scans. All telephone statuses remain NOT IMPLEMENTED until real IVR integration tests pass.",
+  "production_telephony_complete": false,
+  "record_count": 74,
+  "source_files": [
+    "campaign-center-neon/src/main.js",
+    "campaign-center-neon/src/team-view.js",
+    "campaign-center-neon/src/hall-view.js",
+    "campaign-center-neon/src/event-view.js",
+    "campaign-center-neon/src/conference-view.js",
+    "campaign-center-neon/src/video-view.js"
+  ],
+  "controls": [
+    {
+      "id": "action:calls",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Select an authorized contact or queue item by safe alias, validate calling hours and Do Not Call, obtain a real telephony session and save audited outcome.",
+      "security_gate": "verified-member-and-call-consent"
+    },
+    {
+      "id": "action:campaign-select",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "A spoken English prompt, secure DTMF or short voice response, and auditable confirmation matching the web action.",
+      "security_gate": "owner-or-member-permission-check"
+    },
+    {
+      "id": "action:claim-lead",
+      "source_files": [
+        "campaign-center-neon/src/team-view.js",
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Select an authorized contact or queue item by safe alias, validate calling hours and Do Not Call, obtain a real telephony session and save audited outcome.",
+      "security_gate": "verified-member-and-call-consent"
+    },
+    {
+      "id": "action:conference-admit",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:conference-ban",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:conference-grant",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:conference-hand",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:conference-home",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:conference-leave",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:conference-refresh",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:conference-remove",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:conference-revoke",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:conference-select",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:done",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "A spoken English prompt, secure DTMF or short voice response, and auditable confirmation matching the web action.",
+      "security_gate": "owner-or-member-permission-check"
+    },
+    {
+      "id": "action:event-check-in",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:event-check-out",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:event-refresh",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:export-contacts",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Transfer files through a short-lived authenticated link or approved message; never read raw CSV personal data to all callers.",
+      "security_gate": "file-access-and-manager-role"
+    },
+    {
+      "id": "action:hall-end",
+      "source_files": [
+        "campaign-center-neon/src/hall-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:hall-join",
+      "source_files": [
+        "campaign-center-neon/src/hall-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:hall-leave",
+      "source_files": [
+        "campaign-center-neon/src/hall-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:hall-open",
+      "source_files": [
+        "campaign-center-neon/src/hall-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:hall-pause",
+      "source_files": [
+        "campaign-center-neon/src/hall-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:hall-refresh",
+      "source_files": [
+        "campaign-center-neon/src/hall-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:help-open",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Private authenticated menu to search, hear, create or update the same records, retaining the website audit and access scope.",
+      "security_gate": "per-record-permission"
+    },
+    {
+      "id": "action:help-progress",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Private authenticated menu to search, hear, create or update the same records, retaining the website audit and access scope.",
+      "security_gate": "per-record-permission"
+    },
+    {
+      "id": "action:help-resolve",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Private authenticated menu to search, hear, create or update the same records, retaining the website audit and access scope.",
+      "security_gate": "per-record-permission"
+    },
+    {
+      "id": "action:import-confirm",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Transfer files through a short-lived authenticated link or approved message; never read raw CSV personal data to all callers.",
+      "security_gate": "file-access-and-manager-role"
+    },
+    {
+      "id": "action:logout",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Phone account linking with expiring one-time PIN; never speak, store, or request a website password by DTMF.",
+      "security_gate": "verified-phone-account-session"
+    },
+    {
+      "id": "action:more-history",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Private authenticated menu to search, hear, create or update the same records, retaining the website audit and access scope.",
+      "security_gate": "per-record-permission"
+    },
+    {
+      "id": "action:new-campaign",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "A spoken English prompt, secure DTMF or short voice response, and auditable confirmation matching the web action.",
+      "security_gate": "owner-or-member-permission-check"
+    },
+    {
+      "id": "action:new-connect-code",
+      "source_files": [
+        "campaign-center-neon/src/team-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Securely link and unlink the same MAX account with explicit per-scope consent, no private donor transfer.",
+      "security_gate": "dual-identity-auth"
+    },
+    {
+      "id": "action:org-select",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Read the affected user and exact permission change aloud and require owner-level authorization and affirmative confirmation.",
+      "security_gate": "owner-manager-authorization"
+    },
+    {
+      "id": "action:program-cancel",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:program-complete",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:program-lunch-preset",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:program-start",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:refresh-history",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Private authenticated menu to search, hear, create or update the same records, retaining the website audit and access scope.",
+      "security_gate": "per-record-permission"
+    },
+    {
+      "id": "action:release-lead",
+      "source_files": [
+        "campaign-center-neon/src/team-view.js",
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Select an authorized contact or queue item by safe alias, validate calling hours and Do Not Call, obtain a real telephony session and save audited outcome.",
+      "security_gate": "verified-member-and-call-consent"
+    },
+    {
+      "id": "action:rtc-listen",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:rtc-speak",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:rtc-stop",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:tab",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "A spoken English prompt, secure DTMF or short voice response, and auditable confirmation matching the web action.",
+      "security_gate": "owner-or-member-permission-check"
+    },
+    {
+      "id": "action:unlink-max",
+      "source_files": [
+        "campaign-center-neon/src/team-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Securely link and unlink the same MAX account with explicit per-scope consent, no private donor transfer.",
+      "security_gate": "dual-identity-auth"
+    },
+    {
+      "id": "action:video-revoke",
+      "source_files": [
+        "campaign-center-neon/src/video-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "action:video-watch",
+      "source_files": [
+        "campaign-center-neon/src/video-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "form:call",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Select an authorized contact or queue item by safe alias, validate calling hours and Do Not Call, obtain a real telephony session and save audited outcome.",
+      "security_gate": "verified-member-and-call-consent"
+    },
+    {
+      "id": "form:campaign",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "A spoken English prompt, secure DTMF or short voice response, and auditable confirmation matching the web action.",
+      "security_gate": "owner-or-member-permission-check"
+    },
+    {
+      "id": "form:campaign-settings",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "A spoken English prompt, secure DTMF or short voice response, and auditable confirmation matching the web action.",
+      "security_gate": "owner-or-member-permission-check"
+    },
+    {
+      "id": "form:conference-join",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "form:conference-message",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "form:conference-new",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "form:conference-policy",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "form:conference-settings",
+      "source_files": [
+        "campaign-center-neon/src/conference-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "form:contact",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Private authenticated menu to search, hear, create or update the same records, retaining the website audit and access scope.",
+      "security_gate": "per-record-permission"
+    },
+    {
+      "id": "form:contact-team",
+      "source_files": [
+        "campaign-center-neon/src/team-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Read the affected user and exact permission change aloud and require owner-level authorization and affirmative confirmation.",
+      "security_gate": "owner-manager-authorization"
+    },
+    {
+      "id": "form:finance",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Read amount, collect digits, read back exact amount, require explicit confirmation; log immutable idempotent monetary events with original-source and verified-vs-reported distinctions.",
+      "security_gate": "step-up-auth-and-financial-role"
+    },
+    {
+      "id": "form:floor-call",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Select an authorized contact or queue item by safe alias, validate calling hours and Do Not Call, obtain a real telephony session and save audited outcome.",
+      "security_gate": "verified-member-and-call-consent"
+    },
+    {
+      "id": "form:floor-help",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Private authenticated menu to search, hear, create or update the same records, retaining the website audit and access scope.",
+      "security_gate": "per-record-permission"
+    },
+    {
+      "id": "form:hall-message",
+      "source_files": [
+        "campaign-center-neon/src/hall-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "form:hall-new",
+      "source_files": [
+        "campaign-center-neon/src/hall-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "form:help-reply",
+      "source_files": [
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Private authenticated menu to search, hear, create or update the same records, retaining the website audit and access scope.",
+      "security_gate": "per-record-permission"
+    },
+    {
+      "id": "form:import-preview",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Transfer files through a short-lived authenticated link or approved message; never read raw CSV personal data to all callers.",
+      "security_gate": "file-access-and-manager-role"
+    },
+    {
+      "id": "form:invite",
+      "source_files": [
+        "campaign-center-neon/src/team-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Read the affected user and exact permission change aloud and require owner-level authorization and affirmative confirmation.",
+      "security_gate": "owner-manager-authorization"
+    },
+    {
+      "id": "form:member-permission",
+      "source_files": [
+        "campaign-center-neon/src/team-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Read the affected user and exact permission change aloud and require owner-level authorization and affirmative confirmation.",
+      "security_gate": "owner-manager-authorization"
+    },
+    {
+      "id": "form:member-team",
+      "source_files": [
+        "campaign-center-neon/src/team-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Read the affected user and exact permission change aloud and require owner-level authorization and affirmative confirmation.",
+      "security_gate": "owner-manager-authorization"
+    },
+    {
+      "id": "form:org",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Read the affected user and exact permission change aloud and require owner-level authorization and affirmative confirmation.",
+      "security_gate": "owner-manager-authorization"
+    },
+    {
+      "id": "form:program-add",
+      "source_files": [
+        "campaign-center-neon/src/main.js",
+        "campaign-center-neon/src/event-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "form:redeem-invite",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Phone account linking with expiring one-time PIN; never speak, store, or request a website password by DTMF.",
+      "security_gate": "verified-phone-account-session"
+    },
+    {
+      "id": "form:signin",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Phone account linking with expiring one-time PIN; never speak, store, or request a website password by DTMF.",
+      "security_gate": "verified-phone-account-session"
+    },
+    {
+      "id": "form:signup",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Phone account linking with expiring one-time PIN; never speak, store, or request a website password by DTMF.",
+      "security_gate": "verified-phone-account-session"
+    },
+    {
+      "id": "form:task",
+      "source_files": [
+        "campaign-center-neon/src/main.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Private authenticated menu to search, hear, create or update the same records, retaining the website audit and access scope.",
+      "security_gate": "per-record-permission"
+    },
+    {
+      "id": "form:video-config",
+      "source_files": [
+        "campaign-center-neon/src/video-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    },
+    {
+      "id": "form:video-grant",
+      "source_files": [
+        "campaign-center-neon/src/video-view.js"
+      ],
+      "web_exists": "ui_control_found",
+      "phone_status": "not_implemented",
+      "phone_equivalent": "Join or operate real-time room using an approved provider voice bridge. Preserve moderator, speaking, recording-consent, privacy and admission rules.",
+      "security_gate": "real-telephony-and-room-role"
+    }
+  ]
+}

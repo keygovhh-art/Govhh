@@ -1,0 +1,20 @@
+name: Campaign Center phone parity inventory
+on:
+  push:
+    branches:
+      - feature/phone-parity-every-campaign-control-20261016
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Ensure every static web action/form is inventoried for phone parity
+        run: node campaign-center-neon/scripts/check-phone-parity.mjs
