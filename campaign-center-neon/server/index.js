@@ -16,6 +16,7 @@ import plusPledgesRouter from './plus-pledges.js';
 import askanProRouter from './askan-pro.js';
 import proSprintRouter from './pro-sprints.js';
 import proGuidanceRouter from './pro-guidance.js';
+import proBlockersRouter from './pro-blockers.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
@@ -136,6 +137,7 @@ app.use('/api/plus',plusPledgesRouter({pool,campaignAccess,need,bad,uuid,trim,lo
 app.use('/api/pro',askanProRouter({pool,campaignAccess,bad,trim,log}));
 app.use('/api/pro',proSprintRouter({pool,campaignAccess,bad,log,uuid,trim}));
 app.use('/api/pro',proGuidanceRouter({pool,campaignAccess,bad,trim,uuid,log}));
+app.use('/api/pro',proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log}));
 app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
 app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
