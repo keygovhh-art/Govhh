@@ -29,8 +29,7 @@ async function campaignAccess(db,id,subject){
  return c;
 }
 test('campaign goals are tenant-scoped, role-checked, quota-bounded and append-only',async()=>{
- for(const f of ['013_personal_askan.sql','014_campaign_goals.sql'])
-   await pool.query(await readFile(join(import.meta.dirname,'../db',f),'utf8'));
+ await pool.query(await readFile(join(import.meta.dirname,'../db/013_campaign_goals.sql'),'utf8'));
  const unique='goals-ci-'+Date.now();
  const org=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES($1,$2) RETURNING id",['CI test',unique+'owner'])).rows[0].id;
  const other=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES($1,$2) RETURNING id",['Other',unique+'other'])).rows[0].id;
