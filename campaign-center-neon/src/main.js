@@ -4,6 +4,7 @@ import './style.css';
 import './plan-view.css';
 import { plansView } from './plan-view.js';
 import { personalView } from './personal-view.js';
+import { goalsView } from './goals-view.js';
 import { teamView } from './team-view.js';
 import { hallView } from './hall-view.js';
 import { eventView } from './event-view.js';
@@ -14,7 +15,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:1,personalItems:[],personalError:'',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:1,personalItems:[],personalError:'',goals:[],goalsError:'',notice:'',busy:false,manager:null,members:[],memberProgress:[],leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -85,7 +86,9 @@ async function refresh() {
       api('/campaigns/'+id+'/overview'),api('/campaigns/'+id+'/tasks'),
       api('/campaigns/'+id+'/contacts'),api('/campaigns/'+id+'/finance')
     ]);
-  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];}
+    try{const goalResult=await api('/goals/campaigns/'+id);state.goals=goalResult.goals||[];state.goalsError='';}
+    catch(error){state.goals=[];state.goalsError=error.message||'נישט צוטריטבאר';}
+  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';}
   state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.videoStatus.floor=null;state.videoGrants.floor=[];state.helpMessages=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
@@ -180,7 +183,7 @@ function campaignSetup(){
  return `<section class="card"><h2>קאמפיין שאפן</h2><form data-form="campaign" class="inline"><input name="title" required maxlength="160" placeholder="קאמפיין־נאמען"><input name="goalAmount" type="number" min="0" step="0.01" placeholder="ציל אין $"><button class="primary">שאפן קאמפיין</button></form></section>`;
 }
 function campaignNav(){
- return `<nav class="tabs">${[['today','היינט'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל'],['conference','התקבצו אסיפות'],['yemot','ימות — צענטראל'],['plans','די 6 פלענער']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
+ return `<nav class="tabs">${[['today','היינט'],['goals','צילן'],['people','קשרים'],['finance','נדבות'],['history','היסטאריע'],['team','מאנשאפט'],['hall','עסקנים־זאל'],['conference','התקבצו אסיפות'],['yemot','ימות — צענטראל'],['plans','די 6 פלענער']].map(([k,v])=>`<button data-action="tab" data-tab="${k}" class="${state.tab===k?'current':''}">${v}</button>`).join('')}</nav>`;
 }
 function yemotPanel(){
  const setting=state.yemot||{configured:false,connected:false,lineNumber:null};
@@ -272,7 +275,7 @@ async function exportContactsPage(){
 }
 
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.tab==='personal'?personalView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.tab==='personal'?personalView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -410,7 +413,9 @@ async function submit(event){
      state.campaignId=created.id;state.showCampaignForm=false;
      state.tab='today';break;
    }
-   case 'personal-item': await api('/personal/items',{method:'POST',body:JSON.stringify({title:d.title,kind:d.kind,details:d.details,priority:d.priority,dueAt:d.dueAt?new Date(d.dueAt).toISOString():null})});break;
+   case 'goal': await api('/goals/campaigns/'+state.campaignId,{method:'POST',body:JSON.stringify({title:d.title,category:d.category,targetValue:d.targetValue,dueOn:d.dueOn||null,description:d.description})});break;
+    case 'goal-update': await api('/goals/'+encodeURIComponent(form.dataset.goalId),{method:'PATCH',body:JSON.stringify({currentValue:d.currentValue,status:d.status})});break;
+    case 'personal-item': await api('/personal/items',{method:'POST',body:JSON.stringify({title:d.title,kind:d.kind,details:d.details,priority:d.priority,dueAt:d.dueAt?new Date(d.dueAt).toISOString():null})});break;
     case 'task': await api('/campaigns/'+state.campaignId+'/tasks',{method:'POST',body:JSON.stringify({title:d.title,priority:d.priority,kind:d.kind,assigneeSubject:d.assigneeSubject||undefined})});break;
    case 'import-preview': {
      const file=form.querySelector('input[type=file]')?.files?.[0];
@@ -448,6 +453,11 @@ async function click(event){
   if(a==='tab'){state.tab=btn.dataset.tab;draw();return;}
    if(a==='plan-open'){state.tab='plans';draw();return;}
    if(a==='personal-open'){state.tab='personal';await refresh();return;}
+   if(a==='goal-archive'){
+     if(!confirm('דעם ציל ארכיווירן? די היסטאריע בלייבט אפגעהיטן.'))return;
+     await api('/goals/'+encodeURIComponent(btn.dataset.id),{method:'PATCH',body:JSON.stringify({status:'archived'})});
+     await refresh();return;
+   }
    if(['personal-done','personal-reopen','personal-archive'].includes(a)){
      const status=a==='personal-done'?'done':a==='personal-reopen'?'open':'archived';
      await api('/personal/items/'+encodeURIComponent(btn.dataset.id),{method:'PATCH',body:JSON.stringify({status})});
