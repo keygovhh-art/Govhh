@@ -87,6 +87,24 @@ test('Askan Plus: each member has private KPIs; manager teams totals; handoff is
   assert.equal(Number(tb.pledged),200);
   assert.ok(!JSON.stringify(report.data).includes('QA Donor'),'Never export donor identity');
   assert.equal((await get(owner,'/campaigns/'+campaign+'/teams-report?days=999')).status,400);
+
+  await pool.query("INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,status,due_at) VALUES($1,$2,$3,'Overdue QA task','high','open','2026-01-01T10:00:00Z')",[org,campaign,a]);
+  const mineAlerts=await get(a,'/campaigns/'+campaign+'/alerts');
+  assert.equal(mineAlerts.status,200);
+  assert.equal(mineAlerts.data.notificationDelivered,false);
+  assert.equal(mineAlerts.data.overdueCount,1);
+  assert.equal(mineAlerts.data.overdueTasks[0].title,'Overdue QA task');
+  assert.deepEqual(mineAlerts.data.quietMembers,[],'Ordinary member cannot inspect other member activity');
+  assert.equal((await get(b,'/campaigns/'+campaign+'/alerts')).data.overdueCount,0,'Do not leak other team task alerts');
+  assert.equal((await get(outsider,'/campaigns/'+campaign+'/alerts')).status,404);
+  const leaderAlerts=await get(leader,'/campaigns/'+campaign+'/alerts');
+  assert.equal(leaderAlerts.status,200);
+  assert.equal(leaderAlerts.data.overdueCount,1,'Squad leader sees own squad only');
+  const ownerAlerts=await get(owner,'/campaigns/'+campaign+'/alerts');
+  assert.equal(ownerAlerts.status,200);
+  assert.equal(ownerAlerts.data.overdueCount,1);
+  assert.ok(ownerAlerts.data.quietMembers.some(u=>u.subject===leader),'Team summary is factual about missing manual logs');
+
   const amounts='/campaigns/'+campaign+'/donation-levels';
   assert.equal((await get(outsider,amounts)).status,404);
   async function put(who,values) {
