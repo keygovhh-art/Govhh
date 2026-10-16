@@ -11,6 +11,7 @@ import campaignAdminRouter from './campaign-admin.js';
 import contactsImportRouter from './contacts-import.js';
 import personalRouter from './personal.js';
 import goalsRouter from './goals.js';
+import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { randomUUID } from 'node:crypto';
@@ -116,6 +117,8 @@ app.get('/api/health', async (req, res, next) => {
   catch (error) { next(error); }
 });
 app.get('/api/config', (_req,res) => res.json({ neonAuthUrl: authBase.toString().replace(/\/$/,'') ,ready: Boolean(pool),experimentalAudioEnabled:process.env.CC_EXPERIMENTAL_P2P_AUDIO==='true'}));
+// Public product catalogue is informational; no automatic subscription is granted.
+app.get('/api/plans',(_req,res)=>res.json({plans:CAMPAIGN_PLANS,features:PLAN_FEATURES,paidPlanActivation:false,guidedManagedAreAddOns:true}));
 app.use('/api', (req,res,next) => pool ? next() : res.status(503).json({error:'Neon DATABASE_URL configuration required'}));
 // Cross-service endpoint is reachable ONLY with an explicitly configured 32+ byte shared secret.
 app.use('/api/connect/service', (req,res,next)=>pool?next():res.status(503).json({error:'Neon not configured'}));
