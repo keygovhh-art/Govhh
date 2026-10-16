@@ -20,7 +20,7 @@ export const PLAN_FEATURES = [
     "code": "shared_focus",
     "yi": "טעגליכער קאמפיין־Focus",
     "minTier": 0,
-    "status": "missing",
+    "status": "partial",
     "allocation": "planned"
   },
   {
