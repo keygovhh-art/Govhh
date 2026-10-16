@@ -22,7 +22,11 @@ if(failed)process.exitCode=1;
 
 // Exercise the exact SDK that the UI uses (no real account and no state changes).
 const {createAuthClient}=await import('@neondatabase/auth');
-const auth=createAuthClient(base);
+const {BetterAuthVanillaAdapter}=await import('@neondatabase/auth/vanilla/adapters');
+// Browser sends Origin automatically; Node smoke test must provide the matching trusted Origin.
+const auth=createAuthClient(base,{adapter:BetterAuthVanillaAdapter({
+ fetchOptions:{headers:{Origin:'https://gavhah-campaign-center.onrender.com'}}
+})});
 try {
  const result=await auth.signIn.email({email:'nonexistent-login-probe@invalid.example',password:'invalid-test-password'});
  const status=result.error?.status ?? 200;
