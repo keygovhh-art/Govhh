@@ -307,7 +307,7 @@ export const PLAN_FEATURES = [
     "code": "approvals",
     "yi": "באשטעטיגונגען",
     "minTier": 3,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
@@ -335,7 +335,7 @@ export const PLAN_FEATURES = [
     "code": "priority_oversight",
     "yi": "פריאריטעט־איבערזיכט",
     "minTier": 3,
-    "status": "missing",
+    "status": "partial",
     "allocation": "planned"
   },
   {
@@ -356,7 +356,7 @@ export const PLAN_FEATURES = [
     "code": "team_workload",
     "yi": "מאנשאפט־לאסט־באריכט",
     "minTier": 3,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
