@@ -32,11 +32,11 @@ try {
  const status=result.error?.status ?? 200;
  console.log('SDK signIn.email HTTP',status,'code',result.error?.code||'none');
  if(status===404||status>=500)failed=true;
-} catch(e){console.log('SDK signIn.email ERROR',e?.message||String(e));failed=true;}
+} catch(e){const status=Number(e?.status||e?.statusCode||0);console.log('SDK signIn.email INVALID-LOGIN',status,e?.code||'');if(![400,401,403].includes(status))failed=true;}
 try {
  const result=await auth.signUp.email({email:'not-an-email',password:'x',name:''});
  const status=result.error?.status ?? 200;
  console.log('SDK signUp.email invalid-input HTTP',status,'code',result.error?.code||'none');
  if(status===404||status>=500)failed=true;
-} catch(e){console.log('SDK signUp.email ERROR',e?.message||String(e));failed=true;}
+} catch(e){const status=Number(e?.status||e?.statusCode||0);console.log('SDK signUp.email INVALID-INPUT',status,e?.code||'');if(![400,401,422].includes(status))failed=true;}
 if(failed)process.exitCode=1;
