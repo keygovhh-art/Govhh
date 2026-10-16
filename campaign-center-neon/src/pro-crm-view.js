@@ -8,6 +8,8 @@ export function proCrmView(state,esc){
  const fmt=value=>value?esc(new Date(value).toLocaleString('en-US')):'נישט באשטימט';
  const stage={new:'נייע קשר',contacted:'שוין קאנטאקטירט',followup:'נאכפאלגן',pledged:'התחייבות',donor:'נדבן',closed:'פארמאכט'};
  const priorities={low:'נידעריג',normal:'נארמאל',high:'וויכטיג'};
+ const suggested=(state.proRecommendations||[]).map((x,i)=>'<article class="item"><div><strong>'+(i+1)+'. '+esc(x.title)+'</strong><small>'+esc(x.source==='task'?'אויפגאבע':'קשר־נאכפאלג')+' · '+esc(x.priority)+' · '+fmt(x.dueAt)+'</small></div>'+(x.source==='crm_followup'?'<button data-action="pro-open" data-id="'+esc(x.id)+'">עפענען קשר</button>':'<button data-action="tab" data-tab="today">עפענען אויפגאבן</button>')+'</article>').join('');
+ const clarity='<section class="card"><h2>Clarity — די קומענדיגע וויכטיגע שריט</h2><p class="muted">א פראקטישע אויסוואל לויט פארשפעטיגונג, וויכטיגקייט און טערמין פון דיינע ערלויבטע קאמפיין־רעקארדס. נישט קיין פארטיגע AI־אנאליז אדער אויטאמאטישע אקציעס.</p>'+(suggested||'<p class="muted">קיין רעקארדירטע אפענע שריט.</p>')+'</section>';
  const listing=contacts.map(c=>
   '<article class="item"><div><strong>'+esc(c.display_name)+'</strong>'+
   '<small>'+esc(c.phone||'קיין נומער')+' · '+esc(stage[c.stage]||c.stage)+
@@ -20,7 +22,7 @@ export function proCrmView(state,esc){
   '<form data-form="pro-search" class="inline"><input type="search" maxlength="90" name="query" value="'+esc(state.proQuery||'')+'" placeholder="נאמען אדער טעלעפאן"><label>פארשפעטיגט<input type="checkbox" name="overdue" '+(state.proOverdue?'checked':'')+'></label><button>זוכן</button></form>'+
   (state.proError?'<p role="alert">'+esc(state.proError)+'</p>':'')+
   (listing||'<p class="muted">קיינע ערלויבטע קשרים אין דער איצטיגער אויסוואל.</p>')+'</section>';
- if(!selected)return page;
+ if(!selected)return clarity+page;
  const p=selected.profile||{};
  const opt=(values,current)=>values.map(([key,label])=>
   '<option value="'+key+'" '+(key===current?'selected':'')+'>'+label+'</option>').join('');
@@ -38,7 +40,7 @@ export function proCrmView(state,esc){
    '<article class="item"><div><strong>'+esc(item.kind==='call'?'מאנועל באריכטעטע רוף':item.kind)+'</strong>'+
    '<small>'+esc(item.author)+' · '+fmt(item.createdAt)+(item.outcome?' · '+esc(item.outcome):'')+'</small>'+
    '<p>'+esc(item.note||'קיין נאטיץ')+'</p></div></article>').join('');
- return page+'<section class="card"><h2>'+esc(selected.contact.name)+' — קשר־געשיכטע</h2>'+
+ return clarity+page+'<section class="card"><h2>'+esc(selected.contact.name)+' — קשר־געשיכטע</h2>'+
   '<p class="muted">פריוואטקייט: '+esc(selected.contact.privacy)+(selected.contact.doNotCall?' · נישט רופן':'')+
   '. געשיכטע פון די מאנועל באריכטעטע רופן און דאקומענטירטע קאנטאקטן.</p>'+
   '<p>לעצטער נאכפאלג־טערמין: '+fmt(p.next_followup_at)+'</p>'+
