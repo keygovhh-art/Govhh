@@ -13,7 +13,7 @@
 | 5 | רוף־נאטיצן און נאכפאלגן | Pilot | Manual call outcomes/notes, case tasks; לענגערע Followup Scheduler פעלט |
 | 6 | טיילווייזע התחייבויות | **נייער Pilot** | Append-only receipt linkage, remaining amount, idempotent request UUID, `GET pledges`, טראַנזאקציע־לאק |
 | 7 | טשעק/קעש־דעטאלן | **נייער Pilot** | `cc_plus_manual_receipts` מיט cash/check/bank/external און רעפערענץ, מענטש־אריינגעגעבן; נישט באנק־באשטעטיגט |
-| 8 | עסקן/גרופע Credit | Partial | Finances credited_member_subject און Team totals; פולע attribution/corrections און Cross-Case parity פעלן |
+| 8 | עסקן/גרופע Credit | **פארבעסערטער Partial** | נייע `/api/plus/campaigns/:cid/credit-report` ווייזט Ledger credit פער אריגינעלן עסקן מיט pledge, receipt, refund און net. א פשוטער עסקן זעט נאר זיך, הנהלה מעג זען מאנשאפט. אמתע audited attribution reassign און Cross-Case parity פעלן נאך |
 | 9 | Donation Levels | **נייער Pilot** | 0–8 מנהל־באשטימטע סכומים/נעמען, איין־דרוק אויספילן די מאנועלע Finance־פאָרם; נישט Payment Checkout |
 | 10 | פארגעשריטענע טעסקס | **פארבעסערטער Pilot** | Manager handoff / same-squad leader only, due date and permanent audit, rejects completed and closed tasks |
 | 11 | פריוואטער מאנשאפט־זאל | Pilot | Existing room join/role/announcement foundations, אמתע סקיילעד קול/ווידעא נאך אפן |
