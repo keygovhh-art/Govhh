@@ -8,6 +8,7 @@ import { campaignFocusBoard } from './focus-board.js';
 import { donationLinkView } from './donation-links-view.js';
 import { teamView } from './team-view.js';
 import { askanPlusView } from './askan-plus-view.js';
+import { plusPledgesView } from './plus-pledges-view.js';
 import { hallView } from './hall-view.js';
 import { eventView } from './event-view.js';
 import { conferenceView } from './conference-view.js';
@@ -17,7 +18,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusDays:7,donationLevels:[],donationLevelsError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -92,10 +93,12 @@ async function refresh() {
     try{state.plusDesk=await api('/plus/campaigns/'+id+'/member-desk');}catch(error){state.plusDesk=null;}
     try{const levels=await api('/plus/campaigns/'+id+'/donation-levels');state.donationLevels=levels.levels||[];state.donationLevelsError='';}
     catch(error){state.donationLevels=[];state.donationLevelsError=error.message;}
+    try{const pledges=await api('/plus/campaigns/'+id+'/pledges');state.plusPledges=pledges.pledges||[];state.plusPledgesError='';}
+    catch(error){state.plusPledges=[];state.plusPledgesError=error.message;}
     if(['owner','manager','finance','auditor'].includes(state.overview?.campaign?.role)){
       try{state.plusReport=await api('/plus/campaigns/'+id+'/teams-report?days='+state.plusDays);}catch(error){state.plusReport=null;}
     }else state.plusReport=null;
-  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;state.donationLevels=[];state.donationLevelsError='';}
+  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;state.donationLevels=[];state.donationLevelsError='';state.plusPledges=[];state.plusPledgesError='';}
   state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.videoStatus.floor=null;state.videoGrants.floor=[];state.helpMessages=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
@@ -285,7 +288,7 @@ async function exportContactsPage(){
 }
 
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='finance'?finance():state.tab==='team'?teamView(state,esc,money)+askanPlusView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='finance'?finance()+plusPledgesView(state,esc,money):state.tab==='team'?teamView(state,esc,money)+askanPlusView(state,esc,money):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -331,6 +334,17 @@ async function submit(event){
      });break;
    }
    case 'member-team': await api('/team/campaigns/'+state.campaignId+'/members/'+encodeURIComponent(d.subject)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
+   case 'plus-partial-receipt': {
+     const id=form.dataset.pledgeId;
+     if(!state.plusPledges.some(p=>p.id===id))throw new Error('די התחייבות איז נישט פאראן אין דעם קאמפיין');
+     const signature=[id,d.amount,d.method,d.reference||''].join('|');
+     if(!state.receiptRequests[signature])state.receiptRequests[signature]=crypto.randomUUID();
+     await api('/plus/campaigns/'+state.campaignId+'/pledges/'+id+'/partial-receipts',{
+       method:'POST',body:JSON.stringify({requestId:state.receiptRequests[signature],amount:d.amount,method:d.method,reference:d.reference||''})
+     });
+     delete state.receiptRequests[signature];
+     break;
+   }
    case 'plus-donation-levels': {
      const levels=String(d.levels||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
        const parts=line.split('|');if(parts.length!==2)throw new Error('יעדע שורה דארף זיין: סכום | נאמען');
