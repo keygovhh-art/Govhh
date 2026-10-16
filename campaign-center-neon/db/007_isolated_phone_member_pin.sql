@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS public.cc_phone_member_pins (
  pin_index char(64) NOT NULL UNIQUE,
  pin_salt char(32) NOT NULL,
  pin_verifier char(128) NOT NULL,
+ activation_required boolean NOT NULL DEFAULT false,
  failed_attempts integer NOT NULL DEFAULT 0,
  locked_until timestamptz,
  updated_at timestamptz NOT NULL DEFAULT now(),
