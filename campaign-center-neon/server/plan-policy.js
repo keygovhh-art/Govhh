@@ -161,7 +161,10 @@ export function makePlanPolicy({pool,bad}){
   return async(req,res,next)=>{
    try {
     const routeType=code==='askan_plus'?'plus':code==='askan_pro'?'pro':code==='gabbai_pro'?'gabbai':code;
-    const routeFeature=featureForRoute(routeType,req.method,req.path);
+    const importOrExport=feature==='csv_import'&&(
+      (req.baseUrl==='/api/import'&&req.method==='POST'&&/^\/campaigns\/[a-f0-9-]{36}\/contacts\/import$/i.test(req.path))||
+      (req.baseUrl==='/api/team'&&req.method==='GET'&&/^\/campaigns\/[a-f0-9-]{36}\/contacts\.csv$/i.test(req.path)));
+    const routeFeature=importOrExport?'csv_import':featureForRoute(routeType,req.method,req.path);
     if(!routeFeature)throw bad(404,'Unknown or unallocated plan route');
     const org=await orgFromScopedPath(req,routeType);
     if(!org)throw bad(404,'Campaign or organization not found');
