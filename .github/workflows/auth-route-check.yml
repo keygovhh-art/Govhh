@@ -1,5 +1,6 @@
 name: Campaign Center Neon Auth Route Check
 on:
+  pull_request:
   push:
     branches:
       - fix/cc-login-404-and-solo-language-20261015
