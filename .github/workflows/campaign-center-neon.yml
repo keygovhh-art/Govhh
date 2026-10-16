@@ -49,3 +49,5 @@ jobs:
         run: node --test tests/goals.test.mjs
       - name: Source-grounded daily campaign Focus
         run: node --test tests/focus-board.test.mjs
+      - name: External donation URL audit, tenant and gateway honesty
+        run: node --test tests/donation-links.test.mjs
