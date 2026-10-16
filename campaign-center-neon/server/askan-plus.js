@@ -37,6 +37,44 @@ export default function askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,
    teamName:team.rows[0]?.team_name||'',tasks:tasks.rows[0],calls:calls.rows[0],
    finance:money.rows[0],moneyIsManualNotProcessorVerified:true});
  }));
+ router.get('/campaigns/:cid/alerts',handler(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,workRoles);
+  const manager=isLeader(c.role);
+  const squad=c.role==='squad_leader';
+  const scope=
+   " AND ($3::boolean OR a.assignee_subject=$4 OR ($5::boolean AND EXISTS ("+
+   " SELECT 1 FROM cc_campaign_members leader JOIN cc_campaign_members peer"+
+   " ON peer.organization_id=leader.organization_id AND peer.campaign_id=leader.campaign_id"+
+   " AND peer.team_name=leader.team_name AND peer.team_name<>''"+
+   " WHERE leader.organization_id=a.organization_id AND leader.campaign_id=a.campaign_id"+
+   " AND leader.subject=$4 AND peer.subject=a.assignee_subject)))";
+  const base=" FROM cc_assignments a WHERE a.organization_id=$1 AND a.campaign_id=$2"+
+   " AND a.status IN ('open','in_progress') AND a.due_at<now()"+scope;
+  const params=[c.organization_id,c.id,manager,req.userId,squad];
+  const [total,items]=await Promise.all([
+   pool.query('SELECT COUNT(*)::int total'+base,params),
+   pool.query('SELECT a.id,a.title,a.priority,a.assignee_subject,a.due_at'+base+
+    ' ORDER BY a.due_at ASC LIMIT 20',params)
+  ]);
+  let quietMembers=[];
+  if(manager){
+   const report=await pool.query(
+    "SELECT cm.subject,cm.team_name,MAX(call.created_at) last_manual_call_at"+
+    " FROM cc_campaign_members cm JOIN cc_memberships m ON m.organization_id=cm.organization_id"+
+    " AND m.subject=cm.subject AND m.membership_status='active'"+
+    " LEFT JOIN cc_call_events call ON call.organization_id=cm.organization_id"+
+    " AND call.campaign_id=cm.campaign_id AND call.member_subject=cm.subject"+
+    " WHERE cm.organization_id=$1 AND cm.campaign_id=$2 AND m.role IN ('askan','squad_leader')"+
+    " GROUP BY cm.subject,cm.team_name"+
+    " HAVING MAX(call.created_at) IS NULL OR MAX(call.created_at)<now()-interval '7 days'"+
+    " ORDER BY cm.team_name,cm.subject LIMIT 30",[c.organization_id,c.id]);
+   quietMembers=report.rows;
+  }
+  res.set('Cache-Control','private,no-store');
+  res.json({source:'existing_campaign_records',notificationDelivered:false,
+   overdueCount:total.rows[0].total,overdueTasks:items.rows,quietMembers,
+   advisory:'A lack of manually logged calls is not proof that a member did no work.'});
+ }));
  router.get('/campaigns/:cid/teams-report',handler(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
   need(c.role,['owner','manager','finance','auditor']);
