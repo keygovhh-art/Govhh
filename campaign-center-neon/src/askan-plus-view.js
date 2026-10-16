@@ -3,6 +3,7 @@
 export function askanPlusView(state,esc,money) {
  const desk=state.plusDesk;
  const report=state.plusReport;
+ const credits=state.plusCredits||[];
  const role=state.overview?.campaign?.role;
  const manager=['owner','manager','finance','auditor'].includes(role);
  const count=v=>esc(v??0);
@@ -24,6 +25,8 @@ export function askanPlusView(state,esc,money) {
   '<p class="muted">'+esc(m.subject)+' · '+esc(m.team_name||'נישט צוגעטיילט')+
   ' · לעצטע מאנועלע רוף־באריכט: '+esc(m.last_manual_call_at?.slice(0,10)||'קיינער')+'</p>'
  ).join(''):'';
+ const creditRows=credits.map(item=>'<article class="item"><div><strong>'+esc(item.subject)+'</strong><small>גרופע: '+esc(item.team_name||'נישט צוגעטיילט')+'</small><p>צוגעזאגט: '+money(item.pledged)+' · מאנועל באקומען: '+money(item.receipts)+' · צוריקגעדרייט: '+money(item.refunds)+' · נעטא: '+money(item.manual_net)+'</p></div></article>').join('');
+ const creditPanel='<section class="card"><h2>קרעדיט פער עסקן — לויטן רעקארדירטן Ledger</h2><p class="muted">יעדער געלט־איינטראָג ווערט נאר איינמאל גערעכנט פארן צוגעטיילטן עסקן. די היינטיגע גרופע קען זיך האבן געביטן. דאס איז מאנועל באריכטעט, נישט באנק־באשטעטיגט.</p>'+(creditRows||'<p class="muted">נאך קיין מאנועלע קרעדיט־רעקארדס.</p>')+'</section>';
  const warnings='<section class="card"><h2>עסקן פלאס — היינטיגע ווארענונגען</h2>'+
    '<p class="muted">דער סיסטעם ציילט בלויז רעקארדירטע פארשפעטיגטע אויפגאבן. קיין Push אדער Email ווערן נישט געשיקט דורך דעם איבערבליק.</p>'+
    (alerts?'<p><strong>פארשפעטיגטע אויפגאבן: '+esc(alerts.overdueCount)+'</strong></p>'+
@@ -41,7 +44,7 @@ export function askanPlusView(state,esc,money) {
  ).join('');
  return '<section class="card"><h2>עסקן פלאס — מיין קאמפיין־דעשבאורד</h2>'+
   '<p class="muted">נאר דיינע באשטעטיגטע קאמפיין־צוטיילונגען, מאנועלע רוף־באריכטן און פינאנציעלע רעקארדס.</p>'+
-  stats+'</section>'+warnings+
+  stats+'</section>'+creditPanel+warnings+
   (manager?'<section class="card"><h2>עסקן פלאס — גרופע־פארגלייך</h2>'+
    '<p class="muted">פאר דער הנהלה: בלויז צוזאמענגעשטעלטע גרופע־ציפערן. קיין פערזענליכע נדבן־נעמען אדער פריוואטע נאטיצן. א מאנועל באריכטעטע נדבה איז נישט א באשטעטיגטע באנק־באצאלונג.</p>'+
    '<label>באריכט־פעריאד<select data-action="plus-days">'+[7,30,90].map(d=>
