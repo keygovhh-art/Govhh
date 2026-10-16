@@ -78,6 +78,29 @@ test('Gabbai Pro approvals require two humans and preserve immutable decisions w
   await assert.rejects(pool.query('DELETE FROM cc_gabbai_approval_decisions WHERE id=$1',[dbDecisions.rows[0].id]),/append-only/);
   const moneyEvents=await pool.query('SELECT COUNT(*)::int n FROM cc_finance_events WHERE campaign_id=$1',[campaign]);
   assert.equal(moneyEvents.rows[0].n,0,'Approving must not invent paid revenue or record an actual payment');
+
+  const initialLedger=await request(owner,'GET','/campaigns/'+campaign+'/ledger-review?days=30');
+  assert.equal(initialLedger.status,200);
+  assert.equal(initialLedger.data.noExternalReconciliation,true);
+  assert.equal(Number(initialLedger.data.totals.reported_net),0);
+  assert.equal((await request(askan,'GET','/campaigns/'+campaign+'/ledger-review')).status,403);
+  assert.equal((await request(foreign,'GET','/campaigns/'+campaign+'/ledger-review')).status,404);
+  assert.equal((await request(owner,'GET','/campaigns/'+campaign+'/ledger-review?days=500')).status,400);
+  const transactions=[['pledge','120.00','p'],['receipt','45.00','r1'],['receipt','15.00','r2'],['refund','5.00','ref']];
+  for(const [kind,amount,key] of transactions){
+   await pool.query("INSERT INTO cc_finance_events(organization_id,campaign_id,credited_member_subject,source_system,source_event_key,event_kind,amount) VALUES($1,$2,$3,'gabbai-qa',$4,$5,$6)",
+    [org,campaign,finance,tag+key,kind,amount]);
+  }
+  const review=await request(auditor,'GET','/campaigns/'+campaign+'/ledger-review?days=30');
+  assert.equal(review.status,200);
+  assert.equal(Number(review.data.totals.pledged),120);
+  assert.equal(Number(review.data.totals.receipts),60);
+  assert.equal(Number(review.data.totals.refunds),5);
+  assert.equal(Number(review.data.totals.reported_net),55);
+  assert.equal(review.data.receiptsWithoutPledgeLink,2);
+  assert.ok(review.data.internalStampsNotBankVerification);
+  assert.equal(review.data.bySource.length,3);
+
   const audit=await pool.query("SELECT details FROM cc_activity_events WHERE campaign_id=$1 AND event_type LIKE 'gabbai.approval.%'",[campaign]);
   assert.equal(audit.rowCount,4);
   assert.ok(!JSON.stringify(audit.rows).includes('Private financial planning comment'),'No confidential request explanation in global audit');
