@@ -11,8 +11,10 @@ if(!dbUrl||!['127.0.0.1','localhost'].includes(new URL(dbUrl).hostname))
 const pool=new pg.Pool({connectionString:dbUrl,max:4});
 const bad=(status,msg)=>Object.assign(new Error(msg),{status});
 const uuid=v=>typeof v==='string'&&/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(v);
+const trim=(v,n)=>typeof v==='string'?v.trim().slice(0,n):'';
+const log=(db,org,camp,user,type,id,details)=>db.query('INSERT INTO cc_activity_events(organization_id,campaign_id,actor_subject,event_type,target_id,details) VALUES($1,$2,$3,$4,$5,$6)',[org,camp,user,type,id,JSON.stringify(details||{})]);
 test('Organization portfolio is workspace-leadership-only, no donor leak, currency-safe and exact',async()=>{
- for(const file of ['001_core.sql','002_team_connect.sql'])
+ for(const file of ['001_core.sql','002_team_connect.sql','022_organization_leadership_decisions.sql'])
   await pool.query(await readFile(join(import.meta.dirname,'../db',file),'utf8'));
  const id='portfolio-ci-'+Date.now(),owner=id+'owner',manager=id+'manager',worker=id+'worker',outside=id+'outside';
  const org=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES('Portfolio QA',$1) RETURNING id",[owner])).rows[0].id;
@@ -32,7 +34,7 @@ test('Organization portfolio is workspace-leadership-only, no donor leak, curren
  await pool.query("INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,notes,privacy) VALUES($1,$2,$3,'SECRET DONOR 100','5559991111','SECRET DONOR NOTES','private')",[org,a,worker]);
  const app=express();
  app.use('/api/organization',(req,_res,next)=>{req.userId=req.get('x-member')||'anonymous';next();});
- app.use('/api/organization',organizationPortfolioRouter({pool,bad,uuid}));
+ app.use('/api/organization',organizationPortfolioRouter({pool,bad,uuid,trim,log}));
  app.use((err,_req,res,_next)=>res.status(err.status||500).json({error:err.message}));
  const server=await new Promise(done=>{const srv=app.listen(0,'127.0.0.1',()=>done(srv));});
  async function get(who,oid){
@@ -61,6 +63,31 @@ test('Organization portfolio is workspace-leadership-only, no donor leak, curren
   assert.ok(!JSON.stringify(result.data).includes('SECRET DONOR'));
   assert.ok(!JSON.stringify(result.data).includes(foreignCamp));
   assert.equal((await get(manager,org)).status,200);
+
+  async function action(who,method,path,body){
+   const r=await fetch('http://127.0.0.1:'+server.address().port+'/api/organization'+path,{
+    method,headers:{'x-member':who,...(body?{'content-type':'application/json'}:{})},
+    ...(body?{body:JSON.stringify(body)}:{})});
+   return {status:r.status,data:await r.json()};
+  }
+  const list='/organizations/'+org+'/decisions';
+  assert.equal((await action(worker,'GET',list)).status,403);
+  assert.equal((await action(outside,'GET',list)).status,404);
+  assert.equal((await action(owner,'POST',list,{title:'Wrong campaign',context:'',campaignId:foreignCamp})).status,404);
+  const created=await action(manager,'POST',list,{title:'Important organizational plan',context:'PRIVATE STAFF BRIEF',campaignId:a});
+  assert.equal(created.status,201);
+  const decisionId=created.data.id;
+  assert.equal((await action(owner,'GET',list)).data.decisions.length,1);
+  assert.equal((await action(worker,'POST','/decisions/'+decisionId+'/resolve',{resolution:'Illegal'})).status,403);
+  const decided=await action(owner,'POST','/decisions/'+decisionId+'/resolve',{resolution:'Approve stage one'});
+  assert.equal(decided.status,200);
+  assert.equal((await action(manager,'POST','/decisions/'+decisionId+'/resolve',{resolution:'Rewrite'})).status,409);
+  await assert.rejects(pool.query("UPDATE cc_org_leadership_decisions SET title='Modified' WHERE id=$1",[decisionId]),/Leadership decision can only advance/);
+  await assert.rejects(pool.query('DELETE FROM cc_org_leadership_decisions WHERE id=$1',[decisionId]),/cannot be deleted/);
+  const entries=await pool.query("SELECT details FROM cc_activity_events WHERE event_type LIKE 'organization.decision.%' AND organization_id=$1",[org]);
+  assert.equal(entries.rowCount,2);
+  assert.ok(!JSON.stringify(entries.rows).includes('PRIVATE STAFF BRIEF'),'Do not leak leadership context through shared audit');
+
   await pool.query("UPDATE cc_memberships SET membership_status='revoked' WHERE organization_id=$1 AND subject=$2",[org,manager]);
   assert.equal((await get(manager,org)).status,404);
  }finally{await new Promise(done=>server.close(done));await pool.end();}
