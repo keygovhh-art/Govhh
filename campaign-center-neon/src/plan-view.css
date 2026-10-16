@@ -1,0 +1,23 @@
+/* Six-tier Campaign Center catalogue: responsive, RTL, accessible. */
+.plan-guide { direction:rtl; }
+.plan-guide h2 { margin-bottom:8px; }
+.plan-choices { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:9px; margin:18px 0 22px; }
+.plan-choice { min-width:0; min-height:68px; border:1px solid #b9cbc6; border-radius:12px; padding:11px; text-align:right; cursor:pointer; background:#fff; color:#13342f; }
+.plan-choice strong,.plan-choice small { display:block; overflow-wrap:anywhere; }
+.plan-choice small { opacity:.75; font-size:.81rem; margin-top:4px; }
+.plan-choice.chosen { border:2px solid #146b5d; background:#ebf6f1; }
+.plan-choice:focus-visible { outline:3px solid #c68d2d; outline-offset:2px; }
+.plan-detail { border-top:1px solid #dce7e2; padding-top:16px; }
+.plan-detail h3 { margin-top:0; }
+.plan-limits { line-height:2; }
+.plan-feature-list { list-style:none; padding:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.plan-feature { display:flex; gap:8px; align-items:flex-start; border:1px solid #dee7e2; padding:10px; border-radius:10px; background:#fafcfb; overflow-wrap:anywhere; }
+.plan-feature strong,.plan-feature small { display:block; }
+.plan-feature strong { font-size:.93rem; }
+.plan-feature small { font-size:.78rem; opacity:.78; margin-top:4px; }
+.plan-status { flex:0 0 10px; height:10px; border-radius:50%; margin-top:5px; }
+.plan-status.pilot { background:#17835e; }
+.plan-status.partial { background:#cf9637; }
+.plan-status.pending { background:#8c9793; }
+@media(min-width:740px) { .plan-choices { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@media(max-width:410px) { .plan-feature-list { grid-template-columns:1fr; } }
