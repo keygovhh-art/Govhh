@@ -124,7 +124,7 @@ app.use('/api/rtc',rtcAudioRouter({pool,authenticate,member,campaignAccess,bad,u
 app.all('/api/yemot/organizations/{*path}', (_req,res) =>
   res.status(410).json({error:'Organization Yemot credentials were retired. Manage the single central connection in Gavhah.'}));
 app.get('/api/yemot/central-status',async(_req,res)=>{
-  const secret=process.env.GAVHAH_CONNECT_SHARED_SECRET||'';
+  const secret=process.env.YEMOT_CENTRAL_SHARED_SECRET||'';
   if(secret.length<32)return res.status(503).json({error:'Central connection is not configured on both services'});
   try {
     const url=new URL('/api/yemot/service/status',process.env.GAVHAH_API_BASE_URL||'https://gavhah.onrender.com');
