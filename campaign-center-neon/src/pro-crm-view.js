@@ -6,6 +6,7 @@ export function proCrmView(state,esc){
  const role=state.overview?.campaign?.role;
  const canWrite=['owner','manager','squad_leader','askan'].includes(role);
  const fmt=value=>value?esc(new Date(value).toLocaleString('en-US')):'נישט באשטימט';
+ const forLocal=value=>{if(!value)return '';const d=new Date(value),pad=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());};
  const stage={new:'נייע קשר',contacted:'שוין קאנטאקטירט',followup:'נאכפאלגן',pledged:'התחייבות',donor:'נדבן',closed:'פארמאכט'};
  const priorities={low:'נידעריג',normal:'נארמאל',high:'וויכטיג'};
  const suggested=(state.proRecommendations||[]).map((x,i)=>'<article class="item"><div><strong>'+(i+1)+'. '+esc(x.title)+'</strong><small>'+esc(x.source==='task'?'אויפגאבע':'קשר־נאכפאלג')+' · '+esc(x.priority)+' · '+fmt(x.dueAt)+'</small></div>'+(x.source==='crm_followup'?'<button data-action="pro-open" data-id="'+esc(x.id)+'">עפענען קשר</button>':'<button data-action="tab" data-tab="today">עפענען אויפגאבן</button>')+'</article>').join('');
@@ -30,7 +31,7 @@ export function proCrmView(state,esc){
   '<label>מצב<select name="stage">'+opt(Object.entries(stage),p.stage||'new')+'</select></label>'+
   '<label>וויכטיגקייט<select name="priority">'+opt(Object.entries(priorities),p.priority||'normal')+'</select></label>'+
   '<label>צייכענונגען, אפגעטיילט מיט קאמא (ביז 10)<input maxlength="350" name="tags" value="'+esc((p.tags||[]).join(', '))+'"></label>'+
-  '<label>קומענדיגער נאכפאלג<input type="datetime-local" name="nextFollowupAt"></label>'+
+  '<label>קומענדיגער נאכפאלג<input type="datetime-local" name="nextFollowupAt" value="'+esc(forLocal(p.next_followup_at))+'"></label>'+
   '<p class="muted">א ליידיגער דאטום וועט אויסמעקן דעם קומענדיגן נאכפאלג־טערמין. די פריערדיגע ענדערונג בלייבט אין Audit.</p>'+
   '<button>אפהיטן CRM־פראפיל</button></form>'+
   '<form data-form="pro-interaction" class="stack"><h3>נייע קשר־אינטעראקציע</h3>'+
