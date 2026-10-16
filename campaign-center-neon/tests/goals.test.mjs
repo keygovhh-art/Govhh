@@ -5,6 +5,7 @@ import {join} from 'node:path';
 import express from 'express';
 import pg from 'pg';
 import goalsRouter from '../server/goals.js';
+import {makePlanPolicy} from '../server/plan-policy.js';
 
 const connection=process.env.TEST_DATABASE_URL;
 if(!connection||!['localhost','127.0.0.1'].includes(new URL(connection).hostname))
@@ -30,6 +31,7 @@ async function campaignAccess(db,id,subject){
 }
 test('campaign goals are tenant-scoped, role-checked, quota-bounded and append-only',async()=>{
  await pool.query(await readFile(join(import.meta.dirname,'../db/013_campaign_goals.sql'),'utf8'));
+  await pool.query(await readFile(join(import.meta.dirname,'../db/026_server_plan_entitlements.sql'),'utf8'));
  const unique='goals-ci-'+Date.now();
  const org=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES($1,$2) RETURNING id",['CI test',unique+'owner'])).rows[0].id;
  const other=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES($1,$2) RETURNING id",['Other',unique+'other'])).rows[0].id;
@@ -39,7 +41,7 @@ test('campaign goals are tenant-scoped, role-checked, quota-bounded and append-o
  await pool.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject) VALUES($1,$2,$3)',[org,camp,unique+'askan']);
  const app=express();app.use(express.json());
  app.use('/api/goals',(req,_res,next)=>{req.userId=req.get('x-ci-user')||'anonymous';next();});
- app.use('/api/goals',goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log}));
+ app.use('/api/goals',goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log,planPolicy:makePlanPolicy({pool,bad})}));
  app.use((error,_req,res,_next)=>res.status(error.status||500).json({error:error.message}));
  const server=await new Promise(resolve=>{const s=app.listen(0,'127.0.0.1',()=>resolve(s));});
  const base='http://127.0.0.1:'+server.address().port+'/api/goals';
