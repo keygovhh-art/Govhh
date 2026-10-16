@@ -70,6 +70,17 @@ test('campaign goals are tenant-scoped, role-checked, quota-bounded and append-o
   assert.equal((await call(askan,'/'+goal.id+'/history')).status,403);
   assert.equal((await call(owner,'/'+goal.id,'PATCH',{status:'archived'})).status,200);
   assert.equal((await call(owner,'/campaigns/'+camp,'POST',{title:'New goal',targetValue:'5'})).status,201);
+  await pool.query("INSERT INTO cc_plan_entitlements(organization_id,plan_code,provision_reference,provisioned_by) VALUES($1,'askan_pro','approved-ci-fixture-20261016','CI-operator')",[org]);
+  assert.equal((await call(owner,'/campaigns/'+camp)).data.goalLimit,20);
+  for(let i=0;i<17;i++){
+    const added=await call(owner,'/campaigns/'+camp,'POST',{title:'Pro goal '+i,targetValue:'10'});
+    assert.equal(added.status,201,'Askan Pro goal '+i);
+  }
+  assert.equal((await call(owner,'/campaigns/'+camp,'POST',{title:'Above Pro limit',targetValue:'10'})).status,409);
+  await pool.query("UPDATE cc_plan_entitlements SET status='suspended',updated_at=now() WHERE organization_id=$1",[org]);
+  assert.equal((await call(owner,'/campaigns/'+camp)).data.goalLimit,3);
+  assert.equal((await call(owner,'/campaigns/'+camp,'POST',{title:'Suspended limit',targetValue:'10'})).status,409);
+  assert.equal((await call(owner,'/campaigns/'+camp)).data.goals.length,20,'Plan downgrade may not delete old goals');
   const mutation=await pool.query('SELECT id FROM cc_goal_history WHERE goal_id=$1 LIMIT 1',[goal.id]);
   await assert.rejects(pool.query('DELETE FROM cc_goal_history WHERE id=$1',[mutation.rows[0].id]),/append-only/);
  }finally{
