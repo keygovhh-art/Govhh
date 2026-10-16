@@ -307,7 +307,7 @@ export const PLAN_FEATURES = [
     "code": "approvals",
     "yi": "באשטעטיגונגען",
     "minTier": 3,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
