@@ -3,6 +3,7 @@ import pg from 'pg';
 import teamRouter from './team.js';
 import webHallRouter from './web-hall.js';
 import conferenceRouter from './conferences.js';
+import {campaignPhoneWebRouter,campaignPhoneServiceRouter} from './phone-member-auth.js';
 import rtcAudioRouter from './rtc-audio.js';
 import videoRouter from './video.js';
 import floorRouter from './floor.js';
@@ -118,7 +119,11 @@ app.use('/api', (req,res,next) => pool ? next() : res.status(503).json({error:'N
 // Cross-service endpoint is reachable ONLY with an explicitly configured 32+ byte shared secret.
 app.use('/api/connect/service', (req,res,next)=>pool?next():res.status(503).json({error:'Neon not configured'}));
 app.use('/api/connect/service', connectServiceRouter({pool,bad,uuid,log}));
+// Independent Campaign Center PIN login. Server-to-server calls are authenticated
+// with the existing shared service secret, never with Gavhah member sessions.
+app.use('/api/phone/service',campaignPhoneServiceRouter({pool}));
 app.use('/api', authenticate);
+app.use('/api/phone',campaignPhoneWebRouter({pool,authenticate}));
 app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
 app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
