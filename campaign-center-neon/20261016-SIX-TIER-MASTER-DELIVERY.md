@@ -23,7 +23,7 @@
 ## Tier 2 — Chesed Quick
 **מוז קענען:** קאמפיין, ביז 3 צילן, פינף עסקנים, רופן־ליסטעס, קשרים מיט Do Not Call, 20־מינוט claim, מאנועלע התחייבויות און קבלות, קאמפיין־ציל, 3־שריט Focus, team progress, basic reports, System Watch, external donation link. א סאלאָ־עסקן קען צולייגן מאנשאפט אן פארלירן דאטן.
 **איצט:** קאמפיין, טיעם־איינלאדונגען, scoped קשרים/Claims, Calls, Manual Finance, CSV און Virtual Floor Pilot.
-**פעלט:** server-enforced quotas, באזונדערע Goal items, focus-memory, System Watch, external link settings, UAT.
+**נייעס אינעם איצטיגן Draft PR:** איצט אויך זיכערע באזונדערע קאמפיין־Goal items מיט Title, Category, Target, Current Progress, Due date, Status, 3-Goal Pilot Limit און immutable History; manager-only Writes און authorized member Reads. נייע Neon migration 014 דארף נאך staging/production review. **פעלט:** באצאלטע פלאן־באשטעטיגטע 20/100/500 Goal quotas, focus-memory, System Watch, external link settings, UAT.
 
 ## Tier 3 — Askan Pro
 **מוז קענען:** אלע Quick + Advanced CRM, קאמפיין־פיילס, CSV, Call Office, Clarity Radar, 7-day sprint, 30-day history, carryover, repeated-blocker insights, Next Best Action, controlled automations, guidance requests.
@@ -65,5 +65,6 @@ The complete 34-item catalogue and one of three states for each item (pilot, par
 ## Delivered in current work branch, NOT all 34
 - Read-only six-plan screen with exact quotas and honestly labeled feature states.
 - Owner-only Personal Askan Neon task/note/followup API and mobile UI, additive schema migration 013.
-- CI test for inherited plan feature catalogue and private two-user security.
+- Campaign goals with progress, authenticated manager actions, append-only audit and additive schema migration 014.
+- CI tests for inherited plan feature catalogue, private two-user security, goal-role isolation, archive, caps and append-only history.
 - Draft PR for inspection, NOT 100% completion.
