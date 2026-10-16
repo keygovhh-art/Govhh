@@ -47,3 +47,5 @@ jobs:
         run: node --test tests/six-plans.test.mjs
       - name: Campaign goal permissions, limits and immutable history
         run: node --test tests/goals.test.mjs
+      - name: Source-grounded daily campaign Focus
+        run: node --test tests/focus-board.test.mjs
