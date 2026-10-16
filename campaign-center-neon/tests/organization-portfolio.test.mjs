@@ -73,7 +73,8 @@ test('Organization portfolio is workspace-leadership-only, no donor leak, curren
   const list='/organizations/'+org+'/decisions';
   assert.equal((await action(worker,'GET',list)).status,403);
   assert.equal((await action(outside,'GET',list)).status,404);
-  assert.equal((await action(owner,'POST',list,{title:'Wrong campaign',context:'',campaignId:foreignCamp})).status,404);
+  const foreignAttempt=await action(owner,'POST',list,{title:'Wrong campaign',context:'',campaignId:foreignCamp});
+  assert.equal(foreignAttempt.status,404,JSON.stringify(foreignAttempt.data));
   const created=await action(manager,'POST',list,{title:'Important organizational plan',context:'PRIVATE STAFF BRIEF',campaignId:a});
   assert.equal(created.status,201);
   const decisionId=created.data.id;
