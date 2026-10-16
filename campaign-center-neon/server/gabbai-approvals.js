@@ -34,6 +34,30 @@ export default function gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim
   res.json({requests:q.rows,limit:200,role:c.role,approvalDoesNotMoveMoney:true,
    dualControl:true});
  }));
+ router.get('/campaigns/:cid/priority-oversight',run(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);
+  if(!['owner','manager'].includes(c.role))throw bad(403,'Leadership oversight required');
+  // One task row per assignee, one optional blocker row per task. Never join
+  // call and finance events here (doing so would multiply aggregates).
+  const data=await pool.query(
+   "SELECT cm.team_name,COUNT(DISTINCT cm.subject)::int active_members,"+
+   " COUNT(a.id) FILTER(WHERE a.status IN ('open','in_progress'))::int open_tasks,"+
+   " COUNT(a.id) FILTER(WHERE a.status IN ('open','in_progress') AND a.due_at<now())::int overdue_tasks,"+
+   " COUNT(b.task_id) FILTER(WHERE b.is_active AND a.status IN ('open','in_progress'))::int active_blockers"+
+   " FROM cc_campaign_members cm"+
+   " JOIN cc_memberships m ON m.organization_id=cm.organization_id AND m.subject=cm.subject"+
+   " AND m.membership_status='active'"+
+   " LEFT JOIN cc_assignments a ON a.organization_id=cm.organization_id"+
+   " AND a.campaign_id=cm.campaign_id AND a.assignee_subject=cm.subject"+
+   " LEFT JOIN cc_pro_task_blockers b ON b.task_id=a.id AND b.organization_id=cm.organization_id"+
+   " AND b.campaign_id=cm.campaign_id"+
+   " WHERE cm.organization_id=$1 AND cm.campaign_id=$2"+
+   " GROUP BY cm.team_name ORDER BY overdue_tasks DESC,active_blockers DESC,open_tasks DESC,cm.team_name LIMIT 50",
+   [c.organization_id,c.id]);
+  res.set('Cache-Control','private,no-store');
+  res.json({teams:data.rows,priorityOrder:'overdue-then-reported-blockers-then-open',
+   isBasedOnRecordedTasksOnly:true,noEmployeePerformanceJudgement:true});
+ }));
  router.get('/campaigns/:cid/ledger-review',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
   if(!readers.includes(c.role))throw bad(403,'Finance review access required');
