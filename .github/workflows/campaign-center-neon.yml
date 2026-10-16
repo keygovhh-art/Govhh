@@ -57,3 +57,5 @@ jobs:
         run: node --test tests/plus-pledges.test.mjs
       - name: Askan Pro CRM privacy, append-only relationship history, followups and two-team permissions
         run: node --test tests/askan-pro-crm.test.mjs
+      - name: Askan Pro seven-day personal Sprints and immutable 30-day activity
+        run: node --test tests/pro-sprints.test.mjs
