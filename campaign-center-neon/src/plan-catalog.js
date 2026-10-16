@@ -398,7 +398,7 @@ export const PLAN_FEATURES = [
     "code": "resource_allocation",
     "yi": "כוחות־פארטיילונג",
     "minTier": 4,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
