@@ -20,8 +20,17 @@ if(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(deepCampaign||'') &&
  /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(deepHall||'')){
  state.campaignId=deepCampaign;state.requestedRoomId=deepHall;state.tab='hall';
 }
+// The default Neon Better Auth client exposes .token() via jwtClient, not
+// .getJWTToken(). Never send an opaque session identifier as the API bearer JWT.
+async function getApiJwt(){
+  if(!state.auth)return null;
+  const result=await state.auth.token();
+  if(result.error)throw new Error(result.error.message||'נישט געלונגען צו באקומען אן אריינלאגיר־באשטעטיגונג');
+  const token=result.data?.token;
+  return typeof token==='string' && token.split('.').length===3 ? token : null;
+}
 async function api(path,options={}) {
-  const token = await state.auth.getJWTToken();
+  const token = await getApiJwt();
   if(!token)throw new Error('מען דארף זיך איינשרייבן');
   const r=await fetch('/api'+path,{
     ...options,
@@ -119,6 +128,13 @@ async function refresh() {
   }
   draw();
 }
+function authError(error){
+ const status=Number(error?.status||0);
+ if(status===404||/HTTP\\s*404/i.test(String(error?.message||'')))
+   return 'די Login־סערוויס געפינט נישט דעם פארלאנג (HTTP 404). די סיסטעם־אדרעס דארף ווערן איבערגעקוקט. קיינער דארף נישט נאכאמאל שאפן אן אקאונט ביז דאס איז פארראכטן.';
+ if(status===401||error?.code==='INVALID_EMAIL_OR_PASSWORD')return 'דער בליצפאסט אדער פעסווארט איז נישט ריכטיג.';
+ return String(error?.message||'אריינלאגירן איז נישט געלונגען');
+}
 function authView(){
  return `<main class="auth-wrap"><div class="auth-hero"><div class="logo">✦</div><h1>גבהה קאמפיין סענטער</h1>
  <p>קאמפיינס, עסקנים, קשרים און אויפגאבן — אויף איין ארט.</p><small>Neon־באזירטע פריערדיגע טעסט־ווערסיע</small></div>
@@ -128,11 +144,11 @@ function authView(){
 }
 function toolbar() {
  const org=state.orgs.find(x=>x.id===state.orgId);
- return `<header class="top"><div><div class="eyebrow">GAVHAH · Campaign Center</div><h1>קאמפיין סענטער</h1><small>שלום ${esc(state.user.name||state.user.email||'עסקן')}</small></div><button class="subtle" data-action="logout">ארויסגיין</button></header>
+ return `<header class="top"><div><div class="eyebrow">GAVHAH · Campaign Center</div><h1>קאמפיין סענטער</h1><small>שלום ${esc(state.user.name||state.user.email||'פריינט')}</small></div><button class="subtle" data-action="logout">ארויסגיין</button></header>
  <section class="selects">
-  <label>מוסד <select data-action="org-select">${state.orgs.map(o=>`<option value="${esc(o.id)}" ${o.id===state.orgId?'selected':''}>${esc(o.name)}</option>`).join('')}</select></label>
+  <label>דיין ארבעטס־פלאץ <select data-action="org-select">${state.orgs.map(o=>`<option value="${esc(o.id)}" ${o.id===state.orgId?'selected':''}>${esc(o.name)}</option>`).join('')}</select></label>
   <label>קאמפיין <select data-action="campaign-select">${state.campaigns.map(c=>`<option value="${esc(c.id)}" ${c.id===state.campaignId?'selected':''}>${esc(c.title)}</option>`).join('')}</select></label>
-  <div class="eyebrow">${org?'רשות: '+esc(org.role):'נאך קיין מוסד'}</div>
+  <div class="eyebrow">${org?'רשות: '+esc(org.role):'נאך קיין ארבעטס־פלאץ'}</div>
  </section>
  <section class="card invite-redeem">
   <details><summary>איך האב נאך אן איינלאדונגס־קאוד</summary>
@@ -145,8 +161,8 @@ function toolbar() {
  </section>`;
 }
 function orgSetup() {
- return `<section class="card"><h2>דער ערשטער שריט</h2><p>שאף א מוסד. דו וועסט זיין דער אייגנטימער; אן אנדער מוסד קען נישט לייענען דיינע דאטן.</p>
- <form data-form="org" class="inline"><input name="name" required maxlength="120" placeholder="נאמען פונעם מוסד"><button class="primary">שאפן מוסד</button></form><h3>איינלאדונג פון א מנהל</h3><form class="inline" data-form="redeem-invite"><input name="invitationCode" required dir="ltr" maxlength="32" placeholder="איינלאדונגס־קאוד"><button>זיך אנשליסן</button></form></section>`;
+ return `<section class="card"><h2>דער ערשטער שריט</h2><p>מאך דיין אייגענעם ארבעטס־פלאץ — אפילו דו ביסט נאך אליין. ווען דו וועסט וואקסן, קענסטו איינלאדן א מאנשאפט. דיינע דאטן בלייבן פריוואט.</p>
+ <form data-form="org" class="inline"><input name="name" required maxlength="120" placeholder="נאמען פון דיין פלאץ"><button class="primary">אנהייבן</button></form><h3>איינלאדונג פון א מנהל</h3><form class="inline" data-form="redeem-invite"><input name="invitationCode" required dir="ltr" maxlength="32" placeholder="איינלאדונגס־קאוד"><button>זיך אנשליסן</button></form></section>`;
 }
 function campaignSetup(){
  const role=state.orgs.find(o=>o.id===state.orgId)?.role;
@@ -159,7 +175,7 @@ function campaignNav(){
 function yemotPanel(){
  const setting=state.yemot||{configured:false,connected:false,lineNumber:null};
  return '<section class="card"><h2>ימות המשיח — איין צענטראלער האטליין</h2>'+
-  '<p class="muted">נאר דער גבהה־סופער־עדמין קען פארבינדן דעם איינציגן ימות API־שליסל. מוסדות און מיטגלידער קענען נישט אויפשטעלן באזונדערע שליסלען.</p>'+
+  '<p class="muted">נאר דער גבהה־סופער־עדמין קען פארבינדן דעם איינציגן ימות API־שליסל. אנדערע באנוצער קענען נישט אויפשטעלן באזונדערע שליסלען.</p>'+
   '<p>נומער: <strong>'+esc(setting.lineNumber||'נאכנישט באשטימט')+'</strong> · פארבינדונג: <strong>'+(setting.connected?'אקטיוו':'נאכנישט אקטיוו')+'</strong></p>'+
   '<p>מעניו: <strong>1 — גבהה</strong> · <strong>2 — קאמפיין סענטער</strong> (דערווייל פלאן; נישט ארויפגעלייגט אויף ימות).</p>'+
   '<p class="muted">צו פארוואלטן דעם איינציגן API שליסל: גיי צו גבהה → אדמיניסטראציע → ימות API — צענטראל.</p>'+
@@ -231,7 +247,7 @@ function history(){
 async function exportContactsPage(){
  if(!state.campaignId)throw new Error('קלייב א קאמפיין');
  const page=state.csvPage;
- const jwt=await state.auth.getJWTToken();
+ const jwt=await getApiJwt();
  const url='/api/team/campaigns/'+state.campaignId+'/contacts.csv?page='+page;
  const response=await fetch(url,{headers:{Authorization:'Bearer '+jwt},cache:'no-store'});
  if(!response.ok)throw new Error('מען קען יעצט נישט ארויסנעמען די קשרים: '+response.status);
@@ -360,7 +376,7 @@ async function submit(event){
    case 'hall-message': await api('/rooms/'+state.joinedRoomId+'/announcements',{method:'POST',body:JSON.stringify({message:d.message})});break;
    case 'contact-team': await api('/team/campaigns/'+state.campaignId+'/contacts/'+encodeURIComponent(d.contactId)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
    case 'invite': {
-     if(d.campaignOnly&&['manager','finance','auditor'].includes(d.role))throw new Error('דאס איז א מוסד־ברייטער ראלע. נעם אראפ דעם צייכן ״בלויז דעם קאמפיין״ אדער קלייב גרופע־פירער/עסקן.');
+     if(d.campaignOnly&&['manager','finance','auditor'].includes(d.role))throw new Error('דאס איז א ראלע פארן גאנצן ארבעטס־פלאץ. נעם אראפ דעם צייכן ״בלויז דעם קאמפיין״ אדער קלייב גרופע־פירער/עסקן.');
      const r=await api('/team/organizations/'+state.orgId+'/invitations',{method:'POST',
        body:JSON.stringify({role:d.role,campaignId:d.campaignOnly?state.campaignId:null})});
      state.invitationCode=r.invitationCode;
@@ -546,7 +562,9 @@ document.addEventListener('change',async e=>{
 });
 async function boot(){
  try{
-  const cfg=await fetch('/api/config').then(r=>r.json());
+  const configResponse=await fetch('/api/config',{cache:'no-store'});
+  if(!configResponse.ok)throw new Error('די Login־קאנפיגוראציע איז נישט צוטריטבאר: HTTP '+configResponse.status);
+  const cfg=await configResponse.json();
   if(!cfg.neonAuthUrl)throw new Error('Neon Auth איז נאכנישט קאנפיגורירט');
   state.experimentalAudioEnabled=cfg.experimentalAudioEnabled===true;
   if(!cfg.ready){$('#app').innerHTML='<main class="auth-wrap"><section class="card"><h1>גבהה קאמפיין סענטער</h1><p>דער Render־סערוויס איז צוגעגרייט. פארן אמתן ארבעטן דארף מען נאך אריינלייגן די געהיימע Neon DATABASE_URL אין Render Environment.</p><p class="muted">קיין דאטן זענען נישט אריבערגעפירט געווארן און קיין קאמפיין איז נאך נישט פארעפנטליכט.</p></section></main>';return;}
