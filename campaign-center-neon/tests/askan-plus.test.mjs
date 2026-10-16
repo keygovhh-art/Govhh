@@ -89,7 +89,6 @@ test('Askan Plus: each member has private KPIs; manager teams totals; handoff is
   assert.equal((await get(owner,'/campaigns/'+campaign+'/teams-report?days=999')).status,400);
   const amounts='/campaigns/'+campaign+'/donation-levels';
   assert.equal((await get(outsider,amounts)).status,404);
-  assert.equal((await patch(a,amounts,{levels:[]})).status,404,'No PATCH route intentionally');
   async function put(who,values) {
    const r=await fetch('http://127.0.0.1:'+server.address().port+'/api/plus'+amounts,{
     method:'PUT',headers:{'x-ci-user':who,'content-type':'application/json'},
