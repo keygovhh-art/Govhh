@@ -440,7 +440,7 @@ export const PLAN_FEATURES = [
     "code": "custom_focus",
     "yi": "אייגענע Focus־כללים",
     "minTier": 5,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
