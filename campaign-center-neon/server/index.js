@@ -166,7 +166,7 @@ app.use('/api/custom',customFocusRouter({pool,campaignAccess,bad,log}));
 app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
 app.use('/api/team', (req,res,next)=>{
   // CSV export is Askan Pro. No lower-tier alias via the old team router.
-  if(/^\/campaigns\/[a-f0-9-]{36}\/contacts\.csv$/i.test(req.path))return planPolicy.scoped('askan_pro')(req,res,next);
+  if(/^\/campaigns\/[a-f0-9-]{36}\/contacts\.csv$/i.test(req.path))return planPolicy.scoped('askan_pro','csv_import')(req,res,next);
   next();
 });
 app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim,planPolicy}));
@@ -202,7 +202,7 @@ app.use('/api/floor',floorRouter({pool,authenticate,campaignAccess,need,log,bad,
 app.use('/api/floor-program',(_req,res)=>res.status(403).json({error:'Feature tier not allocated yet; no implicit subscription grant'}));
 app.use('/api/floor-program',programRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/campaigns', campaignAdminRouter({pool,authenticate,campaignAccess,need,bad,log,trim}));
-app.use('/api/import',planPolicy.scoped('askan_pro'));
+app.use('/api/import',planPolicy.scoped('askan_pro','csv_import'));
 app.use('/api/import', contactsImportRouter({pool,authenticate,campaignAccess,need,bad,log}));
 app.get('/api/me', async (req,res,next) => {
   try {
