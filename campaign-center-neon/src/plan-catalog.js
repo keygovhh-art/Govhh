@@ -384,7 +384,7 @@ export const PLAN_FEATURES = [
     "code": "portfolio",
     "yi": "Portfolio־באריכטן",
     "minTier": 4,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
