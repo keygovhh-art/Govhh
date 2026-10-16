@@ -156,7 +156,7 @@ app.use('/api/import', contactsImportRouter({pool,authenticate,campaignAccess,ne
 app.get('/api/me', async (req,res,next) => {
   try {
     const result = await q("SELECT o.id,o.name,m.role FROM cc_organizations o JOIN cc_memberships m ON m.organization_id=o.id WHERE m.subject=$1 AND m.membership_status='active' ORDER BY o.created_at DESC",[req.userId]);
-    res.json({ subject:req.userId, organizations:result.rows });
+    res.json({ subject:req.userId, organizations:result.rows, platformPhoneAdmin: Boolean(process.env.CC_PLATFORM_OWNER_SUBJECT && process.env.CC_PLATFORM_OWNER_SUBJECT===req.userId) });
   } catch(error) { next(error); }
 });
 app.post('/api/organizations', async (req,res,next) => {
