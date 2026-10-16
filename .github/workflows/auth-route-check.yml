@@ -1,0 +1,21 @@
+name: Campaign Center Neon Auth Route Check
+on:
+  push:
+    branches:
+      - fix/cc-login-404-and-solo-language-20261015
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify-auth-routes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check production Neon managed-auth routing without creating accounts
+        run: node campaign-center-neon/scripts/auth-route-check.mjs
+        env:
+          NEON_AUTH_PROBE_URL: https://ep-lively-resonance-b5wpd7u5.neonauth.c-7.us-east-2.aws.neon.tech/neondb/auth
