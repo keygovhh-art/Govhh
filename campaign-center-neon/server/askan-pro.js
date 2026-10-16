@@ -34,6 +34,51 @@ export default function askanProRouter({pool,campaignAccess,bad,trim,log}){
     !Number.isFinite(Date.parse(value)))throw bad(400,'Follow-up time must include a timezone');
   return new Date(value).toISOString();
  }
+ router.get('/campaigns/:cid/clarity',run(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);
+  const elevated=authorized.includes(c.role);
+  const squad=c.role==='squad_leader';
+  const [tasks,followups]=await Promise.all([
+   pool.query(
+    "SELECT a.id,a.title,a.priority,a.due_at,a.assignee_subject FROM cc_assignments a"+
+    " WHERE a.organization_id=$1 AND a.campaign_id=$2 AND a.status IN ('open','in_progress')"+
+    " AND ($3::boolean OR a.assignee_subject=$4 OR ($5::boolean AND EXISTS("+
+    " SELECT 1 FROM cc_campaign_members l JOIN cc_campaign_members peer"+
+    " ON peer.organization_id=l.organization_id AND peer.campaign_id=l.campaign_id"+
+    " AND peer.team_name=l.team_name AND peer.team_name<>''"+
+    " WHERE l.organization_id=a.organization_id AND l.campaign_id=a.campaign_id AND l.subject=$4"+
+    " AND peer.subject=a.assignee_subject)))"+
+    " ORDER BY a.due_at ASC NULLS LAST,a.created_at ASC LIMIT 50",
+    [c.organization_id,c.id,elevated,req.userId,squad]),
+   pool.query(
+    "SELECT c.id,c.display_name,p.next_followup_at,p.priority FROM cc_contacts c"+
+    " JOIN cc_pro_contact_profiles p ON p.contact_id=c.id AND p.organization_id=c.organization_id"+
+    " WHERE c.organization_id=$1 AND c.campaign_id=$2 AND p.next_followup_at IS NOT NULL"+
+    " AND ((c.privacy='private' AND c.created_by=$3) OR"+
+    " (c.privacy='campaign' AND ($4::boolean OR c.assigned_team=("+
+    " SELECT team_name FROM cc_campaign_members WHERE organization_id=$1 AND campaign_id=$2 AND subject=$3))))"+
+    " ORDER BY p.next_followup_at ASC LIMIT 50",
+    [c.organization_id,c.id,req.userId,elevated])
+  ]);
+  const now=Date.now();
+  const score=(due,priority)=>{
+   const delta=due?Date.parse(due)-now:Infinity;
+   // Overdue first, then high-priority, then near deadline.
+   return (delta<=0?0:delta<86400000?10:delta<604800000?20:30)+
+    ({high:0,critical:0,normal:2,low:4}[priority]??3);
+  };
+  const actions=[
+   ...tasks.rows.map(t=>({source:'task',id:t.id,title:t.title,dueAt:t.due_at,
+     priority:t.priority,score:score(t.due_at,t.priority)})),
+   ...followups.rows.map(p=>({source:'crm_followup',id:p.id,title:p.display_name,dueAt:p.next_followup_at,
+     priority:p.priority,score:score(p.next_followup_at,p.priority)}))
+  ].sort((a,b)=>a.score-b.score||String(a.dueAt||'9999').localeCompare(String(b.dueAt||'9999'))||
+    a.id.localeCompare(b.id)).slice(0,5);
+  res.set('Cache-Control','private,no-store');
+  res.json({recommendations:actions,scoring:'overdue-then-priority-then-deadline',noAiClaims:true,
+    source:'current_authorized_tasks_and_crm_followups',
+    note:'Only currently recorded activities; not a predictive or autonomous agent.'});
+ }));
  router.get('/campaigns/:cid/contacts',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
   const term=String(req.query.q||'').trim();
