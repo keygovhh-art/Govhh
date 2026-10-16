@@ -391,7 +391,7 @@ export const PLAN_FEATURES = [
     "code": "leadership_decisions",
     "yi": "הנהלה־באשלוסן",
     "minTier": 4,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
