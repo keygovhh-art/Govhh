@@ -73,6 +73,18 @@ test('Askan Plus: each member has private KPIs; manager teams totals; handoff is
   assert.equal(Number(my.data.finance.manually_reported_net),30);
   assert.ok(!JSON.stringify(my.data).includes('200'),'A must not see B pledge');
   assert.equal((await get(a,'/campaigns/'+campaign+'/teams-report')).status,403);
+  const creditSelf=await get(a,'/campaigns/'+campaign+'/credit-report');
+  assert.equal(creditSelf.status,200);
+  assert.equal(creditSelf.data.scope,'self');
+  assert.equal(creditSelf.data.credits.length,1);
+  assert.equal(creditSelf.data.credits[0].subject,a);
+  assert.equal(Number(creditSelf.data.credits[0].manual_net),30);
+  const creditAdmin=await get(owner,'/campaigns/'+campaign+'/credit-report');
+  assert.equal(creditAdmin.status,200);
+  assert.equal(creditAdmin.data.credits.length,2);
+  assert.ok(creditAdmin.data.credits.some(x=>x.subject===b&&Number(x.pledged)===200));
+  assert.equal((await get(outsider,'/campaigns/'+campaign+'/credit-report')).status,404);
+
   assert.equal((await get(leader,'/campaigns/'+campaign+'/teams-report')).status,403);
   const report=await get(owner,'/campaigns/'+campaign+'/teams-report?days=7');
   assert.equal(report.status,200);
