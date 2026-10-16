@@ -69,3 +69,5 @@ jobs:
         run: node --test tests/organization-portfolio.test.mjs
       - name: Organization capped resources, months, concurrency and private audit
         run: node --test tests/organization-resources.test.mjs
+      - name: Organization private append-only knowledge, revisions and review dates
+        run: node --test tests/organization-memory.test.mjs
