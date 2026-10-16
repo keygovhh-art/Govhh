@@ -99,8 +99,8 @@ async function refresh() {
     try{const pledges=await api('/plus/campaigns/'+id+'/pledges');state.plusPledges=pledges.pledges||[];state.plusPledgesError='';}
     catch(error){state.plusPledges=[];state.plusPledgesError=error.message;}
     try{const pro=await api('/pro/campaigns/'+id+'/contacts?q='+encodeURIComponent(state.proQuery)+'&overdue='+state.proOverdue);state.proContacts=pro.contacts||[];state.proError='';}
-    try{const next=await api('/pro/campaigns/'+id+'/clarity');state.proRecommendations=next.recommendations||[];}catch(error){state.proRecommendations=[];}
     catch(error){state.proContacts=[];state.proError=error.message;}
+    try{const next=await api('/pro/campaigns/'+id+'/clarity');state.proRecommendations=next.recommendations||[];}catch(error){state.proRecommendations=[];}
     if(state.proContactId){try{state.proSelected=await api('/pro/contacts/'+state.proContactId+'/timeline');}
     catch(error){state.proSelected=null;state.proContactId=null;}}
     if(['owner','manager','finance','auditor'].includes(state.overview?.campaign?.role)){
