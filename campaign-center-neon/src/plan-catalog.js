@@ -83,7 +83,7 @@ export const PLAN_FEATURES = [
     "code": "external_link",
     "yi": "דרויסנדיגער נדבה־לינק",
     "minTier": 0,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
