@@ -24,7 +24,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -67,9 +67,10 @@ async function refresh() {
   state.campaigns=state.orgId?await api('/organizations/'+state.orgId+'/campaigns'):[];
   const orgRole=state.orgs.find(o=>o.id===state.orgId)?.role;
   if(state.orgId&&['owner','manager'].includes(orgRole)){
-    try{state.organizationPortfolio=await api('/organization/organizations/'+state.orgId+'/portfolio');state.organizationError='';}
-    catch(error){state.organizationPortfolio=null;state.organizationError=error.message;}
-  }else{state.organizationPortfolio=null;state.organizationError='';}
+    try{state.organizationPortfolio=await api('/organization/organizations/'+state.orgId+'/portfolio');
+      const decisions=await api('/organization/organizations/'+state.orgId+'/decisions');state.organizationDecisions=decisions.decisions||[];state.organizationError='';}
+    catch(error){state.organizationPortfolio=null;state.organizationDecisions=[];state.organizationError=error.message;}
+  }else{state.organizationPortfolio=null;state.organizationDecisions=[];state.organizationError='';}
   // Centralized, read-only status; never fetch organization-specific credentials.
   state.yemot=await api('/yemot/central-status').catch(()=>({configured:false,connected:false,lineNumber:null}));
   state.conferences=[];
@@ -329,6 +330,12 @@ async function submit(event){
  const d=Object.fromEntries(new FormData(form).entries());
  try {
   switch(form.dataset.form){
+   case 'organization-decision': {
+     await api('/organization/organizations/'+state.orgId+'/decisions',{method:'POST',body:JSON.stringify({title:d.title,context:d.context||'',campaignId:d.campaignId||null})});break;
+   }
+   case 'organization-resolve': {
+     await api('/organization/decisions/'+form.dataset.id+'/resolve',{method:'POST',body:JSON.stringify({resolution:d.resolution})});break;
+   }
    case 'gabbai-approval-new': {
      await api('/gabbai/campaigns/'+state.campaignId+'/approvals',{method:'POST',body:JSON.stringify({category:d.category,subject:d.subject,amount:d.amount,explanation:d.explanation||''})});break;
    }
