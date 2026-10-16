@@ -17,7 +17,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusDays:7,leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusDays:7,donationLevels:[],donationLevelsError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -90,10 +90,12 @@ async function refresh() {
     catch(error){state.goals=[];state.goalsError=error.message||'נישט צוטריטבאר';}
     try{state.donationLink=await api('/donation-links/'+id);}catch(error){state.donationLink={link:null,error:error.message};}
     try{state.plusDesk=await api('/plus/campaigns/'+id+'/member-desk');}catch(error){state.plusDesk=null;}
+    try{const levels=await api('/plus/campaigns/'+id+'/donation-levels');state.donationLevels=levels.levels||[];state.donationLevelsError='';}
+    catch(error){state.donationLevels=[];state.donationLevelsError=error.message;}
     if(['owner','manager','finance','auditor'].includes(state.overview?.campaign?.role)){
       try{state.plusReport=await api('/plus/campaigns/'+id+'/teams-report?days='+state.plusDays);}catch(error){state.plusReport=null;}
     }else state.plusReport=null;
-  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;}
+  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;state.donationLevels=[];state.donationLevelsError='';}
   state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.videoStatus.floor=null;state.videoGrants.floor=[];state.helpMessages=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
@@ -235,7 +237,9 @@ function people(){
 }
 function finance(){
  const role=state.overview?.campaign?.role;
- return `<div class="card"><h2>פלעדזשעס און באצאלונגען</h2><p class="muted">א פלעדזש איז נישט באקומען געלט. בלויז א באשטעטיגטע האנטליכע קבלה ווערט גערעכנט אלס באצאלט. דאס איז נישט קיין צאלונג־פראוויידער.</p>
+ const manager=['owner','manager'].includes(role);
+ const suggested='<section class="card"><h2>עסקן פלאס — פארגעשלאגענע נדבה־סכומים</h2><p class="muted">קלייב א סכום פאר א מאנועלן באריכט. דאס איז נישט א באצאל־קנעפל, און מאכט קיין נדבה נישט אויטאמאטיש באצאלט.</p><div class="inline">'+state.donationLevels.map(x=>'<button type="button" data-action="plus-preset" data-amount="'+esc(x.amount)+'">'+esc(x.label)+' — '+money(x.amount)+'</button>').join('')+'</div>'+(state.donationLevelsError?'<p role="alert">די נייער סעטינג־טאבעלע איז נאך נישט גרייט: '+esc(state.donationLevelsError)+'</p>':'')+(manager?'<form data-form="plus-donation-levels" class="stack"><label>סכומים און נעמען, איינס פער שורה (סכום | נאמען)<textarea name="levels" rows="5" placeholder="50 | קליינע נדבה\n150 | שטיצע\n1000 | גרויסע נדבה">'+esc(state.donationLevels.map(x=>x.amount+' | '+x.label).join('\n'))+'</textarea></label><p class="muted">ביז אכט סכומים. א ליידיגע ליסטע נעמט אראפ אלע פארשלאגן, נישט קיין אמתע געלט־רעקארדס.</p><button>אפהיטן נדבה־סכומים</button></form>':'')+'</section>';
+ return `${suggested}<div class="card"><h2>פלעדזשעס און באצאלונגען</h2><p class="muted">א פלעדזש איז נישט באקומען געלט. בלויז א באשטעטיגטע האנטליכע קבלה ווערט גערעכנט אלס באצאלט. דאס איז נישט קיין צאלונג־פראוויידער.</p>
  <form data-form="finance" class="stack"><select name="kind"><option value="pledge">צוגעזאגט</option>${['owner','finance'].includes(role)?'<option value="receipt">באשטעטיגט באקומען</option>':''}</select><input name="amount" required type="number" min=".01" step=".01" placeholder="$ סכום"><input name="verificationReference" placeholder="באשטעטיגונג־רעפערענץ (פאר באקומען געלט)"><button class="primary">אפהיטן</button></form></div>
  <section class="card"><h2>געלט־היסטאריע</h2>${state.finance.length?state.finance.map(x=>`<article class="item"><div><strong>${money(x.amount)}</strong><small>${esc(x.event_kind)} · ${x.verified_at?'באשטעטיגט':'נישט באשטעטיגט'} · ${esc(x.created_at?.slice(0,10)||'')}</small></div></article>`).join(''):'<p class="muted">נאכנישטא קיין פינאנציעלע רעקארדס.</p>'}</section>`;
 }
@@ -327,6 +331,13 @@ async function submit(event){
      });break;
    }
    case 'member-team': await api('/team/campaigns/'+state.campaignId+'/members/'+encodeURIComponent(d.subject)+'/team',{method:'PATCH',body:JSON.stringify({teamName:d.teamName})});break;
+   case 'plus-donation-levels': {
+     const levels=String(d.levels||'').split(/\r?\n/).map(line=>line.trim()).filter(Boolean).map(line=>{
+       const parts=line.split('|');if(parts.length!==2)throw new Error('יעדע שורה דארף זיין: סכום | נאמען');
+       return {amount:parts[0].trim(),label:parts[1].trim()};
+     });
+     await api('/plus/campaigns/'+state.campaignId+'/donation-levels',{method:'PUT',body:JSON.stringify({levels})});break;
+   }
    case 'plus-handoff': {
      if(!state.campaignId||!state.tasks.some(t=>t.id===form.dataset.taskId))throw new Error('אויפגאבע נישט געפונען');
      const dueAt=d.dueAt?new Date(d.dueAt).toISOString():undefined;
@@ -492,6 +503,10 @@ async function click(event){
   }
 
 
+  if(a==='plus-preset'){
+    const amountField=document.querySelector('form[data-form="finance"] input[name="amount"]');
+    if(amountField){amountField.value=btn.dataset.amount;amountField.focus();}return;
+  }
   if(a==='new-campaign'){state.showCampaignForm=!state.showCampaignForm;draw();return;}
   if(a==='done'){await api('/tasks/'+btn.dataset.id,{method:'PATCH',body:JSON.stringify({status:'done'})});await refresh();return;}
   if(a==='new-connect-code'){const r=await api('/connect/code',{method:'POST',body:'{}',headers:{'Content-Type':'application/json'}});state.connectCode=r.code;draw();return;}
