@@ -19,3 +19,20 @@ for(const c of checks){
  }catch(e){console.log(c.path,'UNREACHABLE',e?.message||String(e));failed=true;}
 }
 if(failed)process.exitCode=1;
+
+// Exercise the exact SDK that the UI uses (no real account and no state changes).
+const {createAuthClient}=await import('@neondatabase/auth');
+const auth=createAuthClient(base);
+try {
+ const result=await auth.signIn.email({email:'nonexistent-login-probe@invalid.example',password:'invalid-test-password'});
+ const status=result.error?.status ?? 200;
+ console.log('SDK signIn.email HTTP',status,'code',result.error?.code||'none');
+ if(status===404||status>=500)failed=true;
+} catch(e){console.log('SDK signIn.email ERROR',e?.message||String(e));failed=true;}
+try {
+ const result=await auth.signUp.email({email:'not-an-email',password:'x',name:''});
+ const status=result.error?.status ?? 200;
+ console.log('SDK signUp.email invalid-input HTTP',status,'code',result.error?.code||'none');
+ if(status===404||status>=500)failed=true;
+} catch(e){console.log('SDK signUp.email ERROR',e?.message||String(e));failed=true;}
+if(failed)process.exitCode=1;
