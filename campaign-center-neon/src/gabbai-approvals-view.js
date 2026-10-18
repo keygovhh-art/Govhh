@@ -33,7 +33,37 @@ export function gabbaiApprovalsView(state,esc,money){
    (ledgerRows||'<p class="muted">קיין איינטראגן אין דעם אויסגעקליבענעם זמן.</p>'):
    '<p class="muted">דער Ledger־איבערבליק איז נאך נישט גרייט אויף דעם סערווער.</p>')+
   '</section>';
- const rows=(state.gabbaiApprovals||[]).map(a=>
+ const summary=state.gabbaiSummary||{};
+ const filter=state.gabbaiFilter||'pending';
+ const search=String(state.gabbaiQuery||'').trim().toLocaleLowerCase();
+ const filters=[
+  ...(canReview?[['actionable','פאר מיין באשלוס']]:[]),
+  ['pending','אלע ווארטנדיגע'],['mine','מיינע פארלאנגען'],
+  ['approved','באשטעטיגטע'],['rejected','אפגעווארפענע'],['all','אלע']
+ ];
+ const show=a=>{
+  if(filter==='actionable')return canReview&&a.status==='pending'&&a.requested_by!==state.subject;
+  if(filter==='mine')return a.requested_by===state.subject;
+  return filter==='all'||a.status===filter;
+ };
+ const visible=(state.gabbaiApprovals||[]).filter(a=>show(a)&&
+  (!search||[a.subject,a.explanation,a.category,a.requested_by].some(v=>
+   String(v||'').toLocaleLowerCase().includes(search))));
+ const financeWorkDesk='<section class="card"><h2>Gabbai Pro — היינטיגע פינאנציעלע באשלוסן</h2>'+
+  '<p class="muted">די ציפערן זענען פון אלע רעקארדירטע פארלאנגען אינעם קאמפיין, נישט נאר די ערשטע 200 אין דער ליסטע. די פארלאנגען און באשלוסן זענען אינערליך; דאס שיקט נישט קיין געלט.</p>'+
+  '<div class="metrics"><div><span>ווארטנדיגע פארלאנגען</span><strong>'+esc(summary.pending??0)+'</strong></div>'+
+  '<div><span>ווארטנדיגער סכום</span><strong>'+money(summary.pending_amount??0)+'</strong></div>'+
+  '<div><span>פאר מיין באשלוס</span><strong>'+esc(canReview?(summary.reviewable_count??0):0)+'</strong></div>'+
+  '<div><span>מיינע ווארטנדיגע בקשות</span><strong>'+esc(summary.my_pending??0)+'</strong></div></div>'+
+  '<div class="inline">'+filters.map(([key,title])=>
+   '<button type="button" data-action="gabbai-filter" data-value="'+key+'" aria-pressed="'+(filter===key?'true':'false')+'">'+
+   title+'</button>').join('')+'</div>'+
+  '<form data-form="gabbai-filter-search" class="inline">'+
+  '<label>זוך פארלאנג<input type="search" name="query" maxlength="120" value="'+esc(state.gabbaiQuery||'')+
+  '" placeholder="ענין, בקשה־סארט אדער עסקן"></label><button type="submit">זוכן</button></form>'+
+  '<p class="muted">געוויזן '+visible.length+' פון די לעצטע '+(state.gabbaiApprovals||[]).length+
+  ' ערלויבטע פארלאנגען. די סכום־ציפערן אויבן זענען פון אלע רעקארדס.</p></section>';
+ const rows=visible.map(a=>
   '<article class="item"><div><strong>'+esc(a.subject)+' — '+money(a.amount)+'</strong>'+
   '<small>'+esc(categories[a.category]||a.category)+' · '+esc(statuses[a.status]||a.status)+
   ' · '+esc(a.created_at?.slice(0,16)||'')+'</small>'+
@@ -55,7 +85,7 @@ export function gabbaiApprovalsView(state,esc,money){
   '<label>דעטאלן<textarea name="explanation" maxlength="1500"></textarea></label>'+
   '<button class="primary">אוועקשטעלן פאר באשטעטיגונג</button>'+
   '</form></section>':'';
- return priorityBoard+ledgerPanel+'<section class="card"><h2>Gabbai Pro — פינאנציעלע באשטעטיגונגען</h2>'+
+ return financeWorkDesk+priorityBoard+ledgerPanel+'<section class="card"><h2>Gabbai Pro — פינאנציעלע באשטעטיגונגען</h2>'+
   '<p class="muted">צוויי באזונדערע מענטשן: איינער בעט און אן אנדערער בארעכטיגטער מנהל באשליסט. דער סיסטעם מאכט נישט קיין באנק־באצאלונג, נישט קיין Refund און נישט קיין פינאנציעלע Ledger־קארעקטור.</p>'+
   (state.gabbaiError?'<p role="alert">'+esc(state.gabbaiError)+'</p>':'')+
   (rows||'<p class="muted">נאך קיין באשטעטיגונגס־בקשות.</p>')+'</section>'+form;
