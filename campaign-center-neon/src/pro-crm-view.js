@@ -9,8 +9,29 @@ export function proCrmView(state,esc){
  const forLocal=value=>{if(!value)return '';const d=new Date(value),pad=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());};
  const stage={new:'נייע קשר',contacted:'שוין קאנטאקטירט',followup:'נאכפאלגן',pledged:'התחייבות',donor:'נדבן',closed:'פארמאכט'};
  const priorities={low:'נידעריג',normal:'נארמאל',high:'וויכטיג'};
- const suggested=(state.proRecommendations||[]).map((x,i)=>'<article class="item"><div><strong>'+(i+1)+'. '+esc(x.title)+'</strong><small>'+esc(x.source==='task'?'אויפגאבע':'קשר־נאכפאלג')+' · '+esc(x.priority)+' · '+fmt(x.dueAt)+'</small></div>'+(x.source==='crm_followup'?'<button data-action="pro-open" data-id="'+esc(x.id)+'">עפענען קשר</button>':'<button data-action="tab" data-tab="today">עפענען אויפגאבן</button>')+'</article>').join('');
- const clarity='<section class="card"><h2>Clarity — די קומענדיגע וויכטיגע שריט</h2><p class="muted">א פראקטישע אויסוואל לויט פארשפעטיגונג, וויכטיגקייט און טערמין פון דיינע ערלויבטע קאמפיין־רעקארדס. נישט קיין פארטיגע AI־אנאליז אדער אויטאמאטישע אקציעס.</p>'+(suggested||'<p class="muted">קיין רעקארדירטע אפענע שריט.</p>')+'</section>';
+ const nextChoices=new Map((state.proNextAction?.choices||[]).map(x=>[x.source_type+':'+x.source_id,x]));
+ const nextLabels={accepted:'איך נעם עס אן',deferred:'שפעטער',skipped:'איבערגיין',unmarked:'נאך נישט באשלאסן'};
+ const suggested=(state.proRecommendations||[]).map((x,i)=>{
+  const chosen=nextChoices.get(x.source+':'+x.id);
+  const choiceButtons=['accepted','deferred','skipped'].map(value=>
+    '<button type="button" data-action="pro-next-choice" data-source="'+esc(x.source)+'" data-id="'+esc(x.id)+'" data-decision="'+value+'">'+esc(nextLabels[value])+'</button>').join(' ');
+  return '<article class="item"><div><strong>'+(i+1)+'. '+esc(x.title)+'</strong>'+
+   '<small>'+esc(x.source==='task'?'אויפגאבע':'קשר־נאכפאלג')+' · '+esc(x.priority)+' · '+fmt(x.dueAt)+'</small>'+
+   (chosen?'<p class="muted">מיין באשלוס: '+esc(nextLabels[chosen.decision]||chosen.decision)+'</p>':'')+
+   '</div><div class="inline">'+choiceButtons+
+   (x.source==='crm_followup'?'<button data-action="pro-open" data-id="'+esc(x.id)+'">עפענען קשר</button>':
+     '<button data-action="tab" data-tab="today">עפענען אויפגאבן</button>')+'</div></article>';
+ }).join('');
+ const nextStats=(state.proNextAction?.choices||[]).reduce((a,x)=>{
+   if(x.decision==='accepted')a.accepted++;
+   if(x.decision==='deferred')a.deferred++;
+   if(x.decision==='skipped')a.skipped++;
+   return a;
+ },{accepted:0,deferred:0,skipped:0});
+ const nextSummary='<p class="muted">מיינע באשלוסן — אנגענומען: '+nextStats.accepted+
+  ' · אויף שפעטער: '+nextStats.deferred+' · איבערגעגאנגען: '+nextStats.skipped+
+  '. די סימנים טוישן נישט אטאמאטיש דעם מצב פון דער אויפגאבע.</p>';
+ const clarity='<section class="card"><h2>Clarity — די קומענדיגע וויכטיגע שריט</h2><p class="muted">א פראקטישע אויסוואל לויט פארשפעטיגונג, וויכטיגקייט און טערמין פון דיינע ערלויבטע קאמפיין־רעקארדס. נישט קיין פארטיגע AI־אנאליז אדער אויטאמאטישע אקציעס.</p>'+nextSummary+(suggested||'<p class="muted">קיין רעקארדירטע אפענע שריט.</p>')+'</section>';
  const listing=contacts.map(c=>
   '<article class="item"><div><strong>'+esc(c.display_name)+'</strong>'+
   '<small>'+esc(c.phone||'קיין נומער')+' · '+esc(stage[c.stage]||c.stage)+
