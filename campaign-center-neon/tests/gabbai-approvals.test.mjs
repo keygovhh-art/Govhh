@@ -73,7 +73,10 @@ test('Gabbai Pro approvals require two humans and preserve immutable decisions w
   const own=await create(owner,{...proposal,category:'refund_review',amount:'100'});
   assert.equal(own.status,201);
   assert.equal((await decision(owner,own.data.id,'approved')).status,403);
+  assert.equal((await request(manager,'POST','/approvals/'+own.data.id+'/decision',{decision:'rejected'})).status,400,'Financial rejection requires an explanation');
   assert.equal((await decision(manager,own.data.id,'rejected')).status,200);
+  const detailed=(await request(owner,'GET',home)).data.requests.find(x=>x.id===own.data.id);
+  assert.equal(detailed.decision_reason,'Reviewed manually','Reviewer's explanation stays visible on approval history');
   assert.equal((await request(finance,'GET',home+'?status=pending')).data.requests.length,0);
   const pendingFinance=await create(finance,{...proposal,subject:'Pending for owner',amount:'35.50'});
   const pendingOwner=await create(owner,{...proposal,subject:'Pending for other manager',amount:'20.00'});
