@@ -23,6 +23,7 @@ import organizationResourcesRouter from './organization-resources.js';
 import organizationMemoryRouter from './organization-memory.js';
 import customFocusRouter from './custom-focus.js';
 import quickDailyRouter from './quick-daily.js';
+import proFilesRouter from './pro-files.js';
 import {makePlanPolicy} from './plan-policy.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
@@ -47,6 +48,11 @@ const pool = process.env.DATABASE_URL ? new pg.Pool({ connectionString: process.
 const app = express();
 app.disable('x-powered-by');
 app.use('/api/import', express.json({ limit: '1mb' }));
+app.use((req,res,next)=>{
+  if(req.method==='POST'&&/^\/api\/pro\/campaigns\/[a-f0-9-]{36}\/files$/i.test(req.path))
+    return express.json({limit:'1.6mb'})(req,res,next);
+  next();
+});
 app.use(express.json({ limit: '32kb' }));
 app.use((req, res, next) => {
   res.set('X-Content-Type-Options', 'nosniff');
@@ -154,6 +160,7 @@ app.use('/api/plus',askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,log}
 app.use('/api/plus',plusPledgesRouter({pool,campaignAccess,need,bad,uuid,trim,log}));
 app.use('/api/pro',planPolicy.scoped('askan_pro'));
 app.use('/api/pro',askanProRouter({pool,campaignAccess,bad,trim,log}));
+app.use('/api/pro',proFilesRouter({pool,campaignAccess,bad,log}));
 app.use('/api/pro',proSprintRouter({pool,campaignAccess,bad,log,uuid,trim}));
 app.use('/api/pro',proGuidanceRouter({pool,campaignAccess,bad,trim,uuid,log}));
 app.use('/api/pro',proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log}));
