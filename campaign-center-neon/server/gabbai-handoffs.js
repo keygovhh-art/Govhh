@@ -35,13 +35,19 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,log}){
    " ORDER BY CASE h.status WHEN 'open' THEN 0 WHEN 'accepted' THEN 1 ELSE 2 END,"+
    " h.due_at ASC NULLS LAST,h.created_at DESC,h.id DESC LIMIT 100",
    filter==='mine'?[c.organization_id,c.id,req.userId]:[c.organization_id,c.id]);
+  const totals=(await pool.query(
+   "SELECT COUNT(*) FILTER(WHERE status='open')::int open,"+
+   " COUNT(*) FILTER(WHERE status='accepted')::int accepted,"+
+   " COUNT(*) FILTER(WHERE status='completed')::int completed"+
+   " FROM cc_gabbai_shift_handoffs WHERE organization_id=$1 AND campaign_id=$2",
+   [c.organization_id,c.id])).rows[0];
   const history=await pool.query(
    "SELECT event.handoff_id,event.actor_subject,event.action,event.note,event.recorded_at"+
    " FROM cc_gabbai_shift_handoff_history event WHERE event.organization_id=$1 AND event.campaign_id=$2"+
    " AND event.handoff_id=ANY($3::uuid[]) ORDER BY event.recorded_at DESC,event.id DESC LIMIT 150",
    [c.organization_id,c.id,list.rows.map(x=>x.id)]);
   res.set('Cache-Control','private,no-store');
-  res.json({handoffs:list.rows,managers:members.rows,history:history.rows,filter,
+  res.json({handoffs:list.rows,managers:members.rows,history:history.rows,summary:totals,filter,
    humanHandoffOnly:true,externalMessageSent:false});
  }));
  router.post('/campaigns/:cid/handoffs',run(async(req,res)=>{
