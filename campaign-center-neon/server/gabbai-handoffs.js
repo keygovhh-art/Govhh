@@ -53,6 +53,7 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,log}){
    throw bad(400,'Invalid handoff');
   const result=await tx(async db=>{
    const c=await leader(db,req);
+   if(assignedTo===req.userId)throw bad(409,'Choose a different campaign leader for handoff');
    if(c.status==='closed')throw bad(409,'Closed campaign');
    const target=(await db.query(
     "SELECT m.subject FROM cc_memberships m JOIN cc_campaign_members cm"+
