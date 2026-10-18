@@ -80,12 +80,42 @@ test('Askan Pro CRM protects private contacts, team notes, history and revocatio
   assert.equal(overdue.data.contacts[0].id,a);
   await pool.query("INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,due_at) VALUES($1,$2,$3,'Alpha overdue priority','critical','2026-01-01T06:00:00Z')",[org,camp,alpha]);
   await pool.query("INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,due_at) VALUES($1,$2,$3,'Beta private team task','critical','2026-01-01T05:00:00Z')",[org,camp,beta]);
+  // Zero-team campaign contacts MUST NOT be readable by unassigned staff,
+  // and work recommendations must never suggest DNC or claimed contacts.
+  async function special(name,number,{team='A',dnc=false,stage='followup',claimed=null}={}){
+   const id=(await pool.query(
+    "INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy,assigned_team,do_not_call)"+
+    " VALUES($1,$2,$3,$4,$5,'campaign',$6,$7) RETURNING id",
+    [org,camp,alpha,name,number,team,dnc])).rows[0].id;
+   await pool.query(
+    "INSERT INTO cc_pro_contact_profiles(organization_id,campaign_id,contact_id,stage,priority,next_followup_at,last_updated_by)"+
+    " VALUES($1,$2,$3,$4,'high','2026-01-01T09:00:00Z',$5)",
+    [org,camp,id,stage,alpha]);
+   if(claimed)await pool.query(
+    "UPDATE cc_contacts SET claimed_by=$1,claim_expires_at=now()+interval '1 hour' WHERE id=$2",
+    [claimed,id]);
+   return id;
+  }
+  const unassigned=await special('EMPTY TEAM SECRET','5551235800',{team:''});
+  const noCall=await special('DO NOT CALL CLARITY','5551235801',{dnc:true});
+  const claimed=await special('CLAIMED BY ANOTHER','5551235802',{claimed:beta});
+  const closed=await special('CLOSED FOLLOWUP','5551235803',{stage:'closed'});
+  const alphaContacts=await req(alpha,'GET','/campaigns/'+camp+'/contacts');
+  assert.ok(!alphaContacts.data.contacts.some(x=>x.id===unassigned));
+  assert.equal((await req(alpha,'GET','/contacts/'+unassigned+'/timeline')).status,404);
+  assert.equal((await req(beta,'GET','/contacts/'+unassigned+'/timeline')).status,404);
+  assert.equal((await req(owner,'GET','/contacts/'+unassigned+'/timeline')).status,200);
   const clarityA=await req(alpha,'GET','/campaigns/'+camp+'/clarity');
   assert.equal(clarityA.status,200);
   assert.equal(clarityA.data.noAiClaims,true);
   assert.ok(clarityA.data.recommendations.some(x=>x.source==='crm_followup'&&x.id===a));
+  for(const id of [unassigned,noCall,claimed,closed]){
+   assert.ok(!clarityA.data.recommendations.some(x=>x.id===id),'Unsafe CRM candidate cannot become a Next Action');
+  }
   assert.ok(clarityA.data.recommendations.some(x=>x.title==='Alpha overdue priority'));
   assert.ok(!clarityA.data.recommendations.some(x=>x.title==='Beta private team task'));
+  const clarityOwner=await req(owner,'GET','/campaigns/'+camp+'/clarity');
+  for(const id of [noCall,claimed,closed])assert.ok(!clarityOwner.data.recommendations.some(x=>x.id===id));
   const clarityB=await req(beta,'GET','/campaigns/'+camp+'/clarity');
   assert.equal(clarityB.status,200);
   assert.ok(!clarityB.data.recommendations.some(x=>x.id===a));
