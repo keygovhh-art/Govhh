@@ -5,6 +5,7 @@ import './plan-view.css';
 import { plansView } from './plan-view.js';
 import { goalsView } from './goals-view.js';
 import { campaignFocusBoard } from './focus-board.js';
+import { quickDailyView } from './quick-daily-view.js';
 import { donationLinkView } from './donation-links-view.js';
 import { teamView } from './team-view.js';
 import { askanPlusView } from './askan-plus-view.js';
@@ -27,7 +28,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',quickDaily:null,quickDailyError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -113,6 +114,8 @@ async function refresh() {
       api('/campaigns/'+id+'/overview'),api('/campaigns/'+id+'/tasks'),
       api('/campaigns/'+id+'/contacts'),api('/campaigns/'+id+'/finance')
     ]);
+    try{state.quickDaily=await api('/quick/campaigns/'+id+'/daily');state.quickDailyError='';}
+    catch(error){state.quickDaily=null;state.quickDailyError=error.message;}
     try{const goalResult=await api('/goals/campaigns/'+id);state.goals=goalResult.goals||[];state.goalsError='';}
     catch(error){state.goals=[];state.goalsError=error.message||'נישט צוטריטבאר';}
     try{state.donationLink=await api('/donation-links/'+id);}catch(error){state.donationLink={link:null,error:error.message};}
@@ -146,7 +149,7 @@ async function refresh() {
     if(['owner','manager','finance','auditor'].includes(state.overview?.campaign?.role)){
       try{state.plusReport=await api('/plus/campaigns/'+id+'/teams-report?days='+state.plusDays);}catch(error){state.plusReport=null;}
     }else state.plusReport=null;
-  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;state.plusAlerts=null;state.plusCredits=[];state.donationLevels=[];state.donationLevelsError='';state.plusPledges=[];state.plusPledgesError='';state.proContacts=[];state.customFocusRules=null;state.customFocusPreview=null;state.customFocusError='';state.gabbaiApprovals=[];state.gabbaiRole=null;state.gabbaiError='';state.gabbaiLedger=null;state.gabbaiPriorities=null;state.proBlockers={blockers:[],activeByReason:{}};state.proBlockersError='';state.proGuidance=[];state.proGuidanceId=null;state.proGuidanceMessages=[];state.proSprints=[];state.proHistory=[];state.proRecommendations=[];state.proSelected=null;state.proContactId=null;state.proError='';}
+  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.quickDaily=null;state.quickDailyError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;state.plusAlerts=null;state.plusCredits=[];state.donationLevels=[];state.donationLevelsError='';state.plusPledges=[];state.plusPledgesError='';state.proContacts=[];state.customFocusRules=null;state.customFocusPreview=null;state.customFocusError='';state.gabbaiApprovals=[];state.gabbaiRole=null;state.gabbaiError='';state.gabbaiLedger=null;state.gabbaiPriorities=null;state.proBlockers={blockers:[],activeByReason:{}};state.proBlockersError='';state.proGuidance=[];state.proGuidanceId=null;state.proGuidanceMessages=[];state.proSprints=[];state.proHistory=[];state.proRecommendations=[];state.proSelected=null;state.proContactId=null;state.proError='';}
   state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.videoStatus.floor=null;state.videoGrants.floor=[];state.helpMessages=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
@@ -281,10 +284,10 @@ function campaignAdminPanel(){
 }
 function today(){
  const f=Object.fromEntries((state.overview?.finance||[]).map(x=>[x.event_kind,Number(x.amount)]));
- return `${campaignFocusBoard(state,esc)}<div class="metrics"><div><span>ציל</span><strong>${money(state.overview?.campaign?.goal_amount)}</strong></div><div><span>צוגעזאגט</span><strong>${money(f.pledge)}</strong></div><div><span>באריכטעט באקומען (נעטא)</span><strong>${money(Math.max(0,(f.receipt||0)-(f.refund||0)))}</strong></div></div>
+ return `${campaignFocusBoard(state,esc)}${quickDailyView(state,esc)}<div class="metrics"><div><span>ציל</span><strong>${money(state.overview?.campaign?.goal_amount)}</strong></div><div><span>צוגעזאגט</span><strong>${money(f.pledge)}</strong></div><div><span>באריכטעט באקומען (נעטא)</span><strong>${money(Math.max(0,(f.receipt||0)-(f.refund||0)))}</strong></div></div>
  ${campaignAdminPanel()}
  ${donationLinkView(state,esc)}
- <section class="card"><h2>נייע אויפגאבע</h2><form data-form="task" class="inline"><input name="title" required placeholder="וואס דארף געטון ווערן?"><select name="priority"><option value="normal">נארמאל</option><option value="high">וויכטיג</option><option value="critical">קריטיש</option></select><select name="kind"><option value="task">אויפגאבע</option><option value="followup">נאכפאלג</option><option value="call_lead">רופן</option></select><select name="assigneeSubject"><option value="">פאר מיר</option>${state.assignees.map(m=>`<option value="${esc(m.subject)}">${esc(m.subject)} — ${esc(m.team_name||"אנדערע")}</option>`).join("")}</select><button>צולייגן</button></form></section>
+ <section class="card"><h2>נייע אויפגאבע</h2><form data-form="task" class="inline"><input name="title" required placeholder="וואס דארף געטון ווערן?"><select name="priority"><option value="normal">נארמאל</option><option value="high">וויכטיג</option><option value="critical">קריטיש</option></select><select name="kind"><option value="task">אויפגאבע</option><option value="followup">נאכפאלג</option><option value="call_lead">רופן</option></select><label>טערמין (אויסוואל)<input name="dueAt" type="datetime-local"></label><select name="assigneeSubject"><option value="">פאר מיר</option>${state.assignees.map(m=>`<option value="${esc(m.subject)}">${esc(m.subject)} — ${esc(m.team_name||"אנדערע")}</option>`).join("")}</select><button>צולייגן</button></form></section>
  <section class="card"><h2>אויפגאבן <span class="count">${state.tasks.length}</span></h2>${state.tasks.length?state.tasks.map(t=>`<article class="item"><div><strong>${esc(t.title)}</strong><small>${esc(t.kind)} · ${esc(t.priority)} · ${esc(t.status)} · ${esc(t.assignee_subject===state.subject?'מיין אויפגאבע':'צוגעטיילט: '+t.assignee_subject)}</small></div><div class="actions">${t.status!=='done'?`<button data-action="done" data-id="${esc(t.id)}">פארענדיגט</button>`:''}</div>${['owner','manager','squad_leader'].includes(state.overview?.campaign?.role)&&!['done','cancelled'].includes(t.status)?`<form data-form="plus-handoff" data-task-id="${esc(t.id)}" class="inline"><label>איבערגעבן פאר<select name="assigneeSubject" required>${state.assignees.map(a=>`<option value="${esc(a.subject)}" ${a.subject===t.assignee_subject?'selected':''}>${esc(a.subject)} — ${esc(a.team_name||'נישט צוגעטיילט')}</option>`).join('')}</select></label><label>טערמין<input type="datetime-local" name="dueAt"></label><button type="submit">איבערגעבן מיט Audit</button></form>`:''}</article>`).join(''):'<p class="muted">נאך קיין אויפגאבן.</p>'}</section>`;
 }
 function people(){
@@ -591,10 +594,17 @@ async function submit(event){
      state.campaignId=created.id;state.showCampaignForm=false;
      state.tab='today';break;
    }
+   case 'quick-daily-review': {
+     if(!state.campaignId)throw new Error('קודם קלייב א קאמפיין');
+     await api('/quick/campaigns/'+state.campaignId+'/daily/review',{
+      method:'POST',body:JSON.stringify({reflection:String(d.reflection||'')})});break;
+   }
    case 'goal': await api('/goals/campaigns/'+state.campaignId,{method:'POST',body:JSON.stringify({title:d.title,category:d.category,targetValue:d.targetValue,dueOn:d.dueOn||null,description:d.description})});break;
     case 'donation-link': await api('/donation-links/'+state.campaignId,{method:'PUT',body:JSON.stringify({url:d.url,providerName:d.providerName})});break;
     case 'goal-update': await api('/goals/'+encodeURIComponent(form.dataset.goalId),{method:'PATCH',body:JSON.stringify({currentValue:d.currentValue,status:d.status})});break;
-    case 'task': await api('/campaigns/'+state.campaignId+'/tasks',{method:'POST',body:JSON.stringify({title:d.title,priority:d.priority,kind:d.kind,assigneeSubject:d.assigneeSubject||undefined})});break;
+    case 'task': {const raw=d.dueAt?new Date(d.dueAt):null;
+     if(raw&&!Number.isFinite(raw.getTime()))throw new Error('טערמין איז נישט ריכטיג');
+     await api('/campaigns/'+state.campaignId+'/tasks',{method:'POST',body:JSON.stringify({title:d.title,priority:d.priority,kind:d.kind,assigneeSubject:d.assigneeSubject||undefined,dueAt:raw?raw.toISOString():null})});break;}
    case 'import-preview': {
      const file=form.querySelector('input[type=file]')?.files?.[0];
      if(!file||file.size>1024*1024)throw new Error('CSV פייל דארף זיין קלענער ווי 1MB');

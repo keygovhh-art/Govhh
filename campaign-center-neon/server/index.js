@@ -22,6 +22,7 @@ import organizationPortfolioRouter from './organization-portfolio.js';
 import organizationResourcesRouter from './organization-resources.js';
 import organizationMemoryRouter from './organization-memory.js';
 import customFocusRouter from './custom-focus.js';
+import quickDailyRouter from './quick-daily.js';
 import {makePlanPolicy} from './plan-policy.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
@@ -146,6 +147,7 @@ app.get('/api/organizations/:oid/entitlements',async(req,res,next)=>{
   }catch(error){next(error);}
 });
 app.use('/api/goals', goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log,planPolicy}));
+app.use('/api/quick',quickDailyRouter({pool,campaignAccess,planPolicy,bad,log}));
 app.use('/api/donation-links', donationLinksRouter({pool,campaignAccess,need,bad,trim,log}));
 app.use('/api/plus',planPolicy.scoped('askan_plus'));
 app.use('/api/plus',askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,log}));
@@ -265,6 +267,10 @@ app.post('/api/campaigns/:cid/tasks',async(req,res,next)=>{
   try {
     const title=trim(req.body?.title,240), priority=trim(req.body?.priority,16)||'normal', kind=trim(req.body?.kind,16)||'task';
     if(!title || !['low','normal','high','critical'].includes(priority) || !['task','call_lead','followup','review'].includes(kind)) throw bad(400,'Invalid task');
+    const due=req.body?.dueAt;
+    if(due!==undefined&&due!==null&&(typeof due!=='string'||!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(due)||!Number.isFinite(Date.parse(due))))
+      throw bad(400,'Invalid ISO UTC due date');
+    const dueAt=due?new Date(due).toISOString():null;
     const result=await transaction(async db=>{
       const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,['owner','manager','squad_leader']);
       const assignee=trim(req.body?.assigneeSubject,128)||req.userId;
@@ -272,8 +278,8 @@ app.post('/api/campaigns/:cid/tasks',async(req,res,next)=>{
         const scope=await db.query('SELECT 1 FROM cc_campaign_members leader JOIN cc_campaign_members assigned ON assigned.campaign_id=leader.campaign_id AND assigned.team_name=leader.team_name WHERE leader.campaign_id=$1 AND leader.subject=$2 AND assigned.subject=$3 LIMIT 1',[c.id,req.userId,assignee]);
         if(!scope.rowCount)throw bad(403,'Cannot assign work outside your team');
       }
-      const a=(await db.query('INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,kind) VALUES($1,$2,$3,$4,$5,$6) RETURNING *',[c.organization_id,c.id,assignee,title,priority,kind])).rows[0];
-      await log(db,c.organization_id,c.id,req.userId,'task.created',a.id,{assignee});
+      const a=(await db.query('INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,kind,due_at) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING *',[c.organization_id,c.id,assignee,title,priority,kind,dueAt])).rows[0];
+      await log(db,c.organization_id,c.id,req.userId,'task.created',a.id,{assignee,dueAt});
       return a;
     });res.status(201).json(result);
   } catch(error){next(error);}

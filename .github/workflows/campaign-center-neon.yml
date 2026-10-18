@@ -49,6 +49,8 @@ jobs:
         run: node --test tests/goals.test.mjs
       - name: Source-grounded daily campaign Focus
         run: node --test tests/focus-board.test.mjs
+      - name: Chesed Quick daily facts, cross-tenant and team privacy, immutable 7-day memory
+        run: node --test tests/quick-daily.test.mjs
       - name: External donation URL audit, tenant and gateway honesty
         run: node --test tests/donation-links.test.mjs
       - name: Askan Plus member and team privacy, audited hand-offs
