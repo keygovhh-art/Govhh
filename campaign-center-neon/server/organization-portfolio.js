@@ -108,9 +108,27 @@ export default function organizationPortfolioRouter({pool,bad,uuid,trim,log}){
    row.pledged=fmt(cents(row.pledged)+cents(campaign.pledged));
    row.manualNet=fmt(cents(row.manualNet)+cents(campaign.manually_reported_receipts)-cents(campaign.manually_reported_refunds));
   }
+  // Cross-campaign urgent attention, including campaigns beyond the
+  // newest-50 portfolio list. Return COUNTS, never private task/contact text.
+  const urgent=await pool.query(
+   "SELECT c.id,c.title,c.status,"+
+   " COUNT(a.id) FILTER(WHERE a.status IN ('open','in_progress') AND a.due_at<now())::int overdue_tasks,"+
+   " COUNT(a.id) FILTER(WHERE a.status IN ('open','in_progress') AND a.priority='critical')::int critical_tasks,"+
+   " COUNT(a.id) FILTER(WHERE a.status IN ('open','in_progress') AND a.due_at>=now()"+
+   " AND a.due_at<now()+interval '48 hours')::int due_soon_tasks,"+
+   " MIN(a.due_at) FILTER(WHERE a.status IN ('open','in_progress') AND a.due_at IS NOT NULL) oldest_open_due"+
+   " FROM cc_campaigns c LEFT JOIN cc_assignments a ON a.organization_id=c.organization_id"+
+   " AND a.campaign_id=c.id"+
+   " WHERE c.organization_id=$1 AND c.status<>'closed' GROUP BY c.id,c.title,c.status"+
+   " HAVING COUNT(a.id) FILTER(WHERE a.status IN ('open','in_progress') AND"+
+   " (a.due_at<now()+interval '48 hours' OR a.priority='critical'))>0"+
+   " ORDER BY overdue_tasks DESC,critical_tasks DESC,due_soon_tasks DESC,c.title ASC LIMIT 25",
+   [req.params.oid]);
+  const urgency=urgent.rows;
   res.set('Cache-Control','private,no-store');
   res.json({totalCampaigns:total,returned:campaigns.length,truncated:total>campaigns.length,
    campaigns,currencies:Object.values(byCurrency),
+   attentionQueue:urgency,attentionLimit:25,attentionDoesNotContainPrivateTasks:true,
    scope:'workspace_leadership_only',
    totalsAreManuallyRecordedNotPaymentVerified:true});
  }));

@@ -81,6 +81,8 @@ jobs:
         run: node --test tests/gabbai-finance-work-desk.test.mjs
       - name: Organization owner-only multi-campaign currency-safe portfolio
         run: node --test tests/organization-portfolio.test.mjs
+      - name: Organization urgent cross-campaign focus and Android one-tap navigation
+        run: node --test tests/organization-urgency-view.test.mjs
       - name: Organization capped resources, months, concurrency and private audit
         run: node --test tests/organization-resources.test.mjs
       - name: Organization private append-only knowledge, revisions and review dates

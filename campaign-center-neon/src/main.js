@@ -715,7 +715,9 @@ async function click(event){
     state.organizationMemoryHistory=btn.dataset.history==='true';await refresh();return;
   }
   if(a==='organization-campaign'){
-    if(!state.organizationPortfolio?.campaigns?.some(c=>c.id===btn.dataset.id))throw new Error('קאמפיין נישט געפונען');
+    if(!state.organizationPortfolio?.campaigns?.some(c=>c.id===btn.dataset.id)&&
+       !state.organizationPortfolio?.attentionQueue?.some(c=>c.id===btn.dataset.id))
+      throw new Error('קאמפיין נישט געפונען');
     state.campaignId=btn.dataset.id;state.tab='today';await refresh();return;
   }
   if(a==='gabbai-task-status'){
