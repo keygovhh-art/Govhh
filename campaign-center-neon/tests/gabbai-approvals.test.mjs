@@ -135,6 +135,9 @@ test('Gabbai Pro approvals require two humans and preserve immutable decisions w
   assert.equal(teamA.open_tasks,1);
   assert.equal(teamA.overdue_tasks,1);
   assert.equal(teamA.active_blockers,1);
+  assert.ok(priorities.data.urgentTasks.some(x=>x.id===openTask),'Gabbai board links to real urgent assigned task');
+  assert.ok(priorities.data.urgentLimit<=25);
+  assert.equal(priorities.data.urgentTasks.find(x=>x.id===openTask).status,'open');
   assert.equal((await request(auditor,'GET','/campaigns/'+campaign+'/priority-oversight')).status,403);
   assert.equal((await request(foreign,'GET','/campaigns/'+campaign+'/priority-oversight')).status,404);
 
