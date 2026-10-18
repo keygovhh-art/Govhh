@@ -69,12 +69,16 @@ export function gabbaiApprovalsView(state,esc,money){
   ' · '+esc(a.created_at?.slice(0,16)||'')+'</small>'+
   '<p>'+esc(a.explanation||'קיין פרטים')+'</p>'+
   '<p class="muted">פארגעלייגט דורך: '+esc(a.requested_by)+
-  (a.decided_by?' · באשטימט דורך: '+esc(a.decided_by):'')+'</p></div>'+
+  (a.decided_by?' · באשטימט דורך: '+esc(a.decided_by):'')+'</p>'+
+  (a.decision_reason?'<p class="muted">באגרינדונג פונעם באשלוס: '+esc(a.decision_reason)+'</p>':'')+
+  '</div>'+
   (canReview&&a.status==='pending'&&a.requested_by!==state.subject?
-   '<div class="inline"><button data-action="gabbai-decision" data-id="'+esc(a.id)+
-     '" data-decision="approved">באשטעטיגן</button>'+
-   '<button data-action="gabbai-decision" data-id="'+esc(a.id)+
-     '" data-decision="rejected">אפווארפן</button></div>':'')+
+   '<form class="stack" data-form="gabbai-decision" data-id="'+esc(a.id)+'">'+
+   '<label>באשלוס<select name="decision"><option value="approved">באשטעטיגן</option>'+
+   '<option value="rejected">אפווארפן</option></select></label>'+
+   '<label>באגרינדונג (ביים אפווארפן מוז מען שרייבן א הסבר)'+
+   '<textarea name="reason" maxlength="500" rows="2"></textarea></label>'+
+   '<button type="submit">אפהיטן דעם באשלוס</button></form>':'')+
   '</article>').join('');
  const form=canMake?'<section class="card"><h2>נייער פינאנציעלער פארלאנג</h2>'+
   '<form class="stack" data-form="gabbai-approval-new">'+
