@@ -79,7 +79,7 @@ export function makePlanPolicy({pool,bad}){
   const aliases={
    plus:[['tasks','cc_assignments']],
    pro:[['contacts','cc_contacts'],['sprints','cc_pro_sprints'],['guidance','cc_pro_guidance_requests'],['tasks','cc_assignments']],
-   gabbai:[['approvals','cc_gabbai_approval_requests']],
+   gabbai:[['approvals','cc_gabbai_approval_requests'],['handoffs','cc_gabbai_handoffs']],
    organization:[['decisions','cc_org_leadership_decisions']],
    custom:[]
   };
@@ -134,6 +134,11 @@ export function makePlanPolicy({pool,bad}){
   ["PUT","tasks/:id/blocker","blocker_intelligence"]
  ],
  gabbai: [
+  ["GET","campaigns/:id/handoffs","operations_memory"],
+  ["POST","campaigns/:id/handoffs","operations_memory"],
+  ["GET","handoffs/:id/events","operations_memory"],
+  ["POST","handoffs/:id/comments","operations_memory"],
+  ["PATCH","handoffs/:id/status","operations_memory"],
   ["GET","campaigns/:id/approvals","approvals"],
   ["POST","campaigns/:id/approvals","approvals"],
   ["GET","campaigns/:id/priority-oversight","priority_oversight"],
