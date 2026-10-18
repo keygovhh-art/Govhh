@@ -34,7 +34,7 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,log}){
    " FROM cc_gabbai_shift_handoffs h WHERE h.organization_id=$1 AND h.campaign_id=$2"+conditions+
    " ORDER BY CASE h.status WHEN 'open' THEN 0 WHEN 'accepted' THEN 1 ELSE 2 END,"+
    " h.due_at ASC NULLS LAST,h.created_at DESC,h.id DESC LIMIT 100",
-   [c.organization_id,c.id,req.userId]);
+   filter==='mine'?[c.organization_id,c.id,req.userId]:[c.organization_id,c.id]);
   const history=await pool.query(
    "SELECT event.handoff_id,event.actor_subject,event.action,event.note,event.recorded_at"+
    " FROM cc_gabbai_shift_handoff_history event WHERE event.organization_id=$1 AND event.campaign_id=$2"+
