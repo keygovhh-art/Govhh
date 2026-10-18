@@ -711,7 +711,7 @@ async function click(event){
   }
   if(a==='pro-guidance-filter'){
     const value=btn.dataset.value;
-    if(['open','answered','closed','all'].includes(value)){state.proGuidanceFilter=value;draw();}
+    if(['open','answered','closed','all','mine','due'].includes(value)){state.proGuidanceFilter=value;draw();}
     return;
   }
   if(a==='pro-guidance-open'){
