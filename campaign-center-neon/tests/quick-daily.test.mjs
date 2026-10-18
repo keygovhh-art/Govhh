@@ -27,6 +27,15 @@ async function campaignAccess(db,id,who){
  }
  return c;
 }
+test('Quick task deadlines are accepted in UTC, validated and shown on Android',async()=>{
+ const index=await readFile(join(import.meta.dirname,'../server/index.js'),'utf8');
+ const ui=await readFile(join(import.meta.dirname,'../src/main.js'),'utf8');
+ assert.match(index,/const due=req\.body\?\.dueAt/);
+ assert.match(index,/Invalid ISO UTC due date/);
+ assert.match(index,/INSERT INTO cc_assignments\(organization_id,campaign_id,assignee_subject,title,priority,kind,due_at\)/);
+ assert.match(ui,/name="dueAt" type="datetime-local"/);
+ assert.match(ui,/raw\.toISOString\(\)/);
+});
 test('Chesed Quick real Watch and immutable private memory respects roles and tenants',async()=>{
  for(const file of ['001_core.sql','002_team_connect.sql','013_campaign_goals.sql','026_server_plan_entitlements.sql','027_quick_daily_watch_memory.sql'])
   await pool.query(await readFile(join(import.meta.dirname,'../db',file),'utf8'));
