@@ -164,6 +164,7 @@ app.use('/api/pro',planPolicy.scoped('askan_pro'));
 app.use('/api/pro',askanProRouter({pool,campaignAccess,bad,trim,log}));
 app.use('/api/pro',proFilesRouter({pool,campaignAccess,bad,log}));
 app.use('/api/pro',proAutomationRouter({pool,campaignAccess,bad,log}));
+app.use('/api/pro',proCallListsRouter({pool,campaignAccess,bad}));
 app.use('/api/pro',proSprintRouter({pool,campaignAccess,bad,log,uuid,trim}));
 app.use('/api/pro',proGuidanceRouter({pool,campaignAccess,bad,trim,uuid,log}));
 app.use('/api/pro',proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log}));
