@@ -34,10 +34,23 @@ test('Manager Guidance inbox has actionable open/answered/closed counters and fi
  assert.match(html,/<strong>Closed charity issue<\/strong>/);
  assert.doesNotMatch(html,/<strong>Answered appeal<\/strong>/);
  state.proGuidanceQuery='';
+ state.subject='person2';state.proGuidanceFilter='mine';
+ requests[1].assigned_to='person2';requests[1].status='answered';requests[1].response_due_at='2026-01-01T09:00:00Z';
+ html=proGuidanceView(state,esc);
+ assert.match(html,/מיינע באהאנדלונגען \(1\)/);
+ assert.match(html,/Answered appeal/);
+ assert.doesNotMatch(html,/<strong>Urgent callback help<\/strong>/);
+ state.proGuidanceFilter='due';
+ html=proGuidanceView(state,esc);
+ assert.match(html,/איבערגעצויגענע ציל־צייטן \(1\)/);
+ assert.match(html,/דער ציל־טערמין איז איבערגעצויגן/);
+ state.proGuidanceQuery='';
  state.proGuidanceId='b';
  html=proGuidanceView(state,esc);
  assert.match(html,/Answered appeal/);
  assert.match(html,/פריוואטן שמועס/);
+ assert.match(html,/data-form="pro-guidance-deadline"/);
+ assert.match(html,/data-action="pro-guidance-release"/);
 });
 test('Guidance search and list always escape ticket contents',()=>{
  const html=proGuidanceView({
@@ -49,4 +62,5 @@ test('Guidance search and list always escape ticket contents',()=>{
  assert.doesNotMatch(html,/<script>/);
  assert.match(html,/&lt;script&gt;/);
  assert.match(html,/מיינע בקשות — נאכפאלג/);
+ assert.doesNotMatch(html,/data-form="pro-guidance-deadline"/);
 });
