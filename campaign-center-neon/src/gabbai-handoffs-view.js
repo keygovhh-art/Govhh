@@ -16,6 +16,14 @@ export function gabbaiHandoffsView(state,esc){
   (x.target_at?'<p class="muted">ציל־צייט: '+esc(String(x.target_at).slice(0,16))+'</p>':'')+
   '<p class="muted">באהאנדלט/געזען דורך '+esc(x.acknowledgements||0)+' מנהלים'+
   (x.acknowledged_by_me?' · דו האסט באשטעטיגט':'')+'</p></div>'+
+  (x.linked_task_id?'<p class="muted">די קומענדיגע אויפגאבע איז שוין געשאפן. <button type="button" data-action="tab" data-tab="today">עפענען די אויפגאבן</button></p>':
+   (state.assignees?.length?'<form data-form="gabbai-handoff-assign" data-id="'+esc(x.id)+'" class="inline">'+
+    '<label>מאך אן אויפגאבע פאר<select name="assigneeSubject" required>'+
+    state.assignees.map(a=>'<option value="'+esc(a.subject)+'">'+esc(a.subject)+' — '+esc(a.team_name||'נישט צוגעטיילט')+'</option>').join('')+
+    '</select></label>'+
+    '<p class="muted">דער אויסגעקליבענער עסקן וועט זען דעם קומענדיגן שריט אלס אויפגאבע.</p>'+
+    '<button type="submit">שאפן און צוטיילן די אויפגאבע</button></form>':
+    '<p class="muted">קודם צולייגן אן אקטיוון עסקן אין קאמפיין צו קענען צוטיילן.</p>'))+
   (x.written_by!==state.subject&&!x.acknowledged_by_me?
    '<button type="button" data-action="gabbai-handoff-ack" data-id="'+esc(x.id)+'">איך האב איבערגענומען</button>':'')+
   '</article>').join('');
