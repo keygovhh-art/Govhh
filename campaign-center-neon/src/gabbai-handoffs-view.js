@@ -4,11 +4,7 @@ export function gabbaiHandoffsView(state,esc){
  if(!['owner','manager'].includes(state.gabbaiRole))return '';
  const v=state.gabbaiHandoffs;
  const entries=v?.handoffs||[];
- const counts={
-  open:entries.filter(x=>x.status==='open').length,
-  accepted:entries.filter(x=>x.status==='accepted').length,
-  completed:entries.filter(x=>x.status==='completed').length
- };
+ const counts=v?.summary||{open:0,accepted:0,completed:0};
  const leaders=(v?.managers||[]).map(x=>
   '<option value="'+esc(x.subject)+'">'+esc(x.subject)+' ('+esc(x.role)+')</option>').join('');
  const statuses={open:'ווארט אויף איבערנעמען',accepted:'איבערגענומען',completed:'פארענדיקט'};
