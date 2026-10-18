@@ -230,7 +230,7 @@ export const PLAN_FEATURES = [
     "code": "files",
     "yi": "קאמפיין־דאקומענטן",
     "minTier": 2,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
