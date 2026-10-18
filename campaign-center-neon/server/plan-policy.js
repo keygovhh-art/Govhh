@@ -105,6 +105,9 @@ export function makePlanPolicy({pool,bad}){
  ],
  pro: [
   ["GET","campaigns/:id/clarity","clarity"],
+  ["GET","campaigns/:id/files","files"],
+  ["POST","campaigns/:id/files","files"],
+  ["GET","campaigns/:id/files/:id/download","files"],
   ["GET","campaigns/:id/contacts","crm"],
   ["GET","contacts/:id/timeline","relationship_history"],
   ["PUT","contacts/:id/profile","crm"],
