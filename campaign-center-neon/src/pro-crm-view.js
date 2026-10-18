@@ -32,7 +32,15 @@ export function proCrmView(state,esc){
  const nextSummary='<p class="muted">מיינע באשלוסן — אנגענומען: '+nextStats.accepted+
   ' · אויף שפעטער: '+nextStats.deferred+' · איבערגעגאנגען: '+nextStats.skipped+
   '. די סימנים טוישן נישט אטאמאטיש דעם מצב פון דער אויפגאבע.</p>';
- const clarity='<section class="card"><h2>Clarity — די קומענדיגע וויכטיגע שריט</h2><p class="muted">א פראקטישע אויסוואל לויט פארשפעטיגונג, וויכטיגקייט און טערמין פון דיינע ערלויבטע קאמפיין־רעקארדס. נישט קיין פארטיגע AI־אנאליז אדער אויטאמאטישע אקציעס.</p>'+nextSummary+(suggested||'<p class="muted">קיין רעקארדירטע אפענע שריט.</p>')+'</section>';
+ const recentDecisions=(state.proNextAction?.history||[]).slice(0,10).map(h=>{
+  const item=state.proRecommendations?.find(x=>x.source===h.source_type&&x.id===h.source_id);
+  const title=item?.title||'א פריערדיגע אויפגאבע אדער קשר';
+  return '<article class="item"><div><strong>'+esc(title)+'</strong>'+
+   '<small>'+esc(nextLabels[h.decision]||h.decision)+' · '+fmt(h.recorded_at)+'</small></div></article>';
+ }).join('');
+ const decisionHistory='<details><summary>מיינע לעצטע באשלוסן</summary>'+
+  (recentDecisions||'<p class="muted">נאך קיין באשלוסן.</p>')+'</details>';
+ const clarity='<section class="card"><h2>Clarity — די קומענדיגע וויכטיגע שריט</h2><p class="muted">א פראקטישע אויסוואל לויט פארשפעטיגונג, וויכטיגקייט און טערמין פון דיינע ערלויבטע קאמפיין־רעקארדס. נישט קיין פארטיגע AI־אנאליז אדער אויטאמאטישע אקציעס.</p>'+nextSummary+(suggested||'<p class="muted">קיין רעקארדירטע אפענע שריט.</p>')+decisionHistory+'</section>';
  const listing=contacts.map(c=>
   '<article class="item"><div><strong>'+esc(c.display_name)+'</strong>'+
   '<small>'+esc(c.phone||'קיין נומער')+' · '+esc(stage[c.stage]||c.stage)+
