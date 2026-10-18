@@ -20,6 +20,7 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,log}){
  const select=
   "SELECT h.id,h.written_by,h.headline,h.completed_summary,h.blockers_summary,h.next_action,"+
   " h.urgency,h.target_at,h.created_at,"+
+  " (SELECT link.task_id FROM cc_gabbai_handoff_task_links link WHERE link.handoff_id=h.id) AS linked_task_id,"+
   " EXISTS(SELECT 1 FROM cc_gabbai_shift_handoff_acks ack"+
   " WHERE ack.handoff_id=h.id AND ack.acknowledged_by=$3) AS acknowledged_by_me,"+
   " (SELECT COUNT(*)::int FROM cc_gabbai_shift_handoff_acks ack WHERE ack.handoff_id=h.id) AS acknowledgements"+
@@ -74,6 +75,49 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,log}){
   res.set('Cache-Control','private,no-store').status(201).json({
    handoff:item,manualRecordOnly:true,externalNotificationSent:false
   });
+ }));
+ // Managers explicitly convert an operational next step into one real task.
+ // Nothing is assigned until they pick an active member and submit this form.
+ router.post('/campaigns/:cid/handoffs/:id/create-task',wrap(async(req,res)=>{
+  if(!guid.test(req.params.id)||typeof req.body?.assigneeSubject!=='string'||!req.body.assigneeSubject.trim()||
+     req.body.assigneeSubject.length>128)throw bad(400,'Choose an eligible assignee');
+  const assignedTo=req.body.assigneeSubject.trim();
+  const result=await transaction(async db=>{
+   const c=await scope(db,req);
+   if(c.status!=='active')throw bad(409,'Campaign must be active');
+   const handoff=(await db.query(
+    "SELECT id,headline,next_action,urgency,target_at FROM cc_gabbai_shift_handoffs"+
+    " WHERE organization_id=$1 AND campaign_id=$2 AND id=$3 FOR UPDATE",
+    [c.organization_id,c.id,req.params.id])).rows[0];
+   if(!handoff)throw bad(404,'Handoff unavailable');
+   const existing=(await db.query(
+    'SELECT task_id FROM cc_gabbai_handoff_task_links WHERE organization_id=$1 AND campaign_id=$2 AND handoff_id=$3',
+    [c.organization_id,c.id,handoff.id])).rows[0];
+   if(existing)return {taskId:existing.task_id,alreadyCreated:true};
+   const member=await db.query(
+    "SELECT 1 FROM cc_campaign_members cm JOIN cc_memberships m"+
+    " ON m.organization_id=cm.organization_id AND m.subject=cm.subject AND m.membership_status='active'"+
+    " WHERE cm.organization_id=$1 AND cm.campaign_id=$2 AND cm.subject=$3",
+    [c.organization_id,c.id,assignedTo]);
+   if(!member.rowCount)throw bad(400,'Assignee is not an active campaign member');
+   // One explicitly selected assignee sees the written next step as the task
+   // title, cropped to the existing regular campaign task form's 240 chars.
+   const task=(await db.query(
+    "INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,kind,priority,due_at)"+
+    " VALUES($1,$2,$3,$4,'task',$5,$6) RETURNING id",
+    [c.organization_id,c.id,assignedTo,handoff.next_action.slice(0,240),
+      handoff.urgency==='critical'?'critical':handoff.urgency==='high'?'high':'normal',
+      handoff.target_at])).rows[0];
+   await db.query(
+    'INSERT INTO cc_gabbai_handoff_task_links(organization_id,campaign_id,handoff_id,task_id,assigned_by,assigned_to)'+
+    ' VALUES($1,$2,$3,$4,$5,$6)',
+    [c.organization_id,c.id,handoff.id,task.id,req.userId,assignedTo]);
+   await log(db,c.organization_id,c.id,req.userId,'gabbai.handoff.task_created',task.id,
+    {assignedTo,handoffId:handoff.id});
+   return {taskId:task.id,alreadyCreated:false};
+  });
+  res.set('Cache-Control','private,no-store').status(result.alreadyCreated?200:201)
+   .json({...result,taskCreatedByHuman:true,externalNotificationSent:false});
  }));
  router.post('/campaigns/:cid/handoffs/:id/ack',wrap(async(req,res)=>{
   if(!guid.test(req.params.id))throw bad(400,'Invalid handoff');
