@@ -22,6 +22,7 @@ import organizationPortfolioRouter from './organization-portfolio.js';
 import organizationResourcesRouter from './organization-resources.js';
 import organizationMemoryRouter from './organization-memory.js';
 import customFocusRouter from './custom-focus.js';
+import quickDailyRouter from './quick-daily.js';
 import {makePlanPolicy} from './plan-policy.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
@@ -146,6 +147,7 @@ app.get('/api/organizations/:oid/entitlements',async(req,res,next)=>{
   }catch(error){next(error);}
 });
 app.use('/api/goals', goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log,planPolicy}));
+app.use('/api/quick',quickDailyRouter({pool,campaignAccess,planPolicy,bad,log}));
 app.use('/api/donation-links', donationLinksRouter({pool,campaignAccess,need,bad,trim,log}));
 app.use('/api/plus',planPolicy.scoped('askan_plus'));
 app.use('/api/plus',askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,log}));
