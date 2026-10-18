@@ -30,9 +30,22 @@ export default function gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim
    " FROM cc_gabbai_approval_requests WHERE organization_id=$1 AND campaign_id=$2"+
    " AND ($3='all' OR status=$3) ORDER BY created_at DESC,id DESC LIMIT 200",
    [c.organization_id,c.id,status]);
+  // Accurate whole-campaign counters, independent of the 200 newest rows.
+  // "Can review" always excludes one's own requests (two-person approval).
+  const summary=(await pool.query(
+   "SELECT COUNT(*)::int total,"+
+   " COUNT(*) FILTER (WHERE status='pending')::int pending,"+
+   " COUNT(*) FILTER (WHERE status='approved')::int approved,"+
+   " COUNT(*) FILTER (WHERE status='rejected')::int rejected,"+
+   " COUNT(*) FILTER (WHERE status='pending' AND requested_by<>$3)::int reviewable_count,"+
+   " COUNT(*) FILTER (WHERE requested_by=$3 AND status='pending')::int my_pending,"+
+   " COALESCE(SUM(amount) FILTER (WHERE status='pending'),0)::text pending_amount,"+
+   " COALESCE(SUM(amount) FILTER (WHERE status='pending' AND requested_by<>$3),0)::text reviewable_amount"+
+   " FROM cc_gabbai_approval_requests WHERE organization_id=$1 AND campaign_id=$2",
+   [c.organization_id,c.id,req.userId])).rows[0];
   res.set('Cache-Control','private,no-store');
-  res.json({requests:q.rows,limit:200,role:c.role,approvalDoesNotMoveMoney:true,
-   dualControl:true});
+  res.json({requests:q.rows,summary,limit:200,role:c.role,approvalDoesNotMoveMoney:true,
+   dualControl:true,summaryAcrossAllRows:true});
  }));
  router.get('/campaigns/:cid/priority-oversight',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
