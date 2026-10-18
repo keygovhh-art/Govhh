@@ -421,6 +421,15 @@ async function submit(event){
    case 'gabbai-filter-search': {
      state.gabbaiQuery=String(d.query||'').trim().slice(0,120);break;
    }
+   case 'gabbai-decision': {
+     const id=form.dataset.id,decision=String(d.decision||''),reason=String(d.reason||'').trim();
+     if(!state.gabbaiApprovals?.some(x=>x.id===id&&x.status==='pending')||
+        !['approved','rejected'].includes(decision))throw new Error('אויסקלייבן אן ערלויבטן באשלוס');
+     if(decision==='rejected'&&!reason)throw new Error('ביים אפווארפן שרייב א באגרינדונג');
+     if(!confirm('דעם פינאנציעלן באשלוס קען מען נישט צוריקדרייען. זאל מען אים אפהיטן?'))break;
+     await api('/gabbai/approvals/'+id+'/decision',{method:'POST',body:JSON.stringify({decision,reason})});
+     break;
+   }
    case 'gabbai-approval-new': {
      await api('/gabbai/campaigns/'+state.campaignId+'/approvals',{method:'POST',body:JSON.stringify({category:d.category,subject:d.subject,amount:d.amount,explanation:d.explanation||''})});break;
    }
@@ -715,11 +724,6 @@ async function click(event){
       state.gabbaiFilter=value;draw();
     }
     return;
-  }
-  if(a==='gabbai-decision'){
-    if(!confirm('באשליסן דעם פינאנציעלן פארלאנג? מען קען די החלטה נישט צוריקדרייען.'))return;
-    await api('/gabbai/approvals/'+btn.dataset.id+'/decision',{method:'POST',body:JSON.stringify({decision:btn.dataset.decision})});
-    await refresh();return;
   }
   if(a==='pro-blocker-resolve'){
     const old=state.proBlockers?.blockers?.find(x=>x.task_id===btn.dataset.id);
