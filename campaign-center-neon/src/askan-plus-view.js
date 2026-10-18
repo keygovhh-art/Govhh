@@ -19,7 +19,10 @@ export function askanPlusView(state,esc,money) {
  const overdue=(alerts?.overdueTasks||[]).map(t=>
   '<article class="item"><div><strong>'+esc(t.title)+'</strong>'+
   '<small>טערמין: '+esc(t.due_at?.slice(0,16)||'')+' · '+esc(t.priority)+
-  (manager?' · צוגעטיילט: '+esc(t.assignee_subject):'')+'</small></div></article>'
+  (manager?' · צוגעטיילט: '+esc(t.assignee_subject):'')+'</small></div>'+ 
+  (t.acknowledged_at?'<small>געזען דורך דיר</small>':
+   '<button type="button" data-action="plus-alert-ack" data-id="'+esc(t.id)+'">איך האב געזען די ווארענונג</button>')+
+  '</article>'
  ).join('');
  const quiet=manager?(alerts?.quietMembers||[]).map(m=>
   '<p class="muted">'+esc(m.subject)+' · '+esc(m.team_name||'נישט צוגעטיילט')+
