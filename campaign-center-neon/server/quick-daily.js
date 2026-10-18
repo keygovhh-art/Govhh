@@ -12,7 +12,7 @@ export default function quickDailyRouter({pool,campaignAccess,planPolicy,bad,log
  const router=Router();
  const wrap=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
  const elevated=new Set(['owner','manager','finance','auditor']);
- const fields='id,review_date,open_tasks,overdue_tasks,due_soon_tasks,critical_tasks,completed_today,goal_warnings,reflection,created_at';
+ const fields='id,review_date::text AS review_date,open_tasks,overdue_tasks,due_soon_tasks,critical_tasks,completed_today,goal_warnings,reflection,created_at';
  async function scope(db,req){
   const c=await campaignAccess(db,req.params.cid,req.userId);
   const access=await planPolicy.forMember(db,c.organization_id,req.userId);
