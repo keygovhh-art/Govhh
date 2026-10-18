@@ -78,7 +78,7 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log})
    " FROM cc_gabbai_handoffs x WHERE x.organization_id=cm.organization_id"+
    " AND x.campaign_id=cm.campaign_id AND x.assigned_to=cm.subject) h ON true"+
    " WHERE cm.organization_id=$1 AND cm.campaign_id=$2"+
-   " ORDER BY overdue_tasks+overdue_handoffs DESC,total_open_work DESC,cm.subject ASC LIMIT 500",
+   " ORDER BY (COALESCE(t.overdue_tasks,0)+COALESCE(h.overdue_handoffs,0)) DESC, (COALESCE(t.open_tasks,0)+COALESCE(h.open_handoffs,0)) DESC,cm.subject ASC LIMIT 500",
    [c.organization_id,c.id]);
   const members=rows.rows;
   const totals=members.reduce((s,m)=>{
