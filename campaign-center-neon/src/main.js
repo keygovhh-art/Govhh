@@ -718,6 +718,16 @@ async function click(event){
     if(!state.organizationPortfolio?.campaigns?.some(c=>c.id===btn.dataset.id))throw new Error('קאמפיין נישט געפונען');
     state.campaignId=btn.dataset.id;state.tab='today';await refresh();return;
   }
+  if(a==='gabbai-task-status'){
+    const task=state.gabbaiPriorities?.urgentTasks?.find(t=>t.id===btn.dataset.id);
+    const next=btn.dataset.status;
+    if(!task||!['in_progress','done'].includes(next))
+      throw new Error('די דרינגליכע אויפגאבע איז נישט אין דעם קאמפיין');
+    if(next==='done'&&!confirm('באשטעטיג, די אויפגאבע איז טאקע פארענדיגט?'))return;
+    await api('/tasks/'+encodeURIComponent(task.id),{
+      method:'PATCH',body:JSON.stringify({status:next})});
+    await refresh();say(next==='done'?'די אויפגאבע איז פארענדיגט':'די אויפגאבע איז אנגעהויבן');return;
+  }
   if(a==='gabbai-filter'){
     const value=btn.dataset.value;
     if(['actionable','pending','mine','approved','rejected','all'].includes(value)){
