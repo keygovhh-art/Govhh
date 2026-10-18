@@ -70,8 +70,24 @@ export default function gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim
    " WHERE cm.organization_id=$1 AND cm.campaign_id=$2"+
    " GROUP BY cm.team_name ORDER BY overdue_tasks DESC,active_blockers DESC,open_tasks DESC,cm.team_name LIMIT 50",
    [c.organization_id,c.id]);
+  // Actionable details behind the team totals: 25 highest urgency tasks,
+  // not inferred productivity rankings and not a separate task record.
+  const urgent=await pool.query(
+   "SELECT a.id,a.title,a.status,a.priority,a.due_at,a.assignee_subject,cm.team_name"+
+   " FROM cc_assignments a JOIN cc_campaign_members cm ON cm.organization_id=a.organization_id"+
+   " AND cm.campaign_id=a.campaign_id AND cm.subject=a.assignee_subject"+
+   " JOIN cc_memberships m ON m.organization_id=cm.organization_id"+
+   " AND m.subject=cm.subject AND m.membership_status='active'"+
+   " WHERE a.organization_id=$1 AND a.campaign_id=$2"+
+   " AND a.status IN ('open','in_progress')"+
+   " AND (a.priority IN ('critical','high') OR (a.due_at IS NOT NULL AND a.due_at<now()+interval '48 hours'))"+
+   " ORDER BY CASE WHEN a.due_at<now() THEN 0 ELSE 1 END,"+
+   " CASE a.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,"+
+   " a.due_at ASC NULLS LAST,a.created_at ASC,a.id ASC LIMIT 25",
+   [c.organization_id,c.id]);
   res.set('Cache-Control','private,no-store');
-  res.json({teams:data.rows,priorityOrder:'overdue-then-reported-blockers-then-open',
+  res.json({teams:data.rows,urgentTasks:urgent.rows,urgentLimit:25,
+   priorityOrder:'overdue-then-reported-blockers-then-open',
    isBasedOnRecordedTasksOnly:true,noEmployeePerformanceJudgement:true});
  }));
  router.get('/campaigns/:cid/ledger-review',run(async(req,res)=>{
