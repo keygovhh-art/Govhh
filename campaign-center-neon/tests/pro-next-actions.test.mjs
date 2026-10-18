@@ -89,7 +89,7 @@ test('Askan Pro next recommendation: human accept/later/skip decisions and immut
   assert.equal((await choose(a,'crm_followup',dnc,'accepted')).status,404);
   assert.equal((await choose(a,'crm_followup',claimed,'accepted')).status,404);
   assert.equal((await choose(b,'crm_followup',empty,'accepted')).status,404);
-  assert.equal((await choose(a,'task',aTask,'missing')).status,404,'Unknown route source is rejected at central paid-tier gate');
+  assert.equal((await choose(a,'task',aTask,'missing')).status,400,'Invalid decision is rejected by handler');
   assert.equal((await choose(a,'task',aTask,'accepted','X'.repeat(301))).status,400);
   let r=await choose(a,'task',aTask,'accepted','I will work on it now');assert.equal(r.status,200);
   assert.equal(r.data.unchanged,false);
