@@ -18,7 +18,7 @@ export default function askanProRouter({pool,campaignAccess,bad,trim,log}){
   }else if(!authorized.includes(campaign.role)){
    const me=(await db.query('SELECT team_name FROM cc_campaign_members WHERE organization_id=$1 AND campaign_id=$2 AND subject=$3',
      [campaign.organization_id,campaign.id,subject])).rows[0];
-   if(!me||me.team_name!==contact.assigned_team)throw bad(404,'Contact not available to your team');
+   if(!me||!me.team_name||!contact.assigned_team||me.team_name!==contact.assigned_team)throw bad(404,'Contact not available to your team');
   }
   return {contact,campaign};
  }
@@ -54,8 +54,10 @@ export default function askanProRouter({pool,campaignAccess,bad,trim,log}){
     "SELECT c.id,c.display_name,p.next_followup_at,p.priority FROM cc_contacts c"+
     " JOIN cc_pro_contact_profiles p ON p.contact_id=c.id AND p.organization_id=c.organization_id"+
     " WHERE c.organization_id=$1 AND c.campaign_id=$2 AND p.next_followup_at IS NOT NULL"+
+    " AND c.do_not_call=false AND c.phone<>'' AND p.stage<>'closed'"+
+    " AND (c.claimed_by IS NULL OR c.claim_expires_at<=now() OR c.claimed_by=$3)"+
     " AND ((c.privacy='private' AND c.created_by=$3) OR"+
-    " (c.privacy='campaign' AND ($4::boolean OR c.assigned_team=("+
+    " (c.privacy='campaign' AND ($4::boolean OR NULLIF(c.assigned_team,'')=("+
     " SELECT team_name FROM cc_campaign_members WHERE organization_id=$1 AND campaign_id=$2 AND subject=$3))))"+
     " ORDER BY p.next_followup_at ASC LIMIT 50",
     [c.organization_id,c.id,req.userId,elevated])
@@ -92,7 +94,7 @@ export default function askanProRouter({pool,campaignAccess,bad,trim,log}){
     " FROM cc_contacts c LEFT JOIN cc_pro_contact_profiles p ON p.contact_id=c.id"+
     " WHERE c.organization_id=$1 AND c.campaign_id=$2"+
     " AND ((c.privacy='private' AND c.created_by=$3) OR"+
-    " (c.privacy='campaign' AND ($4::boolean OR c.assigned_team=("+
+    " (c.privacy='campaign' AND ($4::boolean OR NULLIF(c.assigned_team,'')=("+
     " SELECT team_name FROM cc_campaign_members WHERE organization_id=$1 AND campaign_id=$2 AND subject=$3))))"+
     " AND ($5='' OR c.display_name ILIKE '%'||$5||'%' OR c.phone ILIKE '%'||$5||'%')"+
     " AND (NOT $6::boolean OR (p.next_followup_at IS NOT NULL AND p.next_followup_at<now()))"+

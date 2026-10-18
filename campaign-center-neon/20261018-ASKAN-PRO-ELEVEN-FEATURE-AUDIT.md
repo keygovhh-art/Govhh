@@ -37,6 +37,7 @@
 
 ## Next in sequence
 - Improve **Next Best Action** beyond suggestions: safe member confirmation / audited manual action, separate from auto-calling.
-- Improve **Clarity** by grounding source and completion.
+- **Clarity / Next Best Action privacy hardening — PR #28:** Excludes DNC, blank-phone, closed-stage and contacts claimed by another member; unassigned/empty teams may not leak campaign shared contacts or related private timeline. Real multi-member acceptance tests are green. This is safer source-based recommendations, NOT autonomous AI. 
+- Improve **Clarity** further with explicit human accepted/declined recommendation states and source link verification.
 - Expand **Guidance** with manual human reply/acknowledgement/SLA tracking once backend supports it.
 - Continue Gabbai Pro, Organization, Custom afterward, with separate releases.
