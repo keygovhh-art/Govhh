@@ -1,6 +1,7 @@
 // Gabbai Pro operational handoffs: incoming/outgoing duties, acceptance,
 // completed work and factual event history. No phone or push messages.
 export function gabbaiHandoffsView(state,esc){
+ if(!['owner','manager'].includes(state.gabbaiRole))return '';
  const v=state.gabbaiHandoffs;
  const entries=v?.handoffs||[];
  const counts={
