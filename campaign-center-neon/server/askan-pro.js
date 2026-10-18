@@ -40,7 +40,7 @@ export default function askanProRouter({pool,campaignAccess,bad,trim,log}){
   const squad=c.role==='squad_leader';
   const [tasks,followups]=await Promise.all([
    pool.query(
-    "SELECT a.id,a.title,a.priority,a.due_at,a.assignee_subject FROM cc_assignments a"+
+    "SELECT a.id,a.title,a.priority,a.status,a.due_at,a.assignee_subject FROM cc_assignments a"+
     " WHERE a.organization_id=$1 AND a.campaign_id=$2 AND a.status IN ('open','in_progress')"+
     " AND ($3::boolean OR a.assignee_subject=$4 OR ($5::boolean AND EXISTS("+
     " SELECT 1 FROM cc_campaign_members l JOIN cc_campaign_members peer"+
@@ -70,7 +70,7 @@ export default function askanProRouter({pool,campaignAccess,bad,trim,log}){
     ({high:0,critical:0,normal:2,low:4}[priority]??3);
   };
   const actions=[
-   ...tasks.rows.map(t=>({source:'task',id:t.id,title:t.title,dueAt:t.due_at,
+   ...tasks.rows.map(t=>({source:'task',id:t.id,title:t.title,status:t.status,dueAt:t.due_at,
      priority:t.priority,score:score(t.due_at,t.priority)})),
    ...followups.rows.map(p=>({source:'crm_followup',id:p.id,title:p.display_name,dueAt:p.next_followup_at,
      priority:p.priority,score:score(p.next_followup_at,p.priority)}))

@@ -258,7 +258,7 @@ export const PLAN_FEATURES = [
     "code": "next_action",
     "yi": "Next Best Action",
     "minTier": 2,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {

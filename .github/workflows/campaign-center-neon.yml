@@ -59,6 +59,8 @@ jobs:
         run: node --test tests/plus-pledges.test.mjs
       - name: Askan Pro CRM privacy, append-only relationship history, followups and two-team permissions
         run: node --test tests/askan-pro-crm.test.mjs
+      - name: Askan Pro human Next Best Action decisions with private progress and audit
+        run: node --test tests/pro-next-actions.test.mjs
       - name: Askan Pro true binary campaign files, per-member private and team scope
         run: node --test tests/pro-files.test.mjs
       - name: Askan Pro manual private CRM automation, plan gates, DNC and concurrency
