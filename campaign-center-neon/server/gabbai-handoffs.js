@@ -50,6 +50,48 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log})
   res.json({handoffs:cards.rows,stats:stats.rows[0],canCreate:manager,limit:120,
    source:'human_operations',automatedExternalNotifications:false});
  }));
+ // Exact per-member counts support managerial work redistribution.
+ // No productivity score, personal donor names, or call-statistics assumptions.
+ router.get('/campaigns/:cid/member-workload',run(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);
+  if(!management.has(c.role))throw bad(403,'Management dashboard only');
+  const rows=await pool.query(
+   "SELECT cm.subject,cm.team_name,m.role,"+
+   " COALESCE(t.open_tasks,0)::int AS open_tasks,"+
+   " COALESCE(t.overdue_tasks,0)::int AS overdue_tasks,"+
+   " COALESCE(t.due_soon_tasks,0)::int AS due_soon_tasks,"+
+   " COALESCE(h.open_handoffs,0)::int AS open_handoffs,"+
+   " COALESCE(h.overdue_handoffs,0)::int AS overdue_handoffs,"+
+   " (COALESCE(t.open_tasks,0)+COALESCE(h.open_handoffs,0))::int AS total_open_work"+
+   " FROM cc_campaign_members cm JOIN cc_memberships m"+
+   " ON m.organization_id=cm.organization_id AND m.subject=cm.subject AND m.membership_status='active'"+
+   " LEFT JOIN LATERAL (SELECT"+
+   " COUNT(*) FILTER(WHERE a.status IN ('open','in_progress'))::int open_tasks,"+
+   " COUNT(*) FILTER(WHERE a.status IN ('open','in_progress') AND a.due_at<now())::int overdue_tasks,"+
+   " COUNT(*) FILTER(WHERE a.status IN ('open','in_progress') AND a.due_at>=now()"+
+   " AND a.due_at<now()+interval '48 hours')::int due_soon_tasks"+
+   " FROM cc_assignments a WHERE a.organization_id=cm.organization_id"+
+   " AND a.campaign_id=cm.campaign_id AND a.assignee_subject=cm.subject) t ON true"+
+   " LEFT JOIN LATERAL (SELECT"+
+   " COUNT(*) FILTER(WHERE x.status<>'done')::int open_handoffs,"+
+   " COUNT(*) FILTER(WHERE x.status<>'done' AND x.due_at<now())::int overdue_handoffs"+
+   " FROM cc_gabbai_handoffs x WHERE x.organization_id=cm.organization_id"+
+   " AND x.campaign_id=cm.campaign_id AND x.assigned_to=cm.subject) h ON true"+
+   " WHERE cm.organization_id=$1 AND cm.campaign_id=$2"+
+   " ORDER BY (COALESCE(t.overdue_tasks,0)+COALESCE(h.overdue_handoffs,0)) DESC, (COALESCE(t.open_tasks,0)+COALESCE(h.open_handoffs,0)) DESC,cm.subject ASC LIMIT 500",
+   [c.organization_id,c.id]);
+  const members=rows.rows;
+  const totals=members.reduce((s,m)=>{
+   s.openTasks+=m.open_tasks;s.overdueTasks+=m.overdue_tasks;
+   s.dueSoonTasks+=m.due_soon_tasks;
+   s.openHandoffs+=m.open_handoffs;s.overdueHandoffs+=m.overdue_handoffs;return s;
+  },{openTasks:0,overdueTasks:0,dueSoonTasks:0,openHandoffs:0,overdueHandoffs:0});
+  res.set('Cache-Control','private,no-store').json({
+   members,totals,shown:members.length,limit:500,
+   dataSource:'assigned_campaign_tasks_and_operational_handoffs',
+   basedOnActualRecords:true,noStaffPerformanceRating:true,doesNotReassignAutomatically:true
+  });
+ }));
  router.post('/campaigns/:cid/handoffs',run(async(req,res)=>{
   const {title,instructions='',assignedTo,priority='normal',dueAt=null}=req.body||{};
   if(typeof title!=='string'||!title.trim()||title.length>180||

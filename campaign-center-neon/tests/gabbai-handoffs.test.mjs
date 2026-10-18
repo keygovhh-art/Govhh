@@ -81,6 +81,16 @@ test('Gabbai Pro real handoffs: manager assignment, member progress, private his
   assert.equal((await create(worker,{title:'Try bypass',assignedTo:peer})).status,403);
   assert.equal((await create(owner,{title:'No campaign assignee',assignedTo:manager})).status,400);
   assert.equal((await create(owner,{title:'X',assignedTo:worker,priority:'urgent'})).status,400);
+  await pool.query(
+    "INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,due_at)"+
+    " VALUES($1,$2,$3,'Worker overdue task','high',now()-interval '1 day')",
+    [org,cid,worker]);
+  await pool.query(
+    "INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,due_at)"+
+    " VALUES($1,$2,$3,'Peer tomorrow task','normal',now()+interval '1 day')",
+    [org,cid,peer]);
+  assert.equal((await request(worker,'GET','/campaigns/'+cid+'/member-workload')).status,403);
+  assert.equal((await request(outsider,'GET','/campaigns/'+cid+'/member-workload')).status,404);
   const newTask=await create(owner,{title:'Call back shift manager',
    instructions:'Make sure tomorrow handoff is complete.',assignedTo:worker,priority:'high',
    dueAt:new Date(Date.now()-86400000).toISOString()});
@@ -90,6 +100,20 @@ test('Gabbai Pro real handoffs: manager assignment, member progress, private his
   assert.equal(view.data.stats.overdue,1);
   assert.equal(view.data.canCreate,true);
   assert.equal((await list(worker)).data.stats.assigned_to_me,1);
+  const workload=await request(owner,'GET','/campaigns/'+cid+'/member-workload');
+  assert.equal(workload.status,200);
+  assert.equal(workload.data.basedOnActualRecords,true);
+  assert.equal(workload.data.noStaffPerformanceRating,true);
+  const byMember=Object.fromEntries(workload.data.members.map(x=>[x.subject,x]));
+  assert.equal(byMember[worker].open_tasks,1);
+  assert.equal(byMember[worker].overdue_tasks,1);
+  assert.equal(byMember[worker].open_handoffs,1);
+  assert.equal(byMember[worker].overdue_handoffs,1);
+  assert.equal(byMember[worker].total_open_work,2);
+  assert.equal(byMember[peer].open_tasks,1);
+  assert.equal(byMember[peer].due_soon_tasks,1);
+  assert.equal(workload.data.totals.openHandoffs,1);
+
   assert.equal((await list(peer)).data.handoffs.length,0);
   assert.equal((await events(peer,id)).status,404);
   assert.equal((await status(peer,id,'done')).status,404);
@@ -105,6 +129,11 @@ test('Gabbai Pro real handoffs: manager assignment, member progress, private his
   assert.ok(completed.data.handoff.completed_at);
   const after=await list(owner);assert.equal(after.data.stats.done,1);
   assert.equal(after.data.stats.overdue,0);
+  const finishedLoad=await request(manager,'GET','/campaigns/'+cid+'/member-workload');
+  assert.equal(finishedLoad.status,200);
+  assert.equal(finishedLoad.data.totals.openHandoffs,0,
+    'Completing delegated work must free up actual workload count');
+
   const history=await events(worker,id);
   assert.deepEqual(history.data.events.map(x=>x.kind),['created','status','comment','status']);
   await assert.rejects(

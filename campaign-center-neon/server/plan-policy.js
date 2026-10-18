@@ -134,6 +134,7 @@ export function makePlanPolicy({pool,bad}){
   ["PUT","tasks/:id/blocker","blocker_intelligence"]
  ],
  gabbai: [
+  ["GET","campaigns/:id/member-workload","team_workload"],
   ["GET","campaigns/:id/handoffs","operations_memory"],
   ["POST","campaigns/:id/handoffs","operations_memory"],
   ["GET","handoffs/:id/events","operations_memory"],

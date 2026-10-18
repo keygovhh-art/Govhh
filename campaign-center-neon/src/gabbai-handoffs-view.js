@@ -36,7 +36,7 @@ export function gabbaiHandoffsView(state,esc){
   '<label>מיין באריכט / וואס דארף דער קומענדיגער עסקן וויסן<textarea name="body" required maxlength="1500" rows="3"></textarea></label>'+
   '<button>צולייגן דעם באריכט</button></form></section>':'';
  const members=(state.assignees||[]).map(x=>
-  '<option value="'+esc(x.subject)+'">'+esc(x.subject)+' — '+esc(x.team_name||'נישט באשטימט')+'</option>').join('');
+  '<option value="'+esc(x.subject)+'"'+(x.subject===state.gabbaiNewAssignee?' selected':'')+'>'+esc(x.subject)+' — '+esc(x.team_name||'נישט באשטימט')+'</option>').join('');
  const newForm=isBoss?'<section class="card"><h3>נייע ארבעט איבערגעבן</h3>'+
   '<form data-form="gabbai-handoff-new" class="stack">'+
   '<label>וואס דארף מען טון?<input name="title" maxlength="180" required placeholder="צ.ב. פארענדיגן אלע פארבליבענע רופן"></label>'+
