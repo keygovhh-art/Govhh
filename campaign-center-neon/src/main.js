@@ -31,7 +31,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',quickDaily:null,quickDailyError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceFilter:'open',proGuidanceQuery:'',proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proNextAction:null,proNextActionError:'',proContacts:[],proFiles:null,proFilesError:'',proAutomations:null,proAutomationsError:'',proCallList:null,proCallListError:'',proCallListMode:'due',proCallListLimit:30,proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',quickDaily:null,quickDailyError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiSummary:null,gabbaiFilter:'pending',gabbaiQuery:'',gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceFilter:'open',proGuidanceQuery:'',proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proNextAction:null,proNextActionError:'',proContacts:[],proFiles:null,proFilesError:'',proAutomations:null,proAutomationsError:'',proCallList:null,proCallListError:'',proCallListMode:'due',proCallListLimit:30,proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -146,11 +146,11 @@ async function refresh() {
     try{const sprintData=await api('/pro/campaigns/'+id+'/sprints');state.proSprints=sprintData.sprints||[];}catch(error){state.proSprints=[];}
     try{const memory=await api('/pro/campaigns/'+id+'/focus-history');state.proHistory=memory.events||[];}catch(error){state.proHistory=[];}
     try{const help=await api('/pro/campaigns/'+id+'/guidance');state.proGuidance=help.requests||[];state.proGuidanceError='';}catch(error){state.proGuidance=[];state.proGuidanceError=error.message;}
-    try{const gabbai=await api('/gabbai/campaigns/'+id+'/approvals');state.gabbaiApprovals=gabbai.requests||[];state.gabbaiRole=gabbai.role;state.gabbaiError='';
+    try{const gabbai=await api('/gabbai/campaigns/'+id+'/approvals');state.gabbaiApprovals=gabbai.requests||[];state.gabbaiSummary=gabbai.summary||null;state.gabbaiRole=gabbai.role;state.gabbaiError='';
       state.gabbaiLedger=await api('/gabbai/campaigns/'+id+'/ledger-review?days='+state.gabbaiDays);
       if(['owner','manager'].includes(gabbai.role))state.gabbaiPriorities=await api('/gabbai/campaigns/'+id+'/priority-oversight');
       else state.gabbaiPriorities=null;
-    }catch(error){state.gabbaiApprovals=[];state.gabbaiRole=null;state.gabbaiLedger=null;state.gabbaiPriorities=null;state.gabbaiError=error.message;}
+    }catch(error){state.gabbaiApprovals=[];state.gabbaiSummary=null;state.gabbaiRole=null;state.gabbaiLedger=null;state.gabbaiPriorities=null;state.gabbaiError=error.message;}
     try{state.proBlockers=await api('/pro/campaigns/'+id+'/blockers');state.proBlockersError='';}
     catch(error){state.proBlockers={blockers:[],activeByReason:{}};state.proBlockersError=error.message;}
     if(state.proGuidanceId&&!state.proGuidance.some(g=>g.id===state.proGuidanceId)){state.proGuidanceId=null;state.proGuidanceMessages=[];}
@@ -160,7 +160,7 @@ async function refresh() {
     if(['owner','manager','finance','auditor'].includes(state.overview?.campaign?.role)){
       try{state.plusReport=await api('/plus/campaigns/'+id+'/teams-report?days='+state.plusDays);}catch(error){state.plusReport=null;}
     }else state.plusReport=null;
-  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.quickDaily=null;state.quickDailyError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;state.plusAlerts=null;state.plusCredits=[];state.donationLevels=[];state.donationLevelsError='';state.plusPledges=[];state.plusPledgesError='';state.proContacts=[];state.proFiles=null;state.proFilesError='';state.proAutomations=null;state.proAutomationsError='';state.proCallList=null;state.proCallListError='';state.customFocusRules=null;state.customFocusPreview=null;state.customFocusError='';state.gabbaiApprovals=[];state.gabbaiRole=null;state.gabbaiError='';state.gabbaiLedger=null;state.gabbaiPriorities=null;state.proBlockers={blockers:[],activeByReason:{}};state.proBlockersError='';state.proGuidance=[];state.proGuidanceId=null;state.proGuidanceMessages=[];state.proSprints=[];state.proHistory=[];state.proRecommendations=[];state.proNextAction=null;state.proNextActionError='';state.proSelected=null;state.proContactId=null;state.proError='';}
+  }else{state.overview=null;state.tasks=[];state.contacts=[];state.finance=[];state.goals=[];state.goalsError='';state.quickDaily=null;state.quickDailyError='';state.donationLink=null;state.plusDesk=null;state.plusReport=null;state.plusAlerts=null;state.plusCredits=[];state.donationLevels=[];state.donationLevelsError='';state.plusPledges=[];state.plusPledgesError='';state.proContacts=[];state.proFiles=null;state.proFilesError='';state.proAutomations=null;state.proAutomationsError='';state.proCallList=null;state.proCallListError='';state.customFocusRules=null;state.customFocusPreview=null;state.customFocusError='';state.gabbaiApprovals=[];state.gabbaiSummary=null;state.gabbaiRole=null;state.gabbaiError='';state.gabbaiLedger=null;state.gabbaiPriorities=null;state.proBlockers={blockers:[],activeByReason:{}};state.proBlockersError='';state.proGuidance=[];state.proGuidanceId=null;state.proGuidanceMessages=[];state.proSprints=[];state.proHistory=[];state.proRecommendations=[];state.proNextAction=null;state.proNextActionError='';state.proSelected=null;state.proContactId=null;state.proError='';}
   state.manager=null;state.members=[];state.memberProgress=[];state.leads=[];state.assignees=[];state.rooms=[];state.hallAnnouncements=[];state.floorBoard=null;state.floorProgram=null;state.videoStatus.floor=null;state.videoGrants.floor=[];state.helpMessages=[];state.activity=[];state.activityNextOffset=null;
   if(state.campaignId){
     const activity=await api('/team/campaigns/'+state.campaignId+'/activity').catch(()=>({events:[],nextOffset:null,scope:'personal'}));
@@ -417,6 +417,18 @@ async function submit(event){
    }
    case 'organization-resolve': {
      await api('/organization/decisions/'+form.dataset.id+'/resolve',{method:'POST',body:JSON.stringify({resolution:d.resolution})});break;
+   }
+   case 'gabbai-filter-search': {
+     state.gabbaiQuery=String(d.query||'').trim().slice(0,120);break;
+   }
+   case 'gabbai-decision': {
+     const id=form.dataset.id,decision=String(d.decision||''),reason=String(d.reason||'').trim();
+     if(!state.gabbaiApprovals?.some(x=>x.id===id&&x.status==='pending')||
+        !['approved','rejected'].includes(decision))throw new Error('אויסקלייבן אן ערלויבטן באשלוס');
+     if(decision==='rejected'&&!reason)throw new Error('ביים אפווארפן שרייב א באגרינדונג');
+     if(!confirm('דעם פינאנציעלן באשלוס קען מען נישט צוריקדרייען. זאל מען אים אפהיטן?'))break;
+     await api('/gabbai/approvals/'+id+'/decision',{method:'POST',body:JSON.stringify({decision,reason})});
+     break;
    }
    case 'gabbai-approval-new': {
      await api('/gabbai/campaigns/'+state.campaignId+'/approvals',{method:'POST',body:JSON.stringify({category:d.category,subject:d.subject,amount:d.amount,explanation:d.explanation||''})});break;
@@ -706,10 +718,22 @@ async function click(event){
     if(!state.organizationPortfolio?.campaigns?.some(c=>c.id===btn.dataset.id))throw new Error('קאמפיין נישט געפונען');
     state.campaignId=btn.dataset.id;state.tab='today';await refresh();return;
   }
-  if(a==='gabbai-decision'){
-    if(!confirm('באשליסן דעם פינאנציעלן פארלאנג? מען קען די החלטה נישט צוריקדרייען.'))return;
-    await api('/gabbai/approvals/'+btn.dataset.id+'/decision',{method:'POST',body:JSON.stringify({decision:btn.dataset.decision})});
-    await refresh();return;
+  if(a==='gabbai-task-status'){
+    const task=state.gabbaiPriorities?.urgentTasks?.find(t=>t.id===btn.dataset.id);
+    const next=btn.dataset.status;
+    if(!task||!['in_progress','done'].includes(next))
+      throw new Error('די דרינגליכע אויפגאבע איז נישט אין דעם קאמפיין');
+    if(next==='done'&&!confirm('באשטעטיג, די אויפגאבע איז טאקע פארענדיגט?'))return;
+    await api('/tasks/'+encodeURIComponent(task.id),{
+      method:'PATCH',body:JSON.stringify({status:next})});
+    await refresh();say(next==='done'?'די אויפגאבע איז פארענדיגט':'די אויפגאבע איז אנגעהויבן');return;
+  }
+  if(a==='gabbai-filter'){
+    const value=btn.dataset.value;
+    if(['actionable','pending','mine','approved','rejected','all'].includes(value)){
+      state.gabbaiFilter=value;draw();
+    }
+    return;
   }
   if(a==='pro-blocker-resolve'){
     const old=state.proBlockers?.blockers?.find(x=>x.task_id===btn.dataset.id);
