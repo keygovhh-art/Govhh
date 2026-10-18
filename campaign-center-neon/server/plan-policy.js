@@ -137,6 +137,7 @@ export function makePlanPolicy({pool,bad}){
   ["GET","campaigns/:id/handoffs","operations_memory"],
   ["POST","campaigns/:id/handoffs","operations_memory"],
   ["POST","campaigns/:id/handoffs/:id/ack","operations_memory"],
+  ["POST","campaigns/:id/handoffs/:id/create-task","operations_memory"],
   ["GET","campaigns/:id/approvals","approvals"],
   ["POST","campaigns/:id/approvals","approvals"],
   ["GET","campaigns/:id/priority-oversight","priority_oversight"],
