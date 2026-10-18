@@ -5,7 +5,7 @@
 - **Not Gavhah** (`keygovhh-art/Lcb`, separate hotline/member login).
 - Production branch `prep/neon-render-campaign-center-20261014` with AutoDeploy OFF. Below additions are **separate stacked DRAFT PRs**, **not deployed**. No changes to production Neon or Render.
 - Sequential dependency from source: PR #23 Chesed Quick → #24 Askan Plus alerts → #25 Askan Pro private files → #26 Askan Pro manually-run CRM automation → #27 Askan Pro privacy-safe manual call lists.
-- Previous full six-tier entitlement work through migration 026 already deployed in a prior approved release; new pending migration numbers: 027 Quick, 028 Plus, 029 Pro Files, 030 Pro Automation.
+- Previous full six-tier entitlement work through migration 026 already deployed in a prior approved release; new pending migration numbers: 027 Quick, 028 Plus, 029 Pro Files, 030 Pro Automation, **031 Askan Pro Next Action choices + history**.
 
 ## All 11 Askan Pro catalog functions — do not omit
 | Code | Function | Exact scope in staged code, not marketing promise |
@@ -16,9 +16,9 @@
 | `advanced_call_lists` | Advanced call lists | **New PR #27 pilot:** manual due/high/all CRM worklists. Excludes DNC, inaccessible teams, other users' private contacts, blank phones, closed stages and other-worker active claims; no autodial. |
 | `csv_import` | CSV/Excel import/export | Existing pilot. Existing source handles CSV; XLSX native import is not independently verified. |
 | `clarity` | Clarity Engine | Existing deterministic authorized tasks/followups scoring only; not AI prediction. |
-| `next_action` | Next Best Action | Partial: on-screen Clarity suggestions, not tested decision fulfillment. |
+| `next_action` | Next Best Action | **New PR #29 pilot:** accept/defer/skip real recommended steps; one-click start or finish for tasks through existing task API, actual member-owned status/history and counts. No automatic calling or pretending task finished after merely accepting. |
 | `automations` | Advanced Automations | **New PR #26 pilot:** individual explicitly enables + presses Run for up to 20 own overdue CRM contacts; creates own generic task with dedupe per contact/deadline; DNC filtered; no background cron, outbound phone, SMS, email, TTS or provider call. |
-| `guidance` | Professional Guidance Requests | Existing private Guidance Inbox pilot; external professional SLA not verified. |
+| `guidance` | Professional Guidance Requests | **Improved PR #30:** manager work queue with live open/answered/closed counters, quick filters, keyword search and sorting. Existing private reply threads preserved; external professional SLA not verified. |
 | `sprint_memory` | Seven-Day Sprints and Thirty-Day Memory | Existing pilot; longer-term scheduled automation not verified. |
 | `blocker_intelligence` | Blocker identification | Existing manual blocker reasons and audits; no predictive model. |
 
@@ -30,14 +30,14 @@
 - Exact code/QA: `tests/pro-files.test.mjs`, `tests/pro-automations.test.mjs`, `tests/pro-call-lists.test.mjs` under disposable localhost Postgres.
 
 ## Honest release blockers
-1. Review ordered 027–030 schema migrations on a clean, isolated staging branch matching production. Prior staging Neon branch was missing some 013–026 baseline tables; do NOT run late migration out of order.
+1. Review ordered 027–031 schema migrations on a clean, isolated staging branch matching production. Prior staging Neon branch was missing some 013–026 baseline tables; do NOT run late migration out of order.
 2. Establish migration tracking, backup/rollback, user-approved release scope, test two users and two orgs on real Android login.
 3. Billing/Askan Pro entitlements active for real test workspace; operator must not fabricate subscriptions/verified payment.
 4. Real provider-verified calls, phone permissions, advanced unattended notifications, antivirus scanning and full Excel XLSX import are NOT present. Do not advertise them as shipped.
 
 ## Next in sequence
-- Improve **Next Best Action** beyond suggestions: safe member confirmation / audited manual action, separate from auto-calling.
+- **Next Best Action PR #29:** saved human choices and real direct task start/finish; next upgrade could add optional notes in Yiddish UI and stronger cross-page deep links.
 - **Clarity / Next Best Action privacy hardening — PR #28:** Excludes DNC, blank-phone, closed-stage and contacts claimed by another member; unassigned/empty teams may not leak campaign shared contacts or related private timeline. Real multi-member acceptance tests are green. This is safer source-based recommendations, NOT autonomous AI. 
 - Improve **Clarity** further with explicit human accepted/declined recommendation states and source link verification.
-- Expand **Guidance** with manual human reply/acknowledgement/SLA tracking once backend supports it.
+- **Guidance PR #30:** manager work queue/search implemented. Next upgrade could add explicit human acknowledgment and manually assigned responsible manager; no implied guaranteed SLA.
 - Continue Gabbai Pro, Organization, Custom afterward, with separate releases.

@@ -129,6 +129,7 @@ export function makePlanPolicy({pool,bad}){
   ["GET","guidance/:id/messages","guidance"],
   ["POST","guidance/:id/messages","guidance"],
   ["PATCH","guidance/:id/close","guidance"],
+  ["PATCH","guidance/:id/triage","guidance"],
   ["GET","campaigns/:id/blockers","blocker_intelligence"],
   ["PUT","tasks/:id/blocker","blocker_intelligence"]
  ],

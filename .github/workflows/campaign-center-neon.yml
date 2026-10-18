@@ -71,6 +71,8 @@ jobs:
         run: node --test tests/pro-sprints.test.mjs
       - name: Askan Pro private Guidance inbox and manager-message security
         run: node --test tests/pro-guidance.test.mjs
+      - name: Askan Pro manager Guidance open/replied/closed work queue and mobile filtering
+        run: node --test tests/pro-guidance-work-queue.test.mjs
       - name: Askan Pro blocker privacy, audited resolution and no fabricated insights
         run: node --test tests/pro-blockers.test.mjs
       - name: Gabbai Pro maker-checker permissions and immutable approvals

@@ -23,7 +23,8 @@ export default function proGuidanceRouter({pool,campaignAccess,bad,trim,uuid,log
  router.get('/campaigns/:cid/guidance',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
   const all=managers.includes(c.role);
-  const r=await pool.query('SELECT id,created_by,category,subject,description,status,created_at,closed_at'+
+  const r=await pool.query('SELECT id,created_by,category,subject,description,status,created_at,closed_at,assigned_to,response_due_at,triaged_at,'+
+   ' (SELECT MAX(m.sent_at) FROM cc_pro_guidance_messages m WHERE m.request_id=cc_pro_guidance_requests.id) last_message_at'+
    ' FROM cc_pro_guidance_requests WHERE organization_id=$1 AND campaign_id=$2 AND ($3::boolean OR created_by=$4)'+
    ' ORDER BY created_at DESC LIMIT 100',[c.organization_id,c.id,all,req.userId]);
   res.set('Cache-Control','private,no-store');
@@ -46,6 +47,48 @@ export default function proGuidanceRouter({pool,campaignAccess,bad,trim,uuid,log
    await log(db,c.organization_id,c.id,req.userId,'pro.guidance.created',row.id,{category:req.body.category});
    return row;
   });res.status(201).json({...result,staffResponseGuaranteed:false});
+ }));
+ // Manager ownership and optional response targets are human work aids,
+ // not automatic customer notifications or a promised service SLA.
+ router.patch('/guidance/:id/triage',run(async(req,res)=>{
+  const action=req.body?.action;
+  if(!['take','release','deadline'].includes(action))throw bad(400,'Invalid triage action');
+  let deadline;
+  if(action==='deadline'){
+   const due=req.body?.responseDueAt;
+   if(due!==null && (typeof due!=='string'||due.length>45||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/.test(due)||
+      !Number.isFinite(Date.parse(due))))throw bad(400,'Response target must include timezone');
+   deadline=due===null?null:new Date(due).toISOString();
+  }
+  const result=await tx(async db=>{
+   const {request,campaign:c}=await requestContext(db,req.params.id,req.userId,true);
+   if(!managers.includes(c.role))throw bad(403,'Only campaign management can triage guidance');
+   if(request.status==='closed')throw bad(409,'Guidance request is closed');
+   let assigned=request.assigned_to,due=request.response_due_at;
+   if(action==='take'){
+    if(assigned&&assigned!==req.userId)throw bad(409,'Another manager has already taken this request');
+    assigned=req.userId;
+   }else{
+    // The owner can override an assignment, a manager may act on their own.
+    if(assigned&&assigned!==req.userId&&c.role!=='owner')
+      throw bad(409,'Another manager owns this request');
+    if(action==='release'){assigned=null;due=null;}
+    else{due=deadline;}
+   }
+   if(assigned===request.assigned_to&&
+      (due===null?request.response_due_at===null:new Date(due).getTime()===new Date(request.response_due_at).getTime()))
+      return {id:request.id,assignedTo:assigned,responseDueAt:due,unchanged:true};
+   const updated=(await db.query(
+    'UPDATE cc_pro_guidance_requests SET assigned_to=$1,response_due_at=$2,triaged_at=now()'+
+    ' WHERE id=$3 RETURNING id,assigned_to,response_due_at,triaged_at',
+    [assigned,due,request.id])).rows[0];
+   await log(db,c.organization_id,c.id,req.userId,'pro.guidance.triaged',request.id,
+    {action,assigned:!!updated.assigned_to,dueSet:!!updated.response_due_at});
+   return {id:updated.id,assignedTo:updated.assigned_to,responseDueAt:updated.response_due_at,
+     triagedAt:updated.triaged_at,unchanged:false};
+  });
+  res.set('Cache-Control','private,no-store').json({...result,voluntaryTarget:true,staffResponseGuaranteed:false});
  }));
  router.get('/guidance/:id/messages',run(async(req,res)=>{
   const {request}=await requestContext(pool,req.params.id,req.userId);

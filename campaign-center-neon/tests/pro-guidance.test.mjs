@@ -28,12 +28,12 @@ async function campaignAccess(db,id,user){
  return c;
 }
 test('Askan Pro Guidance protects private tickets, manager replies, append-only messages and revocations',async()=>{
- for(const name of ['001_core.sql','002_team_connect.sql','019_askan_pro_guidance.sql'])
+ for(const name of ['001_core.sql','002_team_connect.sql','019_askan_pro_guidance.sql','032_guidance_work_ownership.sql'])
   await pool.query(await readFile(join(import.meta.dirname,'../db',name),'utf8'));
- const tag='guidance-ci-'+Date.now(),owner=tag+'owner',member=tag+'member',peer=tag+'peer',outsider=tag+'foreign';
+ const tag='guidance-ci-'+Date.now(),owner=tag+'owner',manager=tag+'manager',member=tag+'member',peer=tag+'peer',outsider=tag+'foreign';
  const org=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES('Guidance QA',$1) RETURNING id",[owner])).rows[0].id;
  const otherOrg=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES('Another QA',$1) RETURNING id",[outsider])).rows[0].id;
- for(const [o,who,role] of [[org,owner,'owner'],[org,member,'askan'],[org,peer,'askan'],[otherOrg,outsider,'owner']])
+ for(const [o,who,role] of [[org,owner,'owner'],[org,manager,'manager'],[org,member,'askan'],[org,peer,'askan'],[otherOrg,outsider,'owner']])
   await pool.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,$3,'active',now())",[o,who,role]);
  const camp=(await pool.query("INSERT INTO cc_campaigns(organization_id,title,status) VALUES($1,'Guidance campaign','active') RETURNING id",[org])).rows[0].id;
  for(const who of [member,peer])await pool.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject) VALUES($1,$2,$3)',[org,camp,who]);
@@ -61,6 +61,32 @@ test('Askan Pro Guidance protects private tickets, manager replies, append-only 
   assert.equal((await request(peer,'GET','/guidance/'+id+'/messages')).status,404);
   assert.equal((await request(outsider,'POST','/guidance/'+id+'/messages',{body:'hacked'})).status,404);
   assert.equal((await request(peer,'PATCH','/guidance/'+id+'/close',{})).status,404);
+  assert.equal((await request(member,'PATCH','/guidance/'+id+'/triage',{action:'take'})).status,403,
+    'Request owner cannot assign management work');
+  assert.equal((await request(peer,'PATCH','/guidance/'+id+'/triage',{action:'take'})).status,404);
+  assert.equal((await request(outsider,'PATCH','/guidance/'+id+'/triage',{action:'take'})).status,404);
+  const take=await request(manager,'PATCH','/guidance/'+id+'/triage',{action:'take'});
+  assert.equal(take.status,200);assert.equal(take.data.assignedTo,manager);
+  assert.equal(take.data.staffResponseGuaranteed,false);
+  assert.equal((await request(manager,'PATCH','/guidance/'+id+'/triage',{action:'take'})).data.unchanged,true);
+  assert.equal((await request(owner,'PATCH','/guidance/'+id+'/triage',{action:'take'})).status,409,
+    'Second manager must release or override with owner release');
+  assert.equal((await request(manager,'PATCH','/guidance/'+id+'/triage',{
+   action:'deadline',responseDueAt:'not a date'})).status,400);
+  const timed=await request(manager,'PATCH','/guidance/'+id+'/triage',{
+   action:'deadline',responseDueAt:'2026-10-01T10:00:00Z'});
+  assert.equal(timed.status,200);
+  const queue=(await request(owner,'GET',base)).data.requests[0];
+  assert.equal(queue.assigned_to,manager);
+  assert.equal(queue.response_due_at,'2026-10-01T10:00:00.000Z');
+  assert.equal((await request(member,'GET',base)).data.requests[0].assigned_to,manager);
+  assert.equal((await request(manager,'PATCH','/guidance/'+id+'/triage',{
+   action:'release'})).status,200);
+  const released=(await request(owner,'GET',base)).data.requests[0];
+  assert.equal(released.assigned_to,null);assert.equal(released.response_due_at,null);
+  assert.equal((await request(owner,'PATCH','/guidance/'+id+'/triage',{
+   action:'take'})).data.assignedTo,owner);
+
   assert.equal((await request(owner,'POST','/guidance/'+id+'/messages',{body:'Manager private answer'})).status,201);
   const afterManager=(await request(member,'GET',base)).data.requests[0];
   assert.equal(afterManager.status,'answered');
@@ -74,6 +100,7 @@ test('Askan Pro Guidance protects private tickets, manager replies, append-only 
   await assert.rejects(pool.query('DELETE FROM cc_pro_guidance_messages WHERE id=$1',[thread.data.messages[0].id]),/append-only/);
   assert.equal((await request(member,'PATCH','/guidance/'+id+'/close',{})).status,200);
   assert.equal((await request(member,'POST','/guidance/'+id+'/messages',{body:'late'})).status,409);
+  assert.equal((await request(owner,'PATCH','/guidance/'+id+'/triage',{action:'release'})).status,409);
   assert.equal((await request(owner,'PATCH','/guidance/'+id+'/close',{})).data.unchanged,true);
   await pool.query("UPDATE cc_memberships SET membership_status='revoked' WHERE organization_id=$1 AND subject=$2",[org,member]);
   assert.equal((await request(member,'GET','/guidance/'+id+'/messages')).status,404);

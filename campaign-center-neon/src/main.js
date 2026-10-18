@@ -31,7 +31,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',quickDaily:null,quickDailyError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proNextAction:null,proNextActionError:'',proContacts:[],proFiles:null,proFilesError:'',proAutomations:null,proAutomationsError:'',proCallList:null,proCallListError:'',proCallListMode:'due',proCallListLimit:30,proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',quickDaily:null,quickDailyError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceFilter:'open',proGuidanceQuery:'',proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proNextAction:null,proNextActionError:'',proContacts:[],proFiles:null,proFilesError:'',proAutomations:null,proAutomationsError:'',proCallList:null,proCallListError:'',proCallListMode:'due',proCallListLimit:30,proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -424,6 +424,17 @@ async function submit(event){
    case 'pro-blocker': {
      await api('/pro/tasks/'+d.taskId+'/blocker',{method:'PUT',body:JSON.stringify({active:true,reason:d.reason,details:d.details||''})});break;
    }
+   case 'pro-guidance-search': {
+     state.proGuidanceQuery=String(d.query||'').trim().slice(0,120);break;
+   }
+   case 'pro-guidance-deadline': {
+     if(!state.proGuidanceId)throw new Error('קודם עפען א בקשה');
+     const due=d.responseDueAt?new Date(d.responseDueAt):null;
+     if(due&&!Number.isFinite(due.getTime()))throw new Error('די ציל־צייט איז נישט ריכטיג');
+     await api('/pro/guidance/'+state.proGuidanceId+'/triage',{
+       method:'PATCH',body:JSON.stringify({action:'deadline',responseDueAt:due?due.toISOString():null})});
+     break;
+   }
    case 'pro-guidance-new': {
      await api('/pro/campaigns/'+state.campaignId+'/guidance',{method:'POST',
        body:JSON.stringify({category:d.category,subject:d.subject,description:d.description})});break;
@@ -705,6 +716,18 @@ async function click(event){
     if(!old)throw new Error('שוועריקייט נישט געפונען');
     await api('/pro/tasks/'+old.task_id+'/blocker',{method:'PUT',body:JSON.stringify({active:false,reason:old.reason})});
     await refresh();return;
+  }
+  if(a==='pro-guidance-filter'){
+    const value=btn.dataset.value;
+    if(['open','answered','closed','all','mine','due'].includes(value)){state.proGuidanceFilter=value;draw();}
+    return;
+  }
+  if(a==='pro-guidance-take'||a==='pro-guidance-release'){
+    const id=btn.dataset.id;
+    if(!state.proGuidance.some(x=>x.id===id))throw new Error('בקשה נישט געפונען');
+    await api('/pro/guidance/'+id+'/triage',{
+      method:'PATCH',body:JSON.stringify({action:a==='pro-guidance-take'?'take':'release'})});
+    await refresh();say('די הנהלה־צוטיילונג איז אפגעהיטן');return;
   }
   if(a==='pro-guidance-open'){
     state.proGuidanceId=btn.dataset.id;
