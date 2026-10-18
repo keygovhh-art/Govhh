@@ -6,6 +6,18 @@ export function gabbaiApprovalsView(state,esc,money){
   refund_review:'בקשה איבער א צוריקצאלונג',other:'אנדערע'};
  const statuses={pending:'ווארט אויף באשטעטיגונג',approved:'באשטעטיגט',rejected:'אפגעווארפן'};
  const priorityTeams=state.gabbaiPriorities?.teams||[];
+ const urgentItems=(state.gabbaiPriorities?.urgentTasks||[]).map(t=>{
+  const overdue=t.due_at&&Date.parse(t.due_at)<Date.now();
+  return '<article class="item"><div><strong>'+esc(t.title)+'</strong>'+
+    '<small>'+esc(t.team_name||'אן א גרופע')+' · '+esc(t.assignee_subject)+
+    ' · '+esc(t.priority)+' · '+esc(t.status)+
+    (t.due_at?' · טערמין '+esc(String(t.due_at).slice(0,16)):'')+
+    (overdue?' · פארשפעטיגט':'')+'</small></div><div class="inline">'+
+    (t.status==='open'?'<button data-action="gabbai-task-status" data-id="'+esc(t.id)+
+    '" data-status="in_progress">אנהייבן</button>':'')+
+    '<button data-action="gabbai-task-status" data-id="'+esc(t.id)+
+    '" data-status="done">פארענדיגן</button></div></article>';
+ }).join('');
  const priorityBoard=state.gabbaiPriorities?
   '<section class="card"><h2>Gabbai Pro — וויכטיגע גרופע־שריט</h2>'+
   '<p class="muted">דער סדר איז לויט פארשפעטיגטע אויפגאבן, דערנאך באריכטעטע שטערונגען. דער באריכט איז נאר פאר דער הנהלה און זאגט נישט ווער האט גוט אדער שלעכט געארבעט.</p>'+
@@ -13,7 +25,10 @@ export function gabbaiApprovalsView(state,esc,money){
     '</strong><small>אקטיווע עסקנים: '+esc(x.active_members)+'</small>'+
     '<p>אפענע אויפגאבן: '+esc(x.open_tasks)+' · פארשפעטיגט: '+esc(x.overdue_tasks)+
     ' · באריכטעטע שטערונגען: '+esc(x.active_blockers)+'</p></div></article>').join('')||
-   '<p class="muted">קיין אקטיווע גרופעס אין דעם קאמפיין.</p>')+'</section>':'';
+   '<p class="muted">קיין אקטיווע גרופעס אין דעם קאמפיין.</p>')+
+  '<h3>דרינגליכע אויפגאבן — גלייך צו באהאנדלען</h3>'+
+  '<p class="muted">די ערשטע 25 אפענע, וויכטיגע אדער נאנטע־טערמין אויפגאבן. א באשלוס דא טוישט זייער אמתן סטאטוס.</p>'+
+  (urgentItems||'<p class="muted">נישטא קיין דרינגליכע רעקארדירטע אויפגאבן.</p>')+'</section>':'';
  const ledger=state.gabbaiLedger;
  const net=ledger?.totals||{};
  const ledgerRows=(ledger?.bySource||[]).map(x=>
