@@ -431,6 +431,15 @@ async function submit(event){
        blockersSummary:d.blockersSummary||'',nextAction:d.nextAction,urgency:d.urgency,
        targetAt:due?due.toISOString():null})});break;
    }
+   case 'gabbai-handoff-assign': {
+     const handoffId=form.dataset.id,assigned=String(d.assigneeSubject||'');
+     if(!state.gabbaiHandoffs?.handoffs?.some(x=>x.id===handoffId&&!x.linked_task_id)||
+       !state.assignees?.some(x=>x.subject===assigned))
+       throw new Error('קודם קלייב א ערלויבטן עסקן און א מסירה');
+     await api('/gabbai/campaigns/'+state.campaignId+'/handoffs/'+encodeURIComponent(handoffId)+'/create-task',
+       {method:'POST',body:JSON.stringify({assigneeSubject:assigned})});
+     break;
+   }
    case 'gabbai-handoff-filter': {
      const days=Number(d.days),filter=String(d.filter||'pending');
      if(![7,30,90].includes(days)||!['pending','urgent','all'].includes(filter))
