@@ -26,9 +26,12 @@ export default function gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim
   const status=req.query.status||'all';
   if(!['all','pending','approved','rejected'].includes(status))throw bad(400,'Invalid status filter');
   const q=await pool.query(
-   "SELECT id,category,amount::text amount,currency,subject,explanation,status,requested_by,created_at,decided_by,decided_at"+
-   " FROM cc_gabbai_approval_requests WHERE organization_id=$1 AND campaign_id=$2"+
-   " AND ($3='all' OR status=$3) ORDER BY created_at DESC,id DESC LIMIT 200",
+   "SELECT r.id,r.category,r.amount::text amount,r.currency,r.subject,r.explanation,r.status,r.requested_by,"+
+   " r.created_at,r.decided_by,r.decided_at,d.reason AS decision_reason"+
+   " FROM cc_gabbai_approval_requests r"+
+   " LEFT JOIN cc_gabbai_approval_decisions d ON d.request_id=r.id"+
+   " WHERE r.organization_id=$1 AND r.campaign_id=$2"+
+   " AND ($3='all' OR r.status=$3) ORDER BY r.created_at DESC,r.id DESC LIMIT 200",
    [c.organization_id,c.id,status]);
   // Accurate whole-campaign counters, independent of the 200 newest rows.
   // "Can review" always excludes one's own requests (two-person approval).
@@ -126,6 +129,8 @@ export default function gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim
   if(!uuid(req.params.id)||!['approved','rejected'].includes(req.body?.decision)||
      (req.body.reason!==undefined&&(typeof req.body.reason!=='string'||req.body.reason.length>500)))
    throw bad(400,'Invalid review');
+  if(req.body.decision==='rejected'&&!(typeof req.body.reason==='string'&&req.body.reason.trim()))
+   throw bad(400,'A rejected financial request requires a written explanation');
   const result=await tx(async db=>{
    const item=(await db.query('SELECT * FROM cc_gabbai_approval_requests WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
    if(!item)throw bad(404,'Approval not found');
