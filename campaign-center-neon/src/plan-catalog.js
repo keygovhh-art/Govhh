@@ -27,7 +27,7 @@ export const PLAN_FEATURES = [
     "code": "focus_memory_7",
     "yi": "נעכטן / 3 / 7 טעג Focus־געשיכטע",
     "minTier": 0,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
@@ -104,14 +104,14 @@ export const PLAN_FEATURES = [
     "code": "system_watch",
     "yi": "סיסטעם־ווארענונגען",
     "minTier": 0,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
     "code": "daily_review",
     "yi": "טעגליכער קאמפיין־איבערבליק",
     "minTier": 0,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
