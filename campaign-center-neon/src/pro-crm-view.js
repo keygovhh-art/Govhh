@@ -20,7 +20,8 @@ export function proCrmView(state,esc){
    (chosen?'<p class="muted">מיין באשלוס: '+esc(nextLabels[chosen.decision]||chosen.decision)+'</p>':'')+
    '</div><div class="inline">'+choiceButtons+
    (x.source==='crm_followup'?'<button data-action="pro-open" data-id="'+esc(x.id)+'">עפענען קשר</button>':
-     '<button data-action="tab" data-tab="today">עפענען אויפגאבן</button>')+'</div></article>';
+     (x.status==='open'?'<button data-action="pro-next-task-status" data-id="'+esc(x.id)+'" data-status="in_progress">אנהייבן די אויפגאבע</button>':'')+
+     '<button data-action="pro-next-task-status" data-id="'+esc(x.id)+'" data-status="done">פארענדיגט די אויפגאבע</button>')+'</div></article>';
  }).join('');
  const nextStats=(state.proNextAction?.choices||[]).reduce((a,x)=>{
    if(x.decision==='accepted')a.accepted++;
