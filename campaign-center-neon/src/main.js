@@ -726,6 +726,15 @@ async function click(event){
     await api('/pro/sprints/'+btn.dataset.id+'/status',{method:'PATCH',body:JSON.stringify({status:btn.dataset.status})});
     await refresh();return;
   }
+  if(a==='pro-next-task-status'){
+    const id=btn.dataset.id,status=btn.dataset.status;
+    const task=state.proRecommendations?.find(x=>x.source==='task'&&x.id===id);
+    if(!state.campaignId||!task||!['in_progress','done'].includes(status))
+      throw new Error('אויפגאבע נישט ערלויבט');
+    await api('/tasks/'+encodeURIComponent(id),{
+      method:'PATCH',body:JSON.stringify({status})});
+    await refresh();say(status==='done'?'די אויפגאבע איז פארענדיגט':'די אויפגאבע איז אנגעהויבן');return;
+  }
   if(a==='pro-next-choice'){
     const source=btn.dataset.source,id=btn.dataset.id,decision=btn.dataset.decision;
     if(!state.campaignId||!['accepted','deferred','skipped'].includes(decision)||
