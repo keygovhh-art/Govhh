@@ -427,6 +427,14 @@ async function submit(event){
    case 'pro-guidance-search': {
      state.proGuidanceQuery=String(d.query||'').trim().slice(0,120);break;
    }
+   case 'pro-guidance-deadline': {
+     if(!state.proGuidanceId)throw new Error('קודם עפען א בקשה');
+     const due=d.responseDueAt?new Date(d.responseDueAt):null;
+     if(due&&!Number.isFinite(due.getTime()))throw new Error('די ציל־צייט איז נישט ריכטיג');
+     await api('/pro/guidance/'+state.proGuidanceId+'/triage',{
+       method:'PATCH',body:JSON.stringify({action:'deadline',responseDueAt:due?due.toISOString():null})});
+     break;
+   }
    case 'pro-guidance-new': {
      await api('/pro/campaigns/'+state.campaignId+'/guidance',{method:'POST',
        body:JSON.stringify({category:d.category,subject:d.subject,description:d.description})});break;
@@ -713,6 +721,13 @@ async function click(event){
     const value=btn.dataset.value;
     if(['open','answered','closed','all','mine','due'].includes(value)){state.proGuidanceFilter=value;draw();}
     return;
+  }
+  if(a==='pro-guidance-take'||a==='pro-guidance-release'){
+    const id=btn.dataset.id;
+    if(!state.proGuidance.some(x=>x.id===id))throw new Error('בקשה נישט געפונען');
+    await api('/pro/guidance/'+id+'/triage',{
+      method:'PATCH',body:JSON.stringify({action:a==='pro-guidance-take'?'take':'release'})});
+    await refresh();say('די הנהלה־צוטיילונג איז אפגעהיטן');return;
   }
   if(a==='pro-guidance-open'){
     state.proGuidanceId=btn.dataset.id;
