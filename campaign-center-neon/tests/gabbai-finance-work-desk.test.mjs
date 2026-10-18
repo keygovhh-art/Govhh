@@ -20,19 +20,25 @@ test('Gabbai Pro finance dashboard lets reviewer instantly find their pending fi
  assert.match(html,/data-action="gabbai-filter"/);
  assert.match(html,/Order dinner/);
  assert.doesNotMatch(html,/<strong>Owner equipment/);
- assert.equal((html.match(/data-action="gabbai-decision"/g)||[]).length,2,
-  'Only one eligible request offers approve and reject');
+ assert.equal((html.match(/data-form="gabbai-decision"/g)||[]).length,1,
+  'Only the other writer request offers a decision form');
  state.gabbaiFilter='mine';html=gabbaiApprovalsView(state,esc,money);
  assert.match(html,/Owner equipment/);
  assert.doesNotMatch(html,/<strong>Order dinner/);
- assert.equal((html.match(/data-action="gabbai-decision"/g)||[]).length,0);
+ assert.equal((html.match(/data-form="gabbai-decision"/g)||[]).length,0);
  state.gabbaiFilter='all';state.gabbaiQuery='dinner';html=gabbaiApprovalsView(state,esc,money);
  assert.match(html,/Order dinner/);
  assert.doesNotMatch(html,/<strong>Owner equipment/);
  state.gabbaiQuery='';
+ state.gabbaiRole='owner';
+ state.gabbaiFilter='approved';
+ approvals[2].decision_reason='Reviewed by another manager';
+ html=gabbaiApprovalsView(state,esc,money);
+ assert.match(html,/Reviewed by another manager/);
+ state.gabbaiQuery='';
  state.gabbaiRole='finance';state.gabbaiFilter='pending';html=gabbaiApprovalsView(state,esc,money);
  assert.doesNotMatch(html,/פאר מיין באשלוס<\/button>/);
- assert.equal((html.match(/data-action="gabbai-decision"/g)||[]).length,0);
+ assert.equal((html.match(/data-form="gabbai-decision"/g)||[]).length,0);
 });
 test('Gabbai financial user input remains escaped',()=>{
  const html=gabbaiApprovalsView({subject:'owner',gabbaiRole:'owner',gabbaiDays:30,
