@@ -209,7 +209,7 @@ export const PLAN_FEATURES = [
     "code": "basic_alerts",
     "yi": "פשוטע אוטאמאטישע ווארענונגען און ארכיוו",
     "minTier": 1,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
