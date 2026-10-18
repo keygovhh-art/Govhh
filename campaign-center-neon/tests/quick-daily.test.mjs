@@ -49,18 +49,11 @@ test('Chesed Quick real Watch and immutable private memory respects roles and te
  await task(a,'A SOON','normal',12);
  await task(b,'B OVERDUE','critical',-12);
  await task(b,'B DONE','high',-12,'done');
- await pool.query(
-  "INSERT INTO cc_goal_history(organization_id,campaign_id,goal_id,actor_subject,event_kind)"+
-  " SELECT $1,$2,g.id,$3,'created' FROM ("+
-  " INSERT INTO cc_goals(organization_id,campaign_id,title,target_value,created_by,status)"+
-  " VALUES($1,$2,'Urgent goal',100,$3,'at_risk') RETURNING id) g",[org,campaign,owner]
- ).catch(async()=>{
-  const goal=(await pool.query(
-   "INSERT INTO cc_goals(organization_id,campaign_id,title,target_value,created_by,status) VALUES($1,$2,'Urgent goal',100,$3,'at_risk') RETURNING id",
-   [org,campaign,owner])).rows[0];
-  await pool.query("INSERT INTO cc_goal_history(organization_id,campaign_id,goal_id,actor_subject,event_kind) VALUES($1,$2,$3,$4,'created')",
-   [org,campaign,goal.id,owner]);
- });
+ const goal=(await pool.query(
+  "INSERT INTO cc_goals(organization_id,campaign_id,title,target_value,created_by,status) VALUES($1,$2,'Urgent goal',100,$3,'at_risk') RETURNING id",
+  [org,campaign,owner])).rows[0];
+ await pool.query("INSERT INTO cc_goal_history(organization_id,campaign_id,goal_id,actor_subject,event_kind) VALUES($1,$2,$3,$4,'created')",
+  [org,campaign,goal.id,owner]);
  await pool.query(
   "INSERT INTO cc_activity_events(organization_id,campaign_id,actor_subject,event_type,details) VALUES($1,$2,$3,'task.status',$4)",
   [org,campaign,a,JSON.stringify({from:'open',to:'done'})]);
