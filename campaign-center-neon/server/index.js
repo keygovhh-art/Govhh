@@ -25,6 +25,7 @@ import customFocusRouter from './custom-focus.js';
 import quickDailyRouter from './quick-daily.js';
 import proFilesRouter from './pro-files.js';
 import proAutomationRouter from './pro-automations.js';
+import proCallListsRouter from './pro-call-lists.js';
 import {makePlanPolicy} from './plan-policy.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
