@@ -24,6 +24,7 @@ import organizationMemoryRouter from './organization-memory.js';
 import customFocusRouter from './custom-focus.js';
 import quickDailyRouter from './quick-daily.js';
 import proFilesRouter from './pro-files.js';
+import proAutomationRouter from './pro-automations.js';
 import {makePlanPolicy} from './plan-policy.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
@@ -161,6 +162,7 @@ app.use('/api/plus',plusPledgesRouter({pool,campaignAccess,need,bad,uuid,trim,lo
 app.use('/api/pro',planPolicy.scoped('askan_pro'));
 app.use('/api/pro',askanProRouter({pool,campaignAccess,bad,trim,log}));
 app.use('/api/pro',proFilesRouter({pool,campaignAccess,bad,log}));
+app.use('/api/pro',proAutomationRouter({pool,campaignAccess,bad,log}));
 app.use('/api/pro',proSprintRouter({pool,campaignAccess,bad,log,uuid,trim}));
 app.use('/api/pro',proGuidanceRouter({pool,campaignAccess,bad,trim,uuid,log}));
 app.use('/api/pro',proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log}));

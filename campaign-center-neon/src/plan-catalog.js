@@ -265,7 +265,7 @@ export const PLAN_FEATURES = [
     "code": "automations",
     "yi": "פארגעשריטענע Automations",
     "minTier": 2,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {

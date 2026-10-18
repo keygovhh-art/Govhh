@@ -61,6 +61,8 @@ jobs:
         run: node --test tests/askan-pro-crm.test.mjs
       - name: Askan Pro true binary campaign files, per-member private and team scope
         run: node --test tests/pro-files.test.mjs
+      - name: Askan Pro manual private CRM automation, plan gates, DNC and concurrency
+        run: node --test tests/pro-automations.test.mjs
       - name: Askan Pro seven-day personal Sprints and immutable 30-day activity
         run: node --test tests/pro-sprints.test.mjs
       - name: Askan Pro private Guidance inbox and manager-message security
