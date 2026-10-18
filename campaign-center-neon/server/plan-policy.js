@@ -95,6 +95,7 @@ export function makePlanPolicy({pool,bad}){
   ["GET","campaigns/:id/member-desk","member_dashboard"],
   ["GET","campaigns/:id/credit-report","team_credit"],
   ["GET","campaigns/:id/alerts","basic_alerts"],
+  ["POST","campaigns/:id/alerts/:id/ack","basic_alerts"],
   ["GET","campaigns/:id/teams-report","detailed_reports"],
   ["PATCH","tasks/:id/handoff","advanced_tasks"],
   ["GET","campaigns/:id/donation-levels","donation_levels"],

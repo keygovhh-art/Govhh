@@ -31,7 +31,7 @@ async function campaignAccess(db,cid,subject){
 
 test('Askan Plus: each member has private KPIs; manager teams totals; handoff is permissioned and audited',async()=>{
  // Reviewed base schema is safe to re-apply only to this disposable CI instance.
- for(const file of ['001_core.sql','002_team_connect.sql','015_donation_levels.sql'])
+ for(const file of ['001_core.sql','002_team_connect.sql','015_donation_levels.sql','028_plus_alert_acknowledgements.sql'])
   await pool.query(await readFile(join(import.meta.dirname,'../db',file),'utf8'));
  const unique='ap-ci-'+Date.now();
  const owner=unique+'owner',leader=unique+'leader',a=unique+'askana',b=unique+'askanb',c=unique+'askanc',outsider=unique+'outside';
@@ -116,6 +116,34 @@ test('Askan Plus: each member has private KPIs; manager teams totals; handoff is
   assert.equal(ownerAlerts.status,200);
   assert.equal(ownerAlerts.data.overdueCount,1);
   assert.ok(ownerAlerts.data.quietMembers.some(u=>u.subject===leader),'Team summary is factual about missing manual logs');
+  const overdueId=mineAlerts.data.overdueTasks[0].id;
+  const ack='/campaigns/'+campaign+'/alerts/'+overdueId+'/ack';
+  assert.equal((await request(b,'POST',ack,{})).status,404,'Other team cannot acknowledge a colleague task');
+  assert.equal((await request(outsider,'POST',ack,{})).status,404,'Other organization cannot acknowledge');
+  const first=await request(a,'POST',ack,{});
+  assert.equal(first.status,201);
+  assert.equal(first.data.taskStatusUnchanged,true);
+  assert.equal(first.data.externalNotificationSent,false);
+  const repeat=await request(a,'POST',ack,{});
+  assert.equal(repeat.status,200);
+  assert.equal(repeat.data.alreadyAcknowledged,true);
+  assert.ok((await get(a,'/campaigns/'+campaign+'/alerts')).data.overdueTasks[0].acknowledged_at);
+  assert.equal((await get(owner,'/campaigns/'+campaign+'/alerts')).data.overdueTasks[0].acknowledged_at,null,
+    'Acknowledgement must not dismiss the manager warning');
+  assert.equal((await get(leader,'/campaigns/'+campaign+'/alerts')).data.overdueTasks[0].acknowledged_at,null,
+    'Squad member sees an independent acknowledgement state');
+  await pool.query("UPDATE cc_assignments SET due_at='2026-01-02T10:00:00Z' WHERE id=$1",[overdueId]);
+  assert.equal((await get(a,'/campaigns/'+campaign+'/alerts')).data.overdueTasks[0].acknowledged_at,null,
+    'A changed due date requires renewed acknowledgement');
+  assert.equal((await request(a,'POST',ack,{})).status,201);
+  const ackEvents=await pool.query(
+    "SELECT COUNT(*)::int total FROM cc_activity_events WHERE campaign_id=$1 AND event_type='plus.task_alert_acknowledged'",
+    [campaign]);
+  assert.equal(ackEvents.rows[0].total,2,'No duplicate audit on retry');
+  const ackRows=await pool.query('SELECT id FROM cc_plus_alert_acknowledgements WHERE task_id=$1',[overdueId]);
+  assert.equal(ackRows.rowCount,2);
+  await assert.rejects(pool.query('DELETE FROM cc_plus_alert_acknowledgements WHERE id=$1',[ackRows.rows[0].id]),/append-only/);
+
 
   const amounts='/campaigns/'+campaign+'/donation-levels';
   assert.equal((await get(outsider,amounts)).status,404);

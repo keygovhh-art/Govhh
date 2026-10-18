@@ -709,6 +709,11 @@ async function click(event){
   }
 
 
+  if(a==='plus-alert-ack'){
+    if(!state.campaignId||!state.plusAlerts?.overdueTasks?.some(t=>t.id===btn.dataset.id))throw new Error('ווארענונג נישט געפונען');
+    await api('/plus/campaigns/'+state.campaignId+'/alerts/'+encodeURIComponent(btn.dataset.id)+'/ack',{method:'POST',body:'{}'});
+    await refresh();return;
+  }
   if(a==='plus-preset'){
     const amountField=document.querySelector('form[data-form="finance"] input[name="amount"]');
     if(amountField){amountField.value=btn.dataset.amount;amountField.focus();}return;
