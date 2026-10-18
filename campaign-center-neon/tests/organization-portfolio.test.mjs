@@ -63,6 +63,25 @@ test('Organization portfolio is workspace-leadership-only, no donor leak, curren
   assert.ok(!JSON.stringify(result.data).includes('SECRET DONOR'));
   assert.ok(!JSON.stringify(result.data).includes(foreignCamp));
   assert.equal((await get(manager,org)).status,200);
+  assert.equal(result.data.attentionDoesNotContainPrivateTasks,true);
+  assert.equal(result.data.attentionQueue.length,1);
+  assert.equal(result.data.attentionQueue[0].id,a);
+  assert.equal(result.data.attentionQueue[0].overdue_tasks,1);
+  assert.ok(!JSON.stringify(result.data.attentionQueue).includes('Private donor notes'));
+  // The attention feed is ALL-campaign based even if normal portfolio shows
+  // only 50 newest campaign rows.
+  await pool.query(
+   "INSERT INTO cc_campaigns(organization_id,title,currency,goal_amount,status,created_at)"+
+   " SELECT $1,('Extra portfolio '||n),'USD',0,'active',now()+make_interval(secs=>n)"+
+   " FROM generate_series(1,55) n",[org]);
+  const many=(await get(owner,org)).data;
+  assert.equal(many.totalCampaigns,57);
+  assert.equal(many.returned,50);
+  assert.equal(many.truncated,true);
+  assert.ok(!many.campaigns.some(x=>x.id===a),'Older urgent campaign is absent from newest 50');
+  assert.ok(many.attentionQueue.some(x=>x.id===a),'But it still appears in the all-campaign urgency queue');
+  assert.ok(!JSON.stringify(many.attentionQueue).includes('Private donor notes'));
+
 
   async function action(who,method,path,body){
    const r=await fetch('http://127.0.0.1:'+server.address().port+'/api/organization'+path,{
