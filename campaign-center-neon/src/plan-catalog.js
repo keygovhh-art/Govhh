@@ -349,7 +349,7 @@ export const PLAN_FEATURES = [
     "code": "operations_memory",
     "yi": "אפעראציע־געשיכטע און Handoffs",
     "minTier": 3,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
