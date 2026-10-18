@@ -34,11 +34,13 @@ test('Askan Pro manual call lists are scoped, DNC-safe and do not dial or reveal
  for(const [who,team] of [[alpha,'A'],[beta,'B']])
   await pool.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject,team_name) VALUES($1,$2,$3,$4)',[org,campaign,who,team]);
  const due=new Date(Date.now()-86400000).toISOString(),later=new Date(Date.now()+86400000).toISOString();
+ let phoneOrdinal=1000;
  async function contact(by,name,{privacy='campaign',team='A',phone='12125550000',dnc=false,stage='followup',priority='high',time=due,claimed=null}={}){
+  const safeNumber=phone==='12125550000'?'1212555'+String(phoneOrdinal++).padStart(4,'0'):phone;
   const id=(await pool.query(
    "INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy,assigned_team,do_not_call)"+
    " VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id",
-   [org,campaign,by,name,phone,privacy,team,dnc])).rows[0].id;
+   [org,campaign,by,name,safeNumber,privacy,team,dnc])).rows[0].id;
   await pool.query(
    "INSERT INTO cc_pro_contact_profiles(organization_id,campaign_id,contact_id,stage,priority,next_followup_at,last_updated_by)"+
    " VALUES($1,$2,$3,$4,$5,$6,$7)",[org,campaign,id,stage,priority,time,by]);
