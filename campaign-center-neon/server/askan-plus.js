@@ -62,17 +62,18 @@ export default function askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,
   res.json({scope:elevated?'leadership':'self',credits:r.rows,immutableAttribution:true,
    explanation:'Original ledger attribution, not a verified payment, and not evidence of individual fundraiser effort. Current team membership is used for grouping.'});
  }));
- router.get('/campaigns/:cid/alerts',handler(async(req,res)=>{
-  const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,workRoles);
-  const manager=isLeader(c.role);
-  const squad=c.role==='squad_leader';
-  const scope=
+ const visibleAlertTask=
    " AND ($3::boolean OR a.assignee_subject=$4 OR ($5::boolean AND EXISTS ("+
    " SELECT 1 FROM cc_campaign_members leader JOIN cc_campaign_members peer"+
    " ON peer.organization_id=leader.organization_id AND peer.campaign_id=leader.campaign_id"+
    " AND peer.team_name=leader.team_name AND peer.team_name<>''"+
    " WHERE leader.organization_id=a.organization_id AND leader.campaign_id=a.campaign_id"+
    " AND leader.subject=$4 AND peer.subject=a.assignee_subject)))";
+ router.get('/campaigns/:cid/alerts',handler(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,workRoles);
+  const manager=isLeader(c.role);
+  const squad=c.role==='squad_leader';
+  const scope=visibleAlertTask;
   const base=" FROM cc_assignments a WHERE a.organization_id=$1 AND a.campaign_id=$2"+
    " AND a.status IN ('open','in_progress') AND a.due_at<now()"+scope;
   const params=[c.organization_id,c.id,manager,req.userId,squad];
@@ -81,6 +82,14 @@ export default function askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,
    pool.query('SELECT a.id,a.title,a.priority,a.assignee_subject,a.due_at'+base+
     ' ORDER BY a.due_at ASC LIMIT 20',params)
   ]);
+  const ackIds=items.rows.map(t=>t.id);
+  const reads=ackIds.length?await pool.query(
+   "SELECT task_id,trigger_due_at,acknowledged_at FROM cc_plus_alert_acknowledgements"+
+   " WHERE organization_id=$1 AND campaign_id=$2 AND author_subject=$3 AND task_id=ANY($4::uuid[])",
+   [c.organization_id,c.id,req.userId,ackIds]):{rows:[]};
+  const acknowledgements=new Map(reads.rows.map(x=>[x.task_id+'@'+new Date(x.trigger_due_at).toISOString(),x.acknowledged_at]));
+  const taskCards=items.rows.map(t=>({...t,
+   acknowledged_at:acknowledgements.get(t.id+'@'+new Date(t.due_at).toISOString())||null}));
   let quietMembers=[];
   if(manager){
    const report=await pool.query(
@@ -97,8 +106,35 @@ export default function askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,
   }
   res.set('Cache-Control','private,no-store');
   res.json({source:'existing_campaign_records',notificationDelivered:false,
-   overdueCount:total.rows[0].total,overdueTasks:items.rows,quietMembers,
+   overdueCount:total.rows[0].total,overdueTasks:taskCards,quietMembers,
    advisory:'A lack of manually logged calls is not proof that a member did no work.'});
+ }));
+ // An ACK is a per-member read receipt, not task completion or reminder dispatch.
+ router.post('/campaigns/:cid/alerts/:tid/ack',handler(async(req,res)=>{
+  if(!uuid(req.params.tid))throw bad(400,'Invalid task id');
+  const result=await transaction(async db=>{
+   const c=await campaignAccess(db,req.params.cid,req.userId);need(c.role,workRoles);
+   if(c.status==='closed')throw bad(409,'Closed campaign');
+   const manager=isLeader(c.role),squad=c.role==='squad_leader';
+   const r=await db.query(
+    "SELECT a.id,a.due_at FROM cc_assignments a WHERE a.id=$6 AND a.organization_id=$1"+
+    " AND a.campaign_id=$2 AND a.status IN ('open','in_progress') AND a.due_at<now()"+
+    visibleAlertTask+" FOR UPDATE OF a",
+    [c.organization_id,c.id,manager,req.userId,squad,req.params.tid]);
+   const task=r.rows[0];
+   if(!task)throw bad(404,'Overdue task not in your permitted view');
+   const saved=await db.query(
+    "INSERT INTO cc_plus_alert_acknowledgements(organization_id,campaign_id,author_subject,task_id,trigger_due_at)"+
+    " VALUES($1,$2,$3,$4,$5)"+
+    " ON CONFLICT(organization_id,campaign_id,author_subject,task_id,trigger_due_at) DO NOTHING RETURNING acknowledged_at",
+    [c.organization_id,c.id,req.userId,task.id,task.due_at]);
+   if(saved.rowCount){
+    await log(db,c.organization_id,c.id,req.userId,'plus.task_alert_acknowledged',task.id,{type:'overdue'});
+   }
+   return {taskId:task.id,acknowledgedAt:saved.rows[0]?.acknowledged_at||null,alreadyAcknowledged:!saved.rowCount,
+     reminderStillDue:true,taskStatusUnchanged:true,externalNotificationSent:false};
+  });
+  res.set('Cache-Control','private,no-store').status(result.alreadyAcknowledged?200:201).json(result);
  }));
  router.get('/campaigns/:cid/teams-report',handler(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
