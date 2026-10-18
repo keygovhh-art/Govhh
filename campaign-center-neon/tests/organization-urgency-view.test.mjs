@@ -15,7 +15,7 @@ test('Organization shows real urgent cross-campaign focus with one-tap navigatio
  assert.match(html,/פארשפעטיגט: 4/);
  assert.match(html,/קריטיש: 2/);
  assert.match(html,new RegExp('data-action="organization-campaign" data-id="'+id+'"'));
- assert.match(html,/ערשטע 25/);
+ assert.match(html,/העכסטע 25/);
  assert.match(html,/53 קאמפיינס/);
 });
 test('Urgency list never renders untrusted campaign HTML',()=>{
