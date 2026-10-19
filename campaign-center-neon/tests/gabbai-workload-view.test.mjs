@@ -31,7 +31,7 @@ test('Manager can see actual staffing counts and choose overdue or unassigned me
  assert.match(html,/data-form="gabbai-workload-team"/);
  assert.match(html,/data-action="gabbai-workload-team" data-team="Rufers"/);
  assert.match(html,/סך הכל 706/);
- assert.match(html,/נאך עסקנים וואס דער עקראַן ווייזט נישט/);
+ assert.match(html,/די יעצטיגע פילטערס ארבעטן אויף די אריינגעלאדענע קארטלעך/);
  s.gabbaiWorkloadTeam='Available group';
  html=gabbaiWorkloadView(s,esc);
  assert.match(html,/<strong>ask2<\/strong>/);
@@ -49,6 +49,30 @@ test('Manager can see actual staffing counts and choose overdue or unassigned me
  assert.match(html,/<strong>ask3<\/strong>/);
  assert.doesNotMatch(html,/<strong>ask2<\/strong>/);
 });
+test('Server-backed Gabbai workload paging shows actual global matches',()=>{
+ const s=state();
+ s.gabbaiWorkload={
+  ...s.gabbaiWorkload,members:[members[2]],serverFiltered:true,
+  filterCounts:{all:706,overdue:1,soon:1,unassigned:704},
+  matchingMembers:51,page:2,pageCount:3,hasNext:true,hasPrevious:true,limit:50
+ };
+ s.gabbaiWorkloadFilter='soon';
+ s.gabbaiWorkloadQuery='Donor';
+ let html=gabbaiWorkloadView(s,esc);
+ assert.match(html,/אלע \(706\)/);
+ assert.match(html,/קיין צוגעטיילטע ארבעט \(704\)/);
+ assert.match(html,/געפונען 51/);
+ assert.match(html,/זוך און פילטערס ארבעטן איבער אלע מיטגלידער/);
+ assert.match(html,/data-action="gabbai-workload-page" data-page="1"/);
+ assert.match(html,/data-action="gabbai-workload-page" data-page="3"/);
+ assert.match(html,/זייט 2 פון 3/);
+ // The API is the source of truth; no second local substring-filter may discard
+ // authorized page results that were already searched on the server.
+ s.gabbaiWorkloadQuery='a different search handled by the server';
+ html=gabbaiWorkloadView(s,esc);
+ assert.match(html,/<strong>ask3<\/strong>/);
+});
+
 test('Workload search is scoped to loaded permitted members and escapes private text',()=>{
  const s=state();
  s.gabbaiWorkloadQuery='Donor';
