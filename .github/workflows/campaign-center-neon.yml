@@ -102,6 +102,10 @@ jobs:
         run: node --test tests/organization-portfolio.test.mjs
       - name: Organization priority view across all campaigns
         run: node --test tests/organization-urgency-view.test.mjs
+      - name: Organization leadership management plans, failure states, waiting, progress and audit
+        run: node --test tests/management.test.mjs
+      - name: Mobile Yiddish management dashboard and history
+        run: node --test tests/management-view.test.mjs
       - name: Organization capped resources, months, concurrency and private audit
         run: node --test tests/organization-resources.test.mjs
       - name: Organization private append-only knowledge, revisions and review dates

@@ -44,7 +44,8 @@ try{
  if(noRls.length)fail('RLS missing on: '+noRls.join(','));
  const cols=await db.query("SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=ANY($1::text[])",
  [['cc_conference_rooms','cc_live_rooms','cc_call_events','cc_floor_programs',
-  'cc_pro_guidance_requests','cc_gabbai_handoffs','cc_gabbai_handoff_events']]);
+  'cc_pro_guidance_requests','cc_gabbai_handoffs','cc_gabbai_handoff_events',
+  'cc_management_plan_items','cc_management_plan_history']]);
  const byTable=new Map();
  for(const row of cols.rows){if(!byTable.has(row.table_name))byTable.set(row.table_name,new Set());byTable.get(row.table_name).add(row.column_name);}
  const needed={
@@ -56,7 +57,7 @@ try{
  for(const [table,fields] of Object.entries(needed)){
   for(const field of fields)if(!byTable.get(table)?.has(field))fail('Missing required '+table+'.'+field);
  }
- // Stage 027–034 must be installed before starting the new API build.
+ // Stage 027–035 must be installed before starting the new API build.
  // Catalog inspection only; no write privileges are used for this check.
  const checks=await db.query(
   "SELECT t.relname AS table_name,k.conname,pg_get_constraintdef(k.oid) AS definition"+
