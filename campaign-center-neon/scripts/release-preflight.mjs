@@ -43,8 +43,8 @@ try{
  if(missing.length)fail('Missing Campaign Center tables: '+missing.join(','));
  if(noRls.length)fail('RLS missing on: '+noRls.join(','));
  const cols=await db.query("SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=ANY($1::text[])",
- ['cc_conference_rooms','cc_live_rooms','cc_call_events','cc_floor_programs',
-  'cc_pro_guidance_requests','cc_gabbai_handoffs','cc_gabbai_handoff_events']);
+ [['cc_conference_rooms','cc_live_rooms','cc_call_events','cc_floor_programs',
+  'cc_pro_guidance_requests','cc_gabbai_handoffs','cc_gabbai_handoff_events']]);
  const byTable=new Map();
  for(const row of cols.rows){if(!byTable.has(row.table_name))byTable.set(row.table_name,new Set());byTable.get(row.table_name).add(row.column_name);}
  const needed={
