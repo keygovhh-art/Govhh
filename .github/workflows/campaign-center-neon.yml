@@ -79,6 +79,8 @@ jobs:
         run: node --test tests/gabbai-approvals.test.mjs
       - name: Gabbai Pro practical operational shift handoffs and member completion
         run: node --test tests/gabbai-handoffs.test.mjs
+      - name: Gabbai Pro mobile work queue filters, forms and escape handling
+        run: node --test tests/gabbai-handoffs-view.test.mjs
       - name: Organization owner-only multi-campaign currency-safe portfolio
         run: node --test tests/organization-portfolio.test.mjs
       - name: Organization capped resources, months, concurrency and private audit
