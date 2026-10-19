@@ -100,10 +100,30 @@ test('Gabbai Pro real handoffs: manager assignment, member progress, private his
   assert.equal(view.data.stats.overdue,1);
   assert.equal(view.data.canCreate,true);
   assert.equal((await list(worker)).data.stats.assigned_to_me,1);
+  // More than 500 active campaign members: totals and team summaries must include
+  // all members even while the mobile cards remain limited to 500.
+  await pool.query(
+   "INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at)"+
+   " SELECT $1,'bulk-helper-'||s.n,'askan','active',now() FROM generate_series(1,505) AS s(n)",
+   [org]);
+  await pool.query(
+   "INSERT INTO cc_campaign_members(organization_id,campaign_id,subject,team_name)"+
+   " SELECT $1,$2,'bulk-helper-'||s.n,'Bulk Helpers' FROM generate_series(1,505) AS s(n)",
+   [org,cid]);
   const workload=await request(owner,'GET','/campaigns/'+cid+'/member-workload');
   assert.equal(workload.status,200);
   assert.equal(workload.data.basedOnActualRecords,true);
   assert.equal(workload.data.noStaffPerformanceRating,true);
+  assert.equal(workload.data.totalMembers,507,'global member count must include records beyond the card cap');
+  assert.equal(workload.data.members.length,500,'mobile payload is deliberately bounded');
+  assert.equal(workload.data.truncated,true);
+  assert.equal(workload.data.teamSummariesCoverAllMembers,true);
+  assert.equal(workload.data.shown,500);
+  const bulkTeam=workload.data.teams.find(t=>t.team_name==='Bulk Helpers');
+  assert.equal(bulkTeam?.members,505,'team totals must include all offscreen members');
+  assert.equal(workload.data.totals.openTasks,2,'aggregate totals reflect all actual work');
+  assert.equal(workload.data.totals.openHandoffs,1);
+
   const byMember=Object.fromEntries(workload.data.members.map(x=>[x.subject,x]));
   assert.equal(byMember[worker].open_tasks,1);
   assert.equal(byMember[worker].overdue_tasks,1);
