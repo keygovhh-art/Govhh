@@ -50,7 +50,7 @@ try{
  const campaign=(await db.query("INSERT INTO cc_campaigns(organization_id,title,status) VALUES($1,'Preserved fundraiser','active') RETURNING id",[org])).rows[0].id;
  // The real proposed operator-run script must be proved on this existing
  // local 026 database. It must refuse without flags and be single-use.
- const command=join(dir,'..','scripts','apply-additive-027-034.mjs');
+ const command=join(dir,'..','scripts','apply-additive-027-035.mjs');
  const env={...process.env,DATABASE_URL:target.toString(),
   CC_EXPECTED_DB_HOST:target.hostname,CC_MIGRATION_MODE:'staging',
   CC_STAGING_MIGRATION_APPROVED:'yes-reviewed-staging'};
