@@ -22,6 +22,7 @@ import gabbaiHandoffsRouter from './gabbai-handoffs.js';
 import organizationPortfolioRouter from './organization-portfolio.js';
 import organizationResourcesRouter from './organization-resources.js';
 import organizationMemoryRouter from './organization-memory.js';
+import managementRouter from './management.js';
 import customFocusRouter from './custom-focus.js';
 import quickDailyRouter from './quick-daily.js';
 import proFilesRouter from './pro-files.js';
@@ -176,6 +177,8 @@ app.use('/api/gabbai',gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim,l
 app.use('/api/gabbai',gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log}));
 app.use('/api/organization',planPolicy.scoped('organization'));
 app.use('/api/organization',organizationPortfolioRouter({pool,bad,uuid,trim,log}));
+// Management is a basic owner/manager function on every plan tier.
+app.use('/api/management',managementRouter({pool,bad,uuid,log}));
 app.use('/api/organization',organizationResourcesRouter({pool,bad,uuid,log}));
 app.use('/api/organization',organizationMemoryRouter({pool,bad,uuid,trim,log}));
 app.use('/api/custom',planPolicy.scoped('custom'));
