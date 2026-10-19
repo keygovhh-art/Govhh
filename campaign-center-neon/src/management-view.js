@@ -28,6 +28,12 @@ export function managementView(state,esc){
  const signalCards=[
   ['overdue_tasks','פארשפעטיגטע אויפגאבן'],
   ['open_tasks','אפענע אויפגאבן'],
+  ['completed_tasks','פארענדיגטע אויפגאבן'],
+  ['completed_handoffs','פארענדיגטע איבערגאבן'],
+  ['pending_guidance','בקשות אויף הילף וואס ווארטן'],
+  ['answered_guidance','פארענטפערטע בקשות'],
+  ['approved_approvals','באשטעטיגטע פינאנץ־בקשות'],
+  ['rejected_approvals','אפגעווארפענע פינאנץ־בקשות'],
   ['blocked_handoffs','פארהינדערטע איבערגאבן'],
   ['open_handoffs','איבערגאבן נאך אין ארבעט'],
   ['pending_approvals','פינאנץ־בקשות וואס ווארטן'],
