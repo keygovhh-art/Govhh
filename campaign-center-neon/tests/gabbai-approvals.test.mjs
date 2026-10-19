@@ -73,8 +73,29 @@ test('Gabbai Pro approvals require two humans and preserve immutable decisions w
   const own=await create(owner,{...proposal,category:'refund_review',amount:'100'});
   assert.equal(own.status,201);
   assert.equal((await decision(owner,own.data.id,'approved')).status,403);
+  assert.equal((await request(manager,'POST','/approvals/'+own.data.id+'/decision',{decision:'rejected'})).status,400,'Financial rejection requires an explanation');
   assert.equal((await decision(manager,own.data.id,'rejected')).status,200);
+  const detailed=(await request(owner,'GET',home)).data.requests.find(x=>x.id===own.data.id);
+  assert.equal(detailed.decision_reason,'Reviewed manually',"Reviewer's explanation stays visible on approval history");
   assert.equal((await request(finance,'GET',home+'?status=pending')).data.requests.length,0);
+  const pendingFinance=await create(finance,{...proposal,subject:'Pending for owner',amount:'35.50'});
+  const pendingOwner=await create(owner,{...proposal,subject:'Pending for other manager',amount:'20.00'});
+  assert.equal(pendingFinance.status,201);assert.equal(pendingOwner.status,201);
+  const ownerDesk=(await request(owner,'GET',home)).data;
+  assert.equal(ownerDesk.summaryAcrossAllRows,true);
+  assert.equal(ownerDesk.summary.total,4);
+  assert.equal(ownerDesk.summary.pending,2);
+  assert.equal(ownerDesk.summary.approved,1);
+  assert.equal(ownerDesk.summary.rejected,1);
+  assert.equal(ownerDesk.summary.reviewable_count,1,'Cannot review own finance proposal');
+  assert.equal(ownerDesk.summary.my_pending,1);
+  assert.equal(Number(ownerDesk.summary.pending_amount),55.5);
+  assert.equal(Number(ownerDesk.summary.reviewable_amount),35.5);
+  const managerDesk=(await request(manager,'GET',home)).data;
+  assert.equal(managerDesk.summary.reviewable_count,2);
+  assert.equal(managerDesk.summary.my_pending,0);
+  assert.equal((await request(finance,'GET',home+'?status=pending')).data.requests.length,2);
+
   const dbDecisions=await pool.query('SELECT * FROM cc_gabbai_approval_decisions WHERE organization_id=$1',[org]);
   assert.equal(dbDecisions.rowCount,2,'One immutable decision per request');
   await assert.rejects(pool.query('DELETE FROM cc_gabbai_approval_decisions WHERE id=$1',[dbDecisions.rows[0].id]),/append-only/);
@@ -114,11 +135,14 @@ test('Gabbai Pro approvals require two humans and preserve immutable decisions w
   assert.equal(teamA.open_tasks,1);
   assert.equal(teamA.overdue_tasks,1);
   assert.equal(teamA.active_blockers,1);
+  assert.ok(priorities.data.urgentTasks.some(x=>x.id===openTask),'Gabbai board links to real urgent assigned task');
+  assert.ok(priorities.data.urgentLimit<=25);
+  assert.equal(priorities.data.urgentTasks.find(x=>x.id===openTask).status,'open');
   assert.equal((await request(auditor,'GET','/campaigns/'+campaign+'/priority-oversight')).status,403);
   assert.equal((await request(foreign,'GET','/campaigns/'+campaign+'/priority-oversight')).status,404);
 
   const audit=await pool.query("SELECT details FROM cc_activity_events WHERE campaign_id=$1 AND event_type LIKE 'gabbai.approval.%'",[campaign]);
-  assert.equal(audit.rowCount,4);
+  assert.equal(audit.rowCount,6);
   assert.ok(!JSON.stringify(audit.rows).includes('Private financial planning comment'),'No confidential request explanation in global audit');
   await pool.query("UPDATE cc_memberships SET membership_status='revoked' WHERE organization_id=$1 AND subject=$2",[org,finance]);
   assert.equal((await request(finance,'GET',home)).status,404);
