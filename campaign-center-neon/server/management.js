@@ -79,15 +79,34 @@ export default function managementRouter({pool,bad,uuid,log}){
  }
  router.get('/organizations/:oid/management',run(async(req,res)=>{
   const oid=req.params.oid;await leader(pool,oid,req.userId);
-  const filter=req.query.status??'all';
-  if(typeof filter!=='string'||(filter!=='all'&&!statuses.has(filter)))
+  const status=req.query.status??'all';
+  if(typeof status!=='string'||(status!=='all'&&!statuses.has(status)))
    throw bad(400,'Invalid status filter');
+  const queue=req.query.queue??'all';
+  const queues=['all','mine','needs_action','overdue','due_soon','unassigned'];
+  if(typeof queue!=='string'||!queues.includes(queue))
+   throw bad(400,'Invalid action queue');
   const query=req.query.query??'';
   if(typeof query!=='string'||query.length>120)throw bad(400,'Invalid search');
   const page=Number(req.query.page??1);
   if(!Number.isInteger(page)||page<1||page>10000)throw bad(400,'Invalid page');
-  const params=[oid,filter,query.trim(),(page-1)*40];
-  const [all,items,signals]=await Promise.all([
+  const live="p.status NOT IN ('successful','completed','cancelled')";
+  const overdue=live+" AND p.due_at<now()";
+  const soon=live+" AND p.due_at>=now() AND p.due_at<now()+interval '48 hours'";
+  const unassigned=live+" AND p.assigned_to IS NULL";
+  const attention="(p.status IN ('blocked','failed','waiting','ready') OR ("+overdue+"))";
+  const selection=
+   " WHERE p.organization_id=$1 AND ($2='all' OR p.status=$2)"+
+   " AND ($3='' OR p.title ILIKE '%'||$3||'%' OR p.next_action ILIKE '%'||$3||'%'"+
+   " OR COALESCE(p.assigned_to,'') ILIKE '%'||$3||'%')"+
+   " AND ($4='all'"+
+   " OR ($4='mine' AND p.assigned_to=$6)"+
+   " OR ($4='needs_action' AND "+attention+")"+
+   " OR ($4='overdue' AND "+overdue+")"+
+   " OR ($4='due_soon' AND "+soon+")"+
+   " OR ($4='unassigned' AND "+unassigned+"))";
+  const params=[oid,status,query.trim(),queue,(page-1)*40,req.userId];
+  const [all,items,signals,queueCounts,matchingRows]=await Promise.all([
    pool.query(
     "SELECT status,COUNT(*)::int count FROM cc_management_plan_items"+
     " WHERE organization_id=$1 GROUP BY status",[oid]),
@@ -97,13 +116,11 @@ export default function managementRouter({pool,bad,uuid,log}){
     " p.created_by,p.updated_by,p.updated_at,p.created_at,p.version,c.title campaign_title"+
     " FROM cc_management_plan_items p LEFT JOIN cc_campaigns c"+
     " ON c.organization_id=p.organization_id AND c.id=p.campaign_id"+
-    " WHERE p.organization_id=$1 AND ($2='all' OR p.status=$2)"+
-    " AND ($3='' OR p.title ILIKE '%'||$3||'%' OR p.next_action ILIKE '%'||$3||'%'"+
-    " OR COALESCE(p.assigned_to,'') ILIKE '%'||$3||'%')"+
+    selection+
     " ORDER BY CASE WHEN p.status IN ('blocked','failed') THEN 0"+
     " WHEN p.status='waiting' THEN 1 WHEN p.due_at<now() AND p.status NOT IN"+
     " ('successful','completed','cancelled') THEN 2 ELSE 3 END,"+
-    " p.updated_at DESC,p.id DESC LIMIT 40 OFFSET $4",params),
+    " p.updated_at DESC,p.id DESC LIMIT 40 OFFSET $5",params),
    pool.query(
     "SELECT"+
     " (SELECT COUNT(*)::int FROM cc_assignments WHERE organization_id=$1"+
@@ -122,20 +139,26 @@ export default function managementRouter({pool,bad,uuid,log}){
     " (SELECT COUNT(*)::int FROM cc_org_leadership_decisions WHERE organization_id=$1 AND status='open') pending_decisions,"+
     " (SELECT COUNT(*)::int FROM cc_management_plan_items WHERE organization_id=$1"+
     " AND due_at<now() AND status NOT IN ('completed','successful','cancelled')) overdue_plans",
-    [oid])
+    [oid]),
+   pool.query(
+    "SELECT COUNT(*)::int all,"+
+    " COUNT(*) FILTER (WHERE assigned_to=$2)::int mine,"+
+    " COUNT(*) FILTER (WHERE "+attention+")::int needs_action,"+
+    " COUNT(*) FILTER (WHERE "+overdue+")::int overdue,"+
+    " COUNT(*) FILTER (WHERE "+soon+")::int due_soon,"+
+    " COUNT(*) FILTER (WHERE "+unassigned+")::int unassigned"+
+    " FROM cc_management_plan_items p WHERE organization_id=$1",[oid,req.userId]),
+   pool.query("SELECT COUNT(*)::int n FROM cc_management_plan_items p"+selection,
+    params)
   ]);
   const counts=Object.fromEntries([...statuses].map(s=>[s,0]));
   for(const row of all.rows)counts[row.status]=row.count;
   const total=Object.values(counts).reduce((a,b)=>a+b,0);
-  const matching=(await pool.query(
-   "SELECT COUNT(*)::int n FROM cc_management_plan_items"+
-   " WHERE organization_id=$1 AND ($2='all' OR status=$2)"+
-   " AND ($3='' OR title ILIKE '%'||$3||'%' OR next_action ILIKE '%'||$3||'%'"+
-   " OR COALESCE(assigned_to,'') ILIKE '%'||$3||'%')",
-   [oid,filter,query.trim()])).rows[0].n;
+  const matching=matchingRows.rows[0].n;
   res.set('Cache-Control','private,no-store').json({
    counts,total,matching,page,pageCount:Math.max(1,Math.ceil(matching/40)),
    limit:40,items:items.rows,signals:signals.rows[0],
+   queue,queueCounts:queueCounts.rows[0],
    scope:'organization_owner_manager',humanReported:true,
    financialApprovalIsNotPayment:true,signalsAreCountsOnly:true
   });
