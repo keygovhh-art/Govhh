@@ -55,6 +55,29 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log})
  router.get('/campaigns/:cid/member-workload',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
   if(!management.has(c.role))throw bad(403,'Management dashboard only');
+  // Search/paginate on the server so members beyond the first 500 can be found.
+  // All inputs are validated and bound as PostgreSQL parameters.
+  const params=req.query||{};
+  function safeText(key,max){
+   const v=params[key];
+   if(v===undefined)return '';
+   if(typeof v!=='string'||v.length>max)throw bad(400,'Invalid workload '+key);
+   return v.trim();
+  }
+  const search=safeText('search',120),team=safeText('team',200);
+  const filter=safeText('filter',20)||'all';
+  if(!['all','overdue','soon','unassigned'].includes(filter))
+   throw bad(400,'Invalid workload filter');
+  const parseIntParam=(key,defaultValue,max)=>{
+   const v=params[key];
+   if(v===undefined)return defaultValue;
+   if(typeof v!=='string'||!/^[1-9][0-9]*$/.test(v)||v.length>8||
+      Number(v)>max)throw bad(400,'Invalid workload '+key);
+   return Number(v);
+  };
+  const page=parseIntParam('page',1,100000);
+  const pageSize=parseIntParam('limit',500,500);
+  const offset=(page-1)*pageSize;
   // Compute all-campaign totals BEFORE limiting mobile cards. The earlier LIMIT 500
   // truncated totals and hid team workload for larger institutions.
   const result=await pool.query(
@@ -88,13 +111,30 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log})
        (COALESCE(t.open_tasks,0)+COALESCE(h.open_handoffs,0))::int total_open_work
       FROM active_members a LEFT JOIN task_counts t ON t.assignee_subject=a.subject
        LEFT JOIN handoff_counts h ON h.assigned_to=a.subject
+     ), filtered_work AS (
+      SELECT * FROM member_work
+      WHERE ($3::text='' OR POSITION(LOWER($3::text) IN LOWER(
+       CONCAT_WS(' ',subject,team_name,role)))>0)
+       AND ($4::text='' OR COALESCE(NULLIF(BTRIM(team_name),''),'נישט אין א גרופע')=$4::text)
+       AND ($5::text='all'
+        OR ($5::text='overdue' AND overdue_tasks+overdue_handoffs>0)
+        OR ($5::text='soon' AND due_soon_tasks>0)
+        OR ($5::text='unassigned' AND total_open_work=0))
      )
      SELECT
       COALESCE((SELECT jsonb_agg(to_jsonb(p)) FROM
-       (SELECT * FROM member_work ORDER BY
-        (overdue_tasks+overdue_handoffs) DESC,total_open_work DESC,subject ASC LIMIT 500) p),
+       (SELECT * FROM filtered_work ORDER BY
+        (overdue_tasks+overdue_handoffs) DESC,total_open_work DESC,subject ASC
+        LIMIT $6::int OFFSET $7::int) p),
         '[]'::jsonb) members,
+      (SELECT COUNT(*)::int FROM filtered_work) matching_count,
       (SELECT COUNT(*)::int FROM member_work) member_count,
+      (SELECT jsonb_build_object(
+       'all',COUNT(*)::int,
+       'overdue',COUNT(*) FILTER(WHERE overdue_tasks+overdue_handoffs>0)::int,
+       'soon',COUNT(*) FILTER(WHERE due_soon_tasks>0)::int,
+       'unassigned',COUNT(*) FILTER(WHERE total_open_work=0)::int
+       ) FROM member_work) filter_counts,
       (SELECT jsonb_build_object(
        'openTasks',COALESCE(SUM(open_tasks),0)::int,
        'overdueTasks',COALESCE(SUM(overdue_tasks),0)::int,
@@ -112,12 +152,16 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log})
         FROM member_work GROUP BY 1
         ORDER BY SUM(overdue_tasks+overdue_handoffs) DESC,SUM(open_tasks+open_handoffs) DESC,1 ASC
         LIMIT 100) g),'[]'::jsonb) teams`,
-   [c.organization_id,c.id]);
+   [c.organization_id,c.id,search,team,filter,pageSize,offset]);
   const row=result.rows[0]||{};
   const members=row.members||[],totals=row.totals||{};
   res.set('Cache-Control','private,no-store').json({
    members,totals,teams:row.teams||[],totalMembers:row.member_count||0,
-   shown:members.length,limit:500,truncated:(row.member_count||0)>members.length,
+   shown:members.length,limit:pageSize,matchingMembers:row.matching_count||0,
+   page,pageCount:Math.max(1,Math.ceil((row.matching_count||0)/pageSize)),
+   hasNext:offset+members.length<(row.matching_count||0),
+   hasPrevious:page>1,serverFiltered:true,filterCounts:row.filter_counts||{},
+   truncated:(row.member_count||0)>members.length,
    teamLimit:100,teamSummariesCoverAllMembers:true,
    dataSource:'assigned_campaign_tasks_and_operational_handoffs',
    basedOnActualRecords:true,noStaffPerformanceRating:true,doesNotReassignAutomatically:true
