@@ -31,7 +31,7 @@ test('Manager can see actual staffing counts and choose overdue or unassigned me
  assert.match(html,/data-form="gabbai-workload-team"/);
  assert.match(html,/data-action="gabbai-workload-team" data-team="Rufers"/);
  assert.match(html,/סך הכל 706/);
- assert.match(html,/נאך עסקנים וואס דער עקראַן ווייזט נישט/);
+ assert.match(html,/די יעצטיגע פילטערס ארבעטן אויף די אריינגעלאדענע קארטלעך/);
  s.gabbaiWorkloadTeam='Available group';
  html=gabbaiWorkloadView(s,esc);
  assert.match(html,/<strong>ask2<\/strong>/);
