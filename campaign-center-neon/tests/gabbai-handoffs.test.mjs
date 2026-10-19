@@ -33,7 +33,7 @@ async function campaignAccess(db,id,person){
 }
 test('Gabbai Pro real handoffs: manager assignment, member progress, private histories, due dates and reopened work',async()=>{
  for(const file of ['001_core.sql','002_team_connect.sql','026_server_plan_entitlements.sql',
-  '033_gabbai_operations_handoffs.sql'])
+  '033_gabbai_operations_handoffs.sql','034_gabbai_blocker_status.sql'])
   await pool.query(await readFile(join(import.meta.dirname,'../db',file),'utf8'));
  const tag='handoff-ci-'+Date.now(),owner=tag+'owner',manager=tag+'manager',
   worker=tag+'worker',peer=tag+'peer',outsider=tag+'other';
@@ -68,7 +68,7 @@ test('Gabbai Pro real handoffs: manager assignment, member progress, private his
  const base='/campaigns/'+cid+'/handoffs';
  const create=(who,body)=>request(who,'POST',base,body);
  const list=who=>request(who,'GET',base);
- const status=(who,id,up)=>request(who,'PATCH','/handoffs/'+id+'/status',{status:up});
+ const status=(who,id,up,note)=>request(who,'PATCH','/handoffs/'+id+'/status',{status:up,...(note===undefined?{}:{note})});
  const comment=(who,id,body)=>request(who,'POST','/handoffs/'+id+'/comments',{body});
  const events=(who,id)=>request(who,'GET','/handoffs/'+id+'/events');
  try{
@@ -183,6 +183,14 @@ test('Gabbai Pro real handoffs: manager assignment, member progress, private his
   assert.equal((await comment(peer,id,'Other member tampering')).status,404);
   assert.equal((await status(worker,id,'open')).status,403);
   assert.equal((await status(worker,id,'in_progress')).status,200);
+  assert.equal((await status(worker,id,'blocked')).status,400,'blocked work needs an explanation');
+  assert.equal((await status(peer,id,'blocked','Unauthorized')).status,404);
+  const blocked=await status(worker,id,'blocked','Missing donor confirmation, needs manager help');
+  assert.equal(blocked.status,200);
+  const blockedList=await list(manager);
+  assert.equal(blockedList.data.stats.blocked,1);
+  assert.equal(blockedList.data.handoffs[0].status,'blocked');
+  assert.equal((await status(worker,id,'in_progress')).status,200,'assignee can resume');
   const duplicated=await status(worker,id,'in_progress');
   assert.equal(duplicated.data.unchanged,true);
   assert.equal((await comment(worker,id,'The shift is underway')).status,201);
@@ -198,7 +206,10 @@ test('Gabbai Pro real handoffs: manager assignment, member progress, private his
     'Completing delegated work must free up actual workload count');
 
   const history=await events(worker,id);
-  assert.deepEqual(history.data.events.map(x=>x.kind),['created','status','comment','status']);
+  assert.deepEqual(history.data.events.map(x=>x.kind),
+   ['created','status','status','status','comment','status']);
+  assert.equal(history.data.events[2].status_to,'blocked');
+  assert.equal(history.data.events[2].body,'Missing donor confirmation, needs manager help');
   await assert.rejects(
    pool.query('DELETE FROM cc_gabbai_handoff_events WHERE id=$1',[history.data.events[0].id]),
    /append-only/);
