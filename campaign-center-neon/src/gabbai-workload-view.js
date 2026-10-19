@@ -13,10 +13,11 @@ export function gabbaiWorkloadView(state,esc){
  const query=String(state.gabbaiWorkloadQuery||'').trim().toLocaleLowerCase().slice(0,120);
  const delayed=m=>Number(m.overdue_tasks||0)+Number(m.overdue_handoffs||0);
  const total=m=>Number(m.open_tasks||0)+Number(m.open_handoffs||0);
- const counts={all:members.length,overdue:members.filter(m=>delayed(m)>0).length,
+ const localCounts={all:members.length,overdue:members.filter(m=>delayed(m)>0).length,
   soon:members.filter(m=>Number(m.due_soon_tasks||0)>0).length,
   unassigned:members.filter(m=>total(m)===0).length};
- const filtered=members.filter(m=>
+ const counts=workload?.filterCounts||localCounts;
+ const filtered=workload?.serverFiltered?members:members.filter(m=>
   (filter==='all'||(filter==='overdue'&&delayed(m)>0)||
    (filter==='soon'&&Number(m.due_soon_tasks||0)>0)||
    (filter==='unassigned'&&total(m)===0))&&
@@ -29,6 +30,12 @@ export function gabbaiWorkloadView(state,esc){
   '<p class="muted">אפענע אויפגאבן: '+esc(g.open_tasks)+' · אפענע איבערגאבן: '+
   esc(g.open_handoffs)+' · טערמין אין 48 שעה: '+esc(g.due_soon_tasks)+'</p></div>'+
   '<button type="button" data-action="gabbai-workload-team" data-team="'+esc(g.team_name)+'">זען די גרופע</button></article>').join('');
+ const page=workload?.page||1, pageCount=workload?.pageCount||1;
+ const paging=workload?.serverFiltered&&pageCount>1?
+  '<nav class="inline" aria-label="בלעטער מיט עסקנים">'+
+  (page>1?'<button type="button" data-action="gabbai-workload-page" data-page="'+(page-1)+'">פריערדיגע זייט</button>':'')+
+  '<span>זייט '+esc(page)+' פון '+esc(pageCount)+'</span>'+
+  (workload.hasNext?'<button type="button" data-action="gabbai-workload-page" data-page="'+(page+1)+'">קומענדיגע זייט</button>':'')+'</nav>':'';
  const staff=filtered.map(m=>{
   const delayed=(m.overdue_tasks||0)+(m.overdue_handoffs||0);
   return '<article class="item"><div><strong>'+esc(m.subject)+'</strong>'+
@@ -53,10 +60,11 @@ export function gabbaiWorkloadView(state,esc){
   '<form data-form="gabbai-workload-search" class="inline"><label>זוך אן עסקן אדער גרופע'+
   '<input type="search" name="query" maxlength="120" value="'+esc(state.gabbaiWorkloadQuery||'')+
   '" placeholder="נאמען אדער גרופע"></label><button>זוכן</button></form>'+
-  '<p class="muted">געוויזן '+filtered.length+' פון '+members.length+
-  ' אריינגעלאדענע קארטלעך; סך הכל '+esc(workload?.totalMembers??members.length)+
-  ' אקטיווע מיטגלידער אין קאמפיין (מאקסימום '+esc(workload?.limit||500)+' קארטלעך).'+
-  (workload?.truncated?' עס זענען דא נאך עסקנים וואס דער עקראַן ווייזט נישט; די גרופע־סומעס רעכענען זיי יא.':'')+
+  '<p class="muted">געוויזן '+filtered.length+' עסקנים אויף דער זייט; געפונען '+
+  esc(workload?.matchingMembers??members.length)+' לויטן זוך־ווארט און פילטער; סך הכל '+
+  esc(workload?.totalMembers??members.length)+' אקטיווע מיטגלידער אינעם קאמפיין.'+
+  (workload?.serverFiltered?' די זוך און פילטערס ארבעטן איבער אלע מיטגלידער, נישט בלויז די יעצטיגע זייט.':
+  ' די יעצטיגע פילטערס ארבעטן אויף די אריינגעלאדענע קארטלעך.')+
   ' קיינער אן צוגעטיילטע ארבעט איז נישט בהכרח פריי — איבערפרעגן איידער מען טיילט צו.</p>'+
   (state.gabbaiWorkloadError?'<p role="alert">'+esc(state.gabbaiWorkloadError)+'</p>':'')+
   '<h3>סך־הכל איבערן גאנצן קאמפיין</h3>'+ 
@@ -64,5 +72,6 @@ export function gabbaiWorkloadView(state,esc){
   '<div><span>פארשפעטיגטע אויפגאבן</span><strong>'+esc(t.overdueTasks||0)+'</strong></div>'+
   '<div><span>אפענע איבערגאבן</span><strong>'+esc(t.openHandoffs||0)+'</strong></div>'+
   '<div><span>פארשפעטיגטע איבערגאבן</span><strong>'+esc(t.overdueHandoffs||0)+'</strong></div></div>'+
-  (staff||'<p class="muted">קיינער איז נישט געפונען אינעם אויסגעקליבענעם פילטער. טויש דעם פילטער אדער דעם זוך־ווארט.</p>')+'</section>';
+  (staff||'<p class="muted">קיינער איז נישט געפונען אינעם אויסגעקליבענעם פילטער. טויש דעם פילטער אדער דעם זוך־ווארט.</p>')+
+  paging+'</section>';
 }
