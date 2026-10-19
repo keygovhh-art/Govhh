@@ -31,6 +31,43 @@ export function connectUserRouter({pool,authenticate,log,bad}) {
   const r=await pool.query("SELECT external_system,linked_at FROM cc_external_account_links WHERE subject=$1 AND revoked_at IS NULL",[req.userId]);
   res.json({linked:r.rowCount>0,connections:r.rows});
  }));
+ // Read-only leadership summary; accounts in other organizations and all
+ // personal MAX records remain unavailable. A count is NOT remote health.
+ router.get('/organizations/:oid/overview',wrap(async(req,res)=>{
+  const oid=req.params.oid;
+  if(typeof oid!=='string'||!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(oid))
+   throw bad(400,'Invalid organization');
+  const role=(await pool.query(
+   "SELECT role FROM cc_memberships WHERE organization_id=$1 AND subject=$2"+
+   " AND membership_status='active'",[oid,req.userId])).rows[0]?.role;
+  if(!role)throw bad(404,'Organization not found');
+  if(!['owner','manager'].includes(role))throw bad(403,'Leadership required');
+  const [memberCounts,followups,finance]=await Promise.all([
+   pool.query(
+    "SELECT COUNT(*)::int active_members,"+
+    " COUNT(*) FILTER(WHERE EXISTS(SELECT 1 FROM cc_external_account_links x"+
+    " WHERE x.subject=m.subject AND x.external_system='gavhah_max'"+
+    " AND x.revoked_at IS NULL))::int linked_members"+
+    " FROM cc_memberships m WHERE m.organization_id=$1 AND m.membership_status='active'",
+    [oid]),
+   pool.query(
+    "SELECT COUNT(*)::int shared_followup_links FROM cc_shared_followup_links"+
+    " WHERE organization_id=$1",[oid]),
+   pool.query(
+    "SELECT COUNT(*)::int reported_finance_events FROM cc_finance_events"+
+    " WHERE organization_id=$1 AND source_system='gavhah_max'",[oid])
+  ]);
+  const row=memberCounts.rows[0];
+  res.set('Cache-Control','private,no-store');
+  res.json({
+   activeMembers:row.active_members,linkedMembers:row.linked_members,
+   notLinkedMembers:row.active_members-row.linked_members,
+   sharedFollowupLinks:followups.rows[0].shared_followup_links,
+   reportedFinanceEvents:finance.rows[0].reported_finance_events,
+   scope:'current_organization_leadership',countsOnly:true,
+   financeReportsNotProcessorVerified:true,remoteHealthyNotImplied:true
+  });
+ }));
  router.post('/unlink',wrap(async(req,res)=>{
   await transaction(pool,async db=>{
    const r=await db.query("UPDATE cc_external_account_links SET revoked_at=now() WHERE subject=$1 AND external_system='gavhah_max' AND revoked_at IS NULL RETURNING id",[req.userId]);
