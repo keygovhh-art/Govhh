@@ -41,6 +41,8 @@ jobs:
       - run: npm install --ignore-scripts
       - run: npm run check
       - run: npm run build
+      - name: Full 001–034 schema rehearsal on separate disposable localhost PostgreSQL
+        run: CC_DISPOSABLE_MIGRATION_REHEARSAL=yes-local-ci-only node scripts/rehearse-complete-schema.mjs
       - name: Multi-member campaign team and Connect end-to-end test on disposable Postgres
         run: node --test tests/team-connect.test.mjs
       - name: Six-tier plan catalogue and immutable scope
