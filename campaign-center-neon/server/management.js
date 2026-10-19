@@ -106,6 +106,10 @@ export default function managementRouter({pool,bad,uuid,log}){
    " OR ($4='due_soon' AND "+soon+")"+
    " OR ($4='unassigned' AND "+unassigned+"))";
   const params=[oid,status,query.trim(),queue,(page-1)*40,req.userId];
+  // A COUNT query has no OFFSET parameter. Keep its placeholder positions
+  // contiguous so PostgreSQL never receives an untyped missing $5.
+  const countSelection=selection.replaceAll('$6','$5');
+  const countParams=[oid,status,query.trim(),queue,req.userId];
   const [all,items,signals,queueCounts,matchingRows]=await Promise.all([
    pool.query(
     "SELECT status,COUNT(*)::int count FROM cc_management_plan_items"+
@@ -148,8 +152,8 @@ export default function managementRouter({pool,bad,uuid,log}){
     " COUNT(*) FILTER (WHERE "+soon+")::int due_soon,"+
     " COUNT(*) FILTER (WHERE "+unassigned+")::int unassigned"+
     " FROM cc_management_plan_items p WHERE organization_id=$1",[oid,req.userId]),
-   pool.query("SELECT COUNT(*)::int n FROM cc_management_plan_items p"+selection,
-    params)
+   pool.query("SELECT COUNT(*)::int n FROM cc_management_plan_items p"+countSelection,
+    countParams)
   ]);
   const counts=Object.fromEntries([...statuses].map(s=>[s,0]));
   for(const row of all.rows)counts[row.status]=row.count;
