@@ -543,6 +543,17 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.ok(linkedStatus.data.connections.every(x=>!Object.hasOwn(x,'external_user_id')),
     'No external personal ID is published in account link status');
   assert.equal((await req('/connect/service/redeem',{service:true,method:'POST',data:{gavhahUserId:8,code:link.data.code}})).status,404);
+  // A manager receives only organization-scoped counters, never another
+  // user's MAX account id, finance records or private personal notes.
+  const orgConnect='/connect/organizations/'+org1+'/overview';
+  const orgConnectStatus=await req(orgConnect,{user:owner});
+  assert.equal(orgConnectStatus.status,200);
+  assert.equal(orgConnectStatus.data.linkedMembers,1);
+  assert.ok(orgConnectStatus.data.activeMembers>=2);
+  assert.equal(orgConnectStatus.data.countsOnly,true);
+  assert.ok(!JSON.stringify(orgConnectStatus.data).includes('external_user_id'));
+  assert.equal((await req(orgConnect,{user:first})).status,403);
+  assert.equal((await req(orgConnect,{user:'unrelated'})).status,404);
   const campaigns=await req('/connect/service/campaigns?gavhahUserId=7',{service:true});
   assert.equal(campaigns.status,200);assert.deepEqual(campaigns.data.campaigns.map(c=>c.id),[c1]);
   assert.equal((await req('/connect/service/campaigns?gavhahUserId=8',{service:true})).status,403);
@@ -620,6 +631,7 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   // Unlink blocks access and does not delete the append-only financial history.
   assert.equal((await req('/connect/unlink',{user:first,method:'POST'})).status,200);
   assert.equal((await req('/connect/status',{user:first})).data.linked,false);
+  assert.equal((await req(orgConnect,{user:owner})).data.linkedMembers,0);
   assert.equal((await req('/connect/service/campaigns?gavhahUserId=7',{service:true})).status,403);
   assert.equal((await pool.query("SELECT COUNT(*)::int n FROM cc_finance_events WHERE source_event_key='receipt:123'")).rows[0].n,1);
   assert.equal((await req('/campaigns/'+c1,{user:first,method:'PATCH',data:{goalAmount:'10.00'}})).status,403,'An askan cannot edit goal');
