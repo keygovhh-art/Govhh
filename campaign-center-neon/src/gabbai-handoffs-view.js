@@ -4,7 +4,25 @@ export function gabbaiHandoffsView(state,esc){
  const status={pending:'ווארט אויף איבערנעמען',acknowledged:'איבערגענומען',done:'פארענדיגט'};
  const priority={normal:'נארמאל',high:'וויכטיג',critical:'קריטיש'};
  const canAssign=!!data.canAssign;
- const list=(data.handoffs||[]).map(item=>{
+ const current=state.gabbaiHandoffFilter||'active';
+ const query=String(state.gabbaiHandoffQuery||'').trim().toLocaleLowerCase();
+ const visible=(data.handoffs||[]).filter(item=>{
+  const matches=current==='all'||(current==='active'&&item.status!=='done')||
+   (current==='mine'&&item.assigned_to===state.subject&&item.status!=='done')||
+   current===item.status;
+  return matches&&(!query||[item.title,item.instructions,item.assigned_to].some(x=>
+   String(x||'').toLocaleLowerCase().includes(query)));
+ });
+ const filters=[['active','אפענע'],['mine','פאר מיר'],['pending','נאך נישט איבערגענומען'],
+  ['acknowledged','איבערגענומען'],['done','פארענדיגט'],['all','אלע']];
+ const controls='<div class="inline">'+filters.map(([key,label])=>
+   '<button type="button" data-action="gabbai-handoff-filter" data-value="'+key+
+   '" aria-pressed="'+(current===key?'true':'false')+'">'+label+'</button>').join('')+
+   '</div><form data-form="gabbai-handoff-search" class="inline">'+
+   '<input type="search" maxlength="120" name="query" value="'+esc(state.gabbaiHandoffQuery||'')+
+   '" placeholder="זוכן איבערגאבעס">'+
+   '<button type="submit">זוכן</button></form>';
+ const list=visible.map(item=>{
   const mine=item.assigned_to===state.subject;
   const events=(data.history||[]).filter(h=>h.handoff_id===item.id).slice(-8);
   const eventNames={created:'געשאפן',acknowledged:'איבערגענומען',completed:'פארענדיגט'};
@@ -41,5 +59,6 @@ export function gabbaiHandoffsView(state,esc){
   '<div class="metrics"><div><span>ווארט אויף איבערנעמען</span><strong>'+esc(data.counts?.pending||0)+'</strong></div>'+
   '<div><span>איבערגענומען</span><strong>'+esc(data.counts?.acknowledged||0)+'</strong></div>'+
   '<div><span>פארענדיגט</span><strong>'+esc(data.counts?.done||0)+'</strong></div></div>'+
-  (list||'<p class="muted">נאך קיין איבערגאבעס אין דעם קאמפיין.</p>')+'</section>'+form;
+  controls+'<p class="muted">געוויזן '+visible.length+' איבערגאבעס פון '+(data.handoffs||[]).length+' ערלויבטע רעקארדס.</p>'+
+  (list||'<p class="muted">נישטא קיין איבערגאבעס לויט דעם אויסגעקליבענעם פילטער.</p>')+'</section>'+form;
 }
