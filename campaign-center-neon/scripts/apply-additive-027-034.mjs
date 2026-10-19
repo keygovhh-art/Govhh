@@ -29,6 +29,15 @@ if(process.env.CC_APPLY_ADDENDUM!=='yes-apply-reviewed-schema')
 if(mode==='staging'){
  if(process.env.CC_STAGING_MIGRATION_APPROVED!=='yes-reviewed-staging')
   refuse('Staging review permission missing');
+ const local=['localhost','127.0.0.1'].includes(url.hostname)&&
+   url.pathname==='/campaign_upgrade_qa';
+ if(!local){
+  const id=process.env.CC_STAGING_BRANCH_ID||'';
+  const prodHost=process.env.CC_PRODUCTION_DB_HOST||'';
+  if(!/^br-[a-z0-9-]{8,}$/.test(id)||!prodHost||
+      prodHost===url.hostname)
+   refuse('Staging branch ID and distinct production host must be independently verified');
+ }
 }else{
  if(process.env.CC_PRODUCTION_MIGRATION_APPROVED!=='yes-reviewed-and-backed-up')
   refuse('Separate production change approval required');
