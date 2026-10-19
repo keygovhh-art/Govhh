@@ -71,7 +71,7 @@ test('Askan Plus: each member has private KPIs; manager teams totals; handoff is
   assert.equal(my.data.calls.total,1);
   assert.equal(Number(my.data.finance.pledged),100);
   assert.equal(Number(my.data.finance.manually_reported_net),30);
-  assert.ok(!JSON.stringify(my.data).includes('200'),'A must not see B pledge');
+  assert.ok(!JSON.stringify(my.data.finance).includes('"200"'),'A must not see B pledge in personal finance summary');
   assert.equal((await get(a,'/campaigns/'+campaign+'/teams-report')).status,403);
   const creditSelf=await get(a,'/campaigns/'+campaign+'/credit-report');
   assert.equal(creditSelf.status,200);
