@@ -444,6 +444,13 @@ async function submit(event){
       method:'POST',body:JSON.stringify({title:d.title,instructions:d.instructions||'',
        assignedTo:d.assignedTo,priority:d.priority,dueAt:due?due.toISOString():null})});break;
    }
+   case 'gabbai-handoff-blocked': {
+     if(!state.gabbaiHandoffId)throw new Error('עפען קודם אן איבערגאב');
+     const note=String(d.note||'').trim();
+     if(!note||note.length>1500)throw new Error('שרייב א קורצן סיבה וואס האלט אפ');
+     await api('/gabbai/handoffs/'+state.gabbaiHandoffId+'/status',{
+      method:'PATCH',body:JSON.stringify({status:'blocked',note})});break;
+   }
    case 'gabbai-handoff-comment': {
      if(!state.gabbaiHandoffId)throw new Error('עפען קודם אן איבערגאב');
      await api('/gabbai/handoffs/'+state.gabbaiHandoffId+'/comments',{
@@ -774,7 +781,7 @@ async function click(event){
     return;
   }
   if(a==='gabbai-handoff-filter'){
-    if(['open','mine','overdue','done','all'].includes(btn.dataset.value)){
+    if(['open','mine','blocked','overdue','done','all'].includes(btn.dataset.value)){
       state.gabbaiHandoffFilter=btn.dataset.value;draw();
     }return;
   }
