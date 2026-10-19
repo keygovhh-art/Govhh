@@ -18,6 +18,7 @@ import proSprintRouter from './pro-sprints.js';
 import proGuidanceRouter from './pro-guidance.js';
 import proBlockersRouter from './pro-blockers.js';
 import gabbaiApprovalsRouter from './gabbai-approvals.js';
+import gabbaiHandoffsRouter from './gabbai-handoffs.js';
 import organizationPortfolioRouter from './organization-portfolio.js';
 import organizationResourcesRouter from './organization-resources.js';
 import organizationMemoryRouter from './organization-memory.js';
