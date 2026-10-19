@@ -5,6 +5,7 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&
 const datum={
  total:6,matching:2,page:1,pageCount:2,
  counts:{planned:1,ready:0,in_progress:1,waiting:1,blocked:1,failed:1,successful:1,completed:0,cancelled:0},
+ queueCounts:{all:6,mine:2,needs_action:4,overdue:1,due_soon:2,unassigned:3},
  signals:{overdue_tasks:4,open_tasks:12,blocked_handoffs:2,open_handoffs:7,
  pending_approvals:3,pending_decisions:1,overdue_plans:2},
  items:[
@@ -17,7 +18,7 @@ const datum={
  ]
 };
 const state=()=>({management:datum,managementFilter:'all',managementQuery:'',
- managementEditorId:null,managementHistoryId:null,managementHistory:null,
+ managementQueue:'all',managementEditorId:null,managementHistoryId:null,managementHistory:null,
  managementError:'',campaigns:[{id:'campaign123',title:'Sample charity'}]});
 test('Owner sees every outcome, real signals, human responsibilities and next steps',()=>{
  const html=managementView(state(),esc);
@@ -26,6 +27,10 @@ test('Owner sees every outcome, real signals, human responsibilities and next st
   assert.ok(html.includes(label),label);
  }
  assert.match(html,/data-action="management-edit" data-id="plan-one"/);
+ assert.match(html,/data-action="management-queue" data-value="mine"/);
+ assert.match(html,/מיינע צוגעטיילטע פלענער \(2\)/);
+ assert.match(html,/דארף באהאנדלונג \(4\)/);
+ assert.match(html,/נישט צוגעטיילט \(3\)/);
  assert.match(html,/data-action="management-history" data-id="plan-one"/);
  assert.match(html,/data-action="management-page" data-page="2"/);
  assert.doesNotMatch(html,/<script>/);
