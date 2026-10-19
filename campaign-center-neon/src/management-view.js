@@ -53,6 +53,7 @@ export function managementView(state,esc){
    '<small>'+esc(managementLabels[item.status]||item.status)+' · '+
    escValue(item.progress,esc)+'% · '+esc(priorities[item.priority]||item.priority)+
    (overdue?' · פארשפעטיגט':'')+'</small>'+
+   (item.details?'<p>'+esc(item.details)+'</p>':'')+
    (item.campaign_title?'<p>קאמפיין: '+esc(item.campaign_title)+'</p>':'')+
    (item.assigned_to?'<p>פאראנטווארטליך: '+esc(item.assigned_to)+'</p>':'')+
    (item.next_action?'<p><strong>וואס ווייטער?</strong> '+esc(item.next_action)+'</p>':'')+
