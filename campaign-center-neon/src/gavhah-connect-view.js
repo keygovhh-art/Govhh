@@ -25,6 +25,21 @@ export function gavhahConnectView(state,esc){
      '<button type="button" data-action="connect-copy">קאפירן קאוד</button>'+
      '<p class="muted">נוצ עס אין גבהה → מיין עסקנות → גבהה קאנעקט פאר 10 מינוט. דער קאוד ווערט נישט אפגעהיטן אינעם בראוזער.</p>'
      :''))+
+  (state.connectOrgSummary?
+   '<section><h3>מוסדישע פארבינדונגס־איבערבליק</h3>'+
+   '<p class="muted">נאר סך־הכלן פונעם אויסגעקליבענעם מוסד — נישט די פריוואטע גבהה־אקאונטס.</p>'+
+   '<div class="metrics"><div><span>אקטיווע מיטגלידער</span><strong>'+
+    esc(String(state.connectOrgSummary.activeMembers??0))+'</strong></div>'+
+   '<div><span>פארבונדן מיט גבהה</span><strong>'+
+    esc(String(state.connectOrgSummary.linkedMembers??0))+'</strong></div>'+
+   '<div><span>נאך נישט פארבונדן</span><strong>'+
+    esc(String(state.connectOrgSummary.notLinkedMembers??0))+'</strong></div>'+
+   '<div><span>מיטגעטיילטע נאכפאלג־רעפערענצן</span><strong>'+
+    esc(String(state.connectOrgSummary.sharedFollowupLinks??0))+'</strong></div>'+
+   '<div><span>מאנועל באריכטעטע גבהה־פינאנץ־געשעענישן</span><strong>'+
+    esc(String(state.connectOrgSummary.reportedFinanceEvents??0))+'</strong></div></div>'+
+   '<p class="muted">פארבונדענע אקאונטס באדייט נישט אז דער צווייטער סערווער איז איצט דערגרייכבאר. פינאנץ־געשעענישן מיינען נישט באשטעטיגטע באצאלונגען.</p></section>'
+   :'')+
   (safeUrl?'<p><a href="'+esc(safeUrl)+'/communications" target="_blank" rel="noopener noreferrer">עפענען גבהה — מיין עסקנות</a></p>':
    '<p class="muted">דער הויפט גבהה־לינק דארף נאך קאנפיגורירט ווערן דורך דער הנהלה.</p>')+
   '<p class="muted">דער געלט־פארוואלטער באשטעטיגט באצאלונגען נאר אין זיין סיסטעם. דאס פארבינדן פון אקאונטס איז נישט קיין רשות צו קאפירן פריוואטע נאטיצן, אנצוהייבן רופן אדער אריבערפירן געלט.</p></section>';
