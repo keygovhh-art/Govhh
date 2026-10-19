@@ -2,6 +2,7 @@ import {readFileSync,readdirSync} from 'node:fs';
 import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import pg from 'pg';
+import {spawnSync} from 'node:child_process';
 
 // Simulate the specific production upgrade path: preserve 001–026 records,
 // then apply 027–034, on a fresh throwaway LOCAL CI database only.
@@ -47,8 +48,23 @@ try{
  const org=(await db.query("INSERT INTO cc_organizations(name,owner_subject) VALUES('Existing charity campaign','original-owner') RETURNING id")).rows[0].id;
  await db.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,'original-owner','owner','active',now())",[org]);
  const campaign=(await db.query("INSERT INTO cc_campaigns(organization_id,title,status) VALUES($1,'Preserved fundraiser','active') RETURNING id",[org])).rows[0].id;
+ // The real proposed operator-run script must be proved on this existing
+ // local 026 database. It must refuse without flags and be single-use.
+ const command=join(dir,'..','scripts','apply-additive-027-034.mjs');
+ const env={...process.env,DATABASE_URL:target.toString(),
+  CC_EXPECTED_DB_HOST:target.hostname,CC_MIGRATION_MODE:'staging',
+  CC_STAGING_MIGRATION_APPROVED:'yes-reviewed-staging'};
+ const check=(extra)=>spawnSync(process.execPath,[command],{
+  env:{...env,...extra},encoding:'utf8',timeout:120000});
+ const refused=check({CC_APPLY_ADDENDUM:''});
+ if(refused.status===0)throw Error('Unsafe addendum runner ran without explicit approval');
+ const applied=check({CC_APPLY_ADDENDUM:'yes-apply-reviewed-schema'});
+ if(applied.status!==0)throw Error('Addendum runner failed: '+applied.stderr.slice(-2500));
+ console.log(applied.stdout.slice(-700));
+ // Repeat attempts are blocked because new tables already exist.
+ const repeated=check({CC_APPLY_ADDENDUM:'yes-apply-reviewed-schema'});
+ if(repeated.status===0)throw Error('Unsafe addendum runner reapplied migration');
  await db.query('BEGIN');tx=true;
- for(const name of files.slice(26))await db.query(readFileSync(join(dir,name),'utf8'));
  const old=await db.query("SELECT o.name,c.title,m.subject FROM cc_organizations o JOIN cc_campaigns c ON c.organization_id=o.id JOIN cc_memberships m ON m.organization_id=o.id WHERE o.id=$1 AND c.id=$2",[org,campaign]);
  if(old.rows.length!==1||old.rows[0].name!=='Existing charity campaign'||
   old.rows[0].title!=='Preserved fundraiser'||
