@@ -13,6 +13,18 @@ test('Member sees real two-account steps, code button and safe outbound route',(
  assert.match(html,/נאך נישט פארבונדן/);
  assert.doesNotMatch(html,/data-action="connect-unlink"/);
 });
+test('Authorized manager sees organization summary but never private personal MAX records',()=>{
+ const state=base();state.connectOrgSummary={
+  activeMembers:52,linkedMembers:37,notLinkedMembers:15,
+  sharedFollowupLinks:21,reportedFinanceEvents:14
+ };
+ const html=gavhahConnectView(state,esc);
+ assert.match(html,/מוסדישע פארבינדונגס־איבערבליק/);
+ assert.match(html,/אקטיווע מיטגלידער<\/span><strong>52/);
+ assert.match(html,/פארבונדן מיט גבהה<\/span><strong>37/);
+ assert.match(html,/מאנועל באריכטעטע/);
+ assert.doesNotMatch(html,/external_user_id|private_phone|donor_note/);
+});
 test('Temporary code is visible only until expiry and never stored in a form',()=>{
  const s=base();s.connectCode='abc_DEF123abc_DEF123abc_DEF123ab';
  s.connectCodeDeadline=Date.now()+60000;
