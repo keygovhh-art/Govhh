@@ -11,9 +11,12 @@ const members=[
  {subject:'ask3',team_name:'Donor calls',role:'askan',open_tasks:1,overdue_tasks:0,
   due_soon_tasks:1,open_handoffs:0,overdue_handoffs:0}
 ];
-const state=()=>({gabbaiRole:'manager',gabbaiWorkload:{members,
+const state=()=>({gabbaiRole:'manager',gabbaiWorkload:{members,teams:[
+ {team_name:'Rufers',members:1,open_tasks:2,overdue_tasks:1,due_soon_tasks:0,open_handoffs:1,overdue_handoffs:1},
+ {team_name:'Donor calls',members:1,open_tasks:1,overdue_tasks:0,due_soon_tasks:1,open_handoffs:0,overdue_handoffs:0},
+ {team_name:'Available group',members:704,open_tasks:0,overdue_tasks:0,due_soon_tasks:0,open_handoffs:0,overdue_handoffs:0}],totalMembers:706,truncated:true,
  totals:{openTasks:3,overdueTasks:1,dueSoonTasks:1,openHandoffs:1,overdueHandoffs:1},
- limit:500},gabbaiWorkloadFilter:'all',gabbaiWorkloadQuery:''});
+ limit:500},gabbaiWorkloadFilter:'all',gabbaiWorkloadQuery:'',gabbaiWorkloadTeam:''});
 
 test('Manager can see actual staffing counts and choose overdue or unassigned members',()=>{
  const s=state();
@@ -24,6 +27,16 @@ test('Manager can see actual staffing counts and choose overdue or unassigned me
  assert.match(html,/טערמין אין 48 שעה \(1\)/);
  assert.match(html,/data-form="gabbai-workload-search"/);
  assert.match(html,/data-action="gabbai-workload-assign" data-subject="ask1"/);
+ assert.match(html,/גרופעס וואס דארפן אויפמערקזאמקייט/);
+ assert.match(html,/data-form="gabbai-workload-team"/);
+ assert.match(html,/data-action="gabbai-workload-team" data-team="Rufers"/);
+ assert.match(html,/סך הכל 706/);
+ assert.match(html,/נאך עסקנים וואס דער עקראַן ווייזט נישט/);
+ s.gabbaiWorkloadTeam='Available group';
+ html=gabbaiWorkloadView(s,esc);
+ assert.match(html,/<strong>ask2<\/strong>/);
+ assert.doesNotMatch(html,/<strong>ask1<\/strong>/);
+ s.gabbaiWorkloadTeam='';
  s.gabbaiWorkloadFilter='overdue';html=gabbaiWorkloadView(s,esc);
  assert.match(html,/<strong>ask1<\/strong>/);
  assert.doesNotMatch(html,/<strong>ask2<\/strong>/);
@@ -52,5 +65,9 @@ test('Workload search is scoped to loaded permitted members and escapes private 
  assert.match(html,/&lt;img onerror=alert\(1\)&gt;/);
  s.gabbaiRole='askan';assert.equal(gabbaiWorkloadView(s,esc),'');
  s.gabbaiRole='manager';s.gabbaiWorkloadFilter='unknown';
+ s.gabbaiWorkload.teams=[{team_name:'<img src=x onerror=1>',members:1,open_tasks:0,overdue_tasks:0,open_handoffs:0,overdue_handoffs:0,due_soon_tasks:0}];
+ const safe=gabbaiWorkloadView(s,esc);
+ assert.doesNotMatch(safe,/<img src=x/);
+ assert.match(safe,/&lt;img src=x onerror=1&gt;/);
  assert.match(gabbaiWorkloadView(s,esc),/אלע \(1\)/);
 });
