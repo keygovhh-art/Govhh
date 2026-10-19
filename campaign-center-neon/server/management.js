@@ -110,9 +110,15 @@ export default function managementRouter({pool,bad,uuid,log}){
     " AND status IN ('open','in_progress') AND due_at<now()) overdue_tasks,"+
     " (SELECT COUNT(*)::int FROM cc_assignments WHERE organization_id=$1"+
     " AND status IN ('open','in_progress')) open_tasks,"+
+    " (SELECT COUNT(*)::int FROM cc_assignments WHERE organization_id=$1 AND status='done') completed_tasks,"+
     " (SELECT COUNT(*)::int FROM cc_gabbai_handoffs WHERE organization_id=$1 AND status='blocked') blocked_handoffs,"+
     " (SELECT COUNT(*)::int FROM cc_gabbai_handoffs WHERE organization_id=$1 AND status NOT IN ('done')) open_handoffs,"+
+    " (SELECT COUNT(*)::int FROM cc_gabbai_handoffs WHERE organization_id=$1 AND status='done') completed_handoffs,"+
     " (SELECT COUNT(*)::int FROM cc_gabbai_approval_requests WHERE organization_id=$1 AND status='pending') pending_approvals,"+
+    " (SELECT COUNT(*)::int FROM cc_gabbai_approval_requests WHERE organization_id=$1 AND status='approved') approved_approvals,"+
+    " (SELECT COUNT(*)::int FROM cc_gabbai_approval_requests WHERE organization_id=$1 AND status='rejected') rejected_approvals,"+
+    " (SELECT COUNT(*)::int FROM cc_pro_guidance_requests WHERE organization_id=$1 AND status='open') pending_guidance,"+
+    " (SELECT COUNT(*)::int FROM cc_pro_guidance_requests WHERE organization_id=$1 AND status='answered') answered_guidance,"+
     " (SELECT COUNT(*)::int FROM cc_org_leadership_decisions WHERE organization_id=$1 AND status='open') pending_decisions,"+
     " (SELECT COUNT(*)::int FROM cc_management_plan_items WHERE organization_id=$1"+
     " AND due_at<now() AND status NOT IN ('completed','successful','cancelled')) overdue_plans",
