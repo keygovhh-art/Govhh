@@ -60,6 +60,17 @@ export function connectServiceRouter({pool,bad,uuid,log}) {
   if(!r.rowCount)throw bad(403,'No active campaign membership');
   return r.rows[0];
  }
+ // Real server-to-server handshake, not a claim that a member is linked.
+ // The shared secret gate above is mandatory even for this minimal diagnostic.
+ router.get('/capabilities',wrap(async(_req,res)=>{
+  await pool.query('SELECT 1');
+  res.set('Cache-Control','private,no-store');
+  res.json({service:'campaign_center',protocol:'gavhah-connect-v1',
+   connectedBackend:true,accountLinking:true,ownAssignments:true,
+   memberStatusUpdates:true,manualFinanceShare:true,manualFinanceReversals:true,
+   scopedSharedFollowups:true,scopedLiveRooms:true,
+   personalDonorSync:false,automaticPhoneCalls:false,verifiedPaymentProcessor:false});
+ }));
  router.post('/redeem',wrap(async(req,res)=>{
   const gavhahUserId=req.body?.gavhahUserId,raw=req.body?.code;
   if(!numericUser(gavhahUserId)||typeof raw!=='string'||!/^[A-Za-z0-9_-]{32}$/.test(raw))throw bad(400,'Invalid link request');
