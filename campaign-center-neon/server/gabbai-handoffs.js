@@ -5,7 +5,7 @@ import {Router} from 'express';
 export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log}){
  const router=Router(),run=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
  const management=new Set(['owner','manager']);
- const activeStates=new Set(['open','in_progress','done']);
+ const activeStates=new Set(['open','in_progress','blocked','done']);
  async function tx(fn){
   const db=await pool.connect();
   try{await db.query('BEGIN');const x=await fn(db);await db.query('COMMIT');return x;}
@@ -32,13 +32,14 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log})
     " created_by,assigned_to,completed_by,completed_at FROM cc_gabbai_handoffs"+
     " WHERE organization_id=$1 AND campaign_id=$2"+
     " AND ($3::boolean OR created_by=$4 OR assigned_to=$4)"+
-    " ORDER BY CASE status WHEN 'open' THEN 0 WHEN 'in_progress' THEN 1 ELSE 2 END,"+
+    " ORDER BY CASE status WHEN 'blocked' THEN 0 WHEN 'open' THEN 1 WHEN 'in_progress' THEN 2 ELSE 3 END,"+
     " CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,"+
     " due_at ASC NULLS LAST,created_at DESC LIMIT 120",
     [c.organization_id,c.id,manager,req.userId]),
    pool.query(
     "SELECT COUNT(*) FILTER (WHERE status='open')::int open,"+
     " COUNT(*) FILTER (WHERE status='in_progress')::int in_progress,"+
+    " COUNT(*) FILTER (WHERE status='blocked')::int blocked,"+
     " COUNT(*) FILTER (WHERE status='done')::int done,"+
     " COUNT(*) FILTER (WHERE status<>'done' AND due_at<now())::int overdue,"+
     " COUNT(*) FILTER (WHERE status<>'done' AND assigned_to=$4)::int assigned_to_me"+
@@ -230,7 +231,11 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log})
  }));
  router.patch('/handoffs/:id/status',run(async(req,res)=>{
   const status=req.body?.status;
+  const note=req.body?.note??'';
   if(!activeStates.has(status))throw bad(400,'Invalid handoff status');
+  if(typeof note!=='string'||note.length>1500||
+     (status==='blocked'&&!note.trim()))
+   throw bad(400,'A short blocker reason is required');
   const outcome=await tx(async db=>{
    const {c,h}=await find(db,req,true);
    if(c.status==='closed')throw bad(409,'Closed campaign');
@@ -246,9 +251,11 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log})
     " RETURNING id,status,completed_by,completed_at",
     [status,req.userId,h.id])).rows[0];
    await db.query(
-    "INSERT INTO cc_gabbai_handoff_events(organization_id,campaign_id,handoff_id,actor_subject,kind,status_to)"+
-    " VALUES($1,$2,$3,$4,'status',$5)",[c.organization_id,c.id,h.id,req.userId,status]);
-   await log(db,c.organization_id,c.id,req.userId,'gabbai.handoff.status',h.id,{status});
+    "INSERT INTO cc_gabbai_handoff_events(organization_id,campaign_id,handoff_id,actor_subject,kind,status_to,body)"+
+    " VALUES($1,$2,$3,$4,'status',$5,$6)",
+    [c.organization_id,c.id,h.id,req.userId,status,note.trim()]);
+   await log(db,c.organization_id,c.id,req.userId,'gabbai.handoff.status',h.id,
+    {status,hasNote:!!note.trim()});
    return {handoff:row,unchanged:false};
   });
   res.set('Cache-Control','private,no-store').json(outcome);
