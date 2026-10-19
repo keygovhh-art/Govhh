@@ -55,39 +55,70 @@ export default function gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log})
  router.get('/campaigns/:cid/member-workload',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
   if(!management.has(c.role))throw bad(403,'Management dashboard only');
-  const rows=await pool.query(
-   "SELECT cm.subject,cm.team_name,m.role,"+
-   " COALESCE(t.open_tasks,0)::int AS open_tasks,"+
-   " COALESCE(t.overdue_tasks,0)::int AS overdue_tasks,"+
-   " COALESCE(t.due_soon_tasks,0)::int AS due_soon_tasks,"+
-   " COALESCE(h.open_handoffs,0)::int AS open_handoffs,"+
-   " COALESCE(h.overdue_handoffs,0)::int AS overdue_handoffs,"+
-   " (COALESCE(t.open_tasks,0)+COALESCE(h.open_handoffs,0))::int AS total_open_work"+
-   " FROM cc_campaign_members cm JOIN cc_memberships m"+
-   " ON m.organization_id=cm.organization_id AND m.subject=cm.subject AND m.membership_status='active'"+
-   " LEFT JOIN LATERAL (SELECT"+
-   " COUNT(*) FILTER(WHERE a.status IN ('open','in_progress'))::int open_tasks,"+
-   " COUNT(*) FILTER(WHERE a.status IN ('open','in_progress') AND a.due_at<now())::int overdue_tasks,"+
-   " COUNT(*) FILTER(WHERE a.status IN ('open','in_progress') AND a.due_at>=now()"+
-   " AND a.due_at<now()+interval '48 hours')::int due_soon_tasks"+
-   " FROM cc_assignments a WHERE a.organization_id=cm.organization_id"+
-   " AND a.campaign_id=cm.campaign_id AND a.assignee_subject=cm.subject) t ON true"+
-   " LEFT JOIN LATERAL (SELECT"+
-   " COUNT(*) FILTER(WHERE x.status<>'done')::int open_handoffs,"+
-   " COUNT(*) FILTER(WHERE x.status<>'done' AND x.due_at<now())::int overdue_handoffs"+
-   " FROM cc_gabbai_handoffs x WHERE x.organization_id=cm.organization_id"+
-   " AND x.campaign_id=cm.campaign_id AND x.assigned_to=cm.subject) h ON true"+
-   " WHERE cm.organization_id=$1 AND cm.campaign_id=$2"+
-   " ORDER BY (COALESCE(t.overdue_tasks,0)+COALESCE(h.overdue_handoffs,0)) DESC, (COALESCE(t.open_tasks,0)+COALESCE(h.open_handoffs,0)) DESC,cm.subject ASC LIMIT 500",
+  // Compute all-campaign totals BEFORE limiting mobile cards. The earlier LIMIT 500
+  // truncated totals and hid team workload for larger institutions.
+  const result=await pool.query(
+   `WITH active_members AS (
+      SELECT cm.subject,cm.team_name,m.role
+      FROM cc_campaign_members cm
+      JOIN cc_memberships m ON m.organization_id=cm.organization_id
+       AND m.subject=cm.subject AND m.membership_status='active'
+      WHERE cm.organization_id=$1 AND cm.campaign_id=$2
+     ), task_counts AS (
+      SELECT a.assignee_subject,
+       COUNT(*) FILTER(WHERE a.status IN ('open','in_progress'))::int open_tasks,
+       COUNT(*) FILTER(WHERE a.status IN ('open','in_progress') AND a.due_at<now())::int overdue_tasks,
+       COUNT(*) FILTER(WHERE a.status IN ('open','in_progress') AND a.due_at>=now()
+        AND a.due_at<now()+interval '48 hours')::int due_soon_tasks
+      FROM cc_assignments a
+      WHERE a.organization_id=$1 AND a.campaign_id=$2 GROUP BY a.assignee_subject
+     ), handoff_counts AS (
+      SELECT h.assigned_to,
+       COUNT(*) FILTER(WHERE h.status<>'done')::int open_handoffs,
+       COUNT(*) FILTER(WHERE h.status<>'done' AND h.due_at<now())::int overdue_handoffs
+      FROM cc_gabbai_handoffs h
+      WHERE h.organization_id=$1 AND h.campaign_id=$2 GROUP BY h.assigned_to
+     ), member_work AS (
+      SELECT a.subject,a.team_name,a.role,
+       COALESCE(t.open_tasks,0)::int open_tasks,
+       COALESCE(t.overdue_tasks,0)::int overdue_tasks,
+       COALESCE(t.due_soon_tasks,0)::int due_soon_tasks,
+       COALESCE(h.open_handoffs,0)::int open_handoffs,
+       COALESCE(h.overdue_handoffs,0)::int overdue_handoffs,
+       (COALESCE(t.open_tasks,0)+COALESCE(h.open_handoffs,0))::int total_open_work
+      FROM active_members a LEFT JOIN task_counts t ON t.assignee_subject=a.subject
+       LEFT JOIN handoff_counts h ON h.assigned_to=a.subject
+     )
+     SELECT
+      COALESCE((SELECT jsonb_agg(to_jsonb(p)) FROM
+       (SELECT * FROM member_work ORDER BY
+        (overdue_tasks+overdue_handoffs) DESC,total_open_work DESC,subject ASC LIMIT 500) p),
+        '[]'::jsonb) members,
+      (SELECT COUNT(*)::int FROM member_work) member_count,
+      (SELECT jsonb_build_object(
+       'openTasks',COALESCE(SUM(open_tasks),0)::int,
+       'overdueTasks',COALESCE(SUM(overdue_tasks),0)::int,
+       'dueSoonTasks',COALESCE(SUM(due_soon_tasks),0)::int,
+       'openHandoffs',COALESCE(SUM(open_handoffs),0)::int,
+       'overdueHandoffs',COALESCE(SUM(overdue_handoffs),0)::int
+       ) FROM member_work) totals,
+      COALESCE((SELECT jsonb_agg(to_jsonb(g)) FROM
+       (SELECT COALESCE(NULLIF(TRIM(team_name),''),'נישט אין א גרופע') team_name,
+        COUNT(*)::int members,
+        SUM(open_tasks)::int open_tasks,SUM(overdue_tasks)::int overdue_tasks,
+        SUM(due_soon_tasks)::int due_soon_tasks,
+        SUM(open_handoffs)::int open_handoffs,
+        SUM(overdue_handoffs)::int overdue_handoffs
+        FROM member_work GROUP BY 1
+        ORDER BY SUM(overdue_tasks+overdue_handoffs) DESC,SUM(open_tasks+open_handoffs) DESC,1 ASC
+        LIMIT 100) g),'[]'::jsonb) teams`,
    [c.organization_id,c.id]);
-  const members=rows.rows;
-  const totals=members.reduce((s,m)=>{
-   s.openTasks+=m.open_tasks;s.overdueTasks+=m.overdue_tasks;
-   s.dueSoonTasks+=m.due_soon_tasks;
-   s.openHandoffs+=m.open_handoffs;s.overdueHandoffs+=m.overdue_handoffs;return s;
-  },{openTasks:0,overdueTasks:0,dueSoonTasks:0,openHandoffs:0,overdueHandoffs:0});
+  const row=result.rows[0]||{};
+  const members=row.members||[],totals=row.totals||{};
   res.set('Cache-Control','private,no-store').json({
-   members,totals,shown:members.length,limit:500,
+   members,totals,teams:row.teams||[],totalMembers:row.member_count||0,
+   shown:members.length,limit:500,truncated:(row.member_count||0)>members.length,
+   teamLimit:100,teamSummariesCoverAllMembers:true,
    dataSource:'assigned_campaign_tasks_and_operational_handoffs',
    basedOnActualRecords:true,noStaffPerformanceRating:true,doesNotReassignAutomatically:true
   });
