@@ -9,7 +9,7 @@ export function gavhahConnectView(state,esc){
  const error=state.connectError?'<p role="alert">'+esc(state.connectError)+'</p>':'';
  const linkedNames=(link?.connections||[]).filter(x=>x.external_system==='gavhah_max');
  return '<section class="card" dir="rtl"><h2>גבהה קאנעקט — פארבינד דעם קאמפיין סענטער</h2>'+
-  '<p>דיין קאמפיין־אקאונט און דיין פערזענליכער גבהה־אקאונט בלייבן צוויי באזונדערע אקאונטס. פארבינד זיי נאר מיט דיין בפירוש'ע באשטעטיגונג.</p>'+
+  '<p>דיין קאמפיין־אקאונט און דיין פערזענליכער גבהה־אקאונט בלייבן צוויי באזונדערע אקאונטס. פארבינד זיי נאר מיט דיין קלארע באשטעטיגונג.</p>'+
   '<p class="muted">איינמאליגער קאוד מיט א גילטיקייט פון 10 מינוט. קיין צונויפשטעלן לויט נאמען, טעלעפאן אדער אימעיל. דיין פריוואטע נדבן־קארטל ווערט נישט אריבערגעשיקט.</p>'+
   error+
   (linked?
