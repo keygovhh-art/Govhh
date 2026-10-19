@@ -120,9 +120,40 @@ test('Leadership sees all management states, precise success/failure and immutab
   assert.ok(after.data.items[0].completed_at);
   // 43 extra plans: paging sees all rows, not merely the newest forty.
   for(let n=0;n<43;n++){
-   const s=await call(owner,'POST',home+'/items',{...base,title:'Additional plan '+n});
-   assert.equal(s.status,201);
+   // Prove real server-wide action sorting, not a filter of the first page.
+   const extra=n===2?{assignedTo:owner,status:'ready',dueAt:'2025-01-01T10:00:00Z'}:
+     n===3?{assignedTo:manager,status:'in_progress',
+       dueAt:new Date(Date.now()+12*60*60*1000).toISOString()}:{};
+   const s=await call(owner,'POST',home+'/items',{...base,title:'Additional plan '+n,...extra});
+   assert.equal(s.status,201,JSON.stringify(s.data));
   }
+  const queues=(await call(owner,'GET',home)).data.queueCounts;
+  assert.equal(queues.all,44);
+  assert.equal(queues.mine,1);
+  assert.equal(queues.overdue,1);
+  assert.equal(queues.due_soon,1);
+  assert.equal(queues.needs_action,1);
+  assert.equal(queues.unassigned,41);
+  for(const [name,title,expected] of [
+   ['mine','Additional plan 2',1],['needs_action','Additional plan 2',1],
+   ['overdue','Additional plan 2',1],['due_soon','Additional plan 3',1]
+  ]){
+   const feed=await call(owner,'GET',home+'?queue='+name);
+   assert.equal(feed.status,200,name);
+   assert.equal(feed.data.matching,expected,name);
+   assert.equal(feed.data.items[0].title,title,name);
+  }
+  const otherMine=await call(manager,'GET',home+'?queue=mine');
+  assert.equal(otherMine.status,200);
+  assert.equal(otherMine.data.items[0].title,'Additional plan 3');
+  const emptyMix=await call(owner,'GET',home+'?queue=mine&status=failed');
+  assert.equal(emptyMix.status,200);
+  assert.equal(emptyMix.data.matching,0);
+  const noOwner=await call(owner,'GET',home+'?queue=unassigned&page=2');
+  assert.equal(noOwner.status,200);
+  assert.equal(noOwner.data.matching,41);
+  assert.equal(noOwner.data.items.length,1);
+  assert.equal((await call(owner,'GET',home+'?queue=unknown')).status,400);
   const pages=await call(owner,'GET',home+'?page=2');
   assert.equal(pages.status,200);
   assert.equal(pages.data.items.length,4);

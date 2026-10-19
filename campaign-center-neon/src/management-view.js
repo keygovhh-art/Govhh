@@ -41,6 +41,19 @@ export function managementView(state,esc){
   ['overdue_plans','פארשפעטיגטע פלענער']
  ].map(([key,label])=>'<div><span>'+label+'</span><strong>'+
   escValue(urgency[key]??'—',esc)+'</strong></div>').join('');
+ const actionQueue=state.managementQueue||'all';
+ const workQueues=[
+  ['all','אלע פלענער'],
+  ['mine','מיינע צוגעטיילטע פלענער'],
+  ['needs_action','דארף באהאנדלונג'],
+  ['overdue','פארשפעטיגט'],
+  ['due_soon','טערמין אין 48 שעה'],
+  ['unassigned','נישט צוגעטיילט']
+ ];
+ const workButtons=workQueues.map(([key,label])=>
+  '<button type="button" data-action="management-queue" data-value="'+key+'" '+
+  'aria-pressed="'+(actionQueue===key?'true':'false')+'">'+esc(label)+' ('+
+  escValue(data?.queueCounts?.[key]??0,esc)+')</button>').join('');
  const filters=[['all','אלעס'],...Object.entries(managementLabels)].map(([key,label])=>
   '<button type="button" data-action="management-filter" data-value="'+key+'" '+
   'aria-pressed="'+(filter===key?'true':'false')+'">'+esc(label)+' ('+
@@ -109,6 +122,9 @@ export function managementView(state,esc){
   '<p class="muted">א פערזענליכע הנהלה־רשימה פון אלע פלענער, הצלחות, דורכפעלער, ווארטן און קומענדיגע שריט. דער לוח נעמט אויך סך־הכלן פון די אמתע קאמפיין־רעקארדס; קיין באנק־געלט ווערט דא נישט באשטעטיגט.</p>'+
   (state.managementError?'<p role="alert">'+esc(state.managementError)+'</p>':'')+
   '<h3>וואו דארף מען יעצט אריינקוקן?</h3><div class="metrics">'+signalCards+'</div>'+
+  '<h3>וואס דארף איך יעצט טון?</h3>'+
+  '<p class="muted">די שנעלע ליסטעס קומען פונעם גאנצן מוסד, נישט בלויז די 40 רעקארדס אויף דער זייט. די מיינע־ליסטע איז נאר פאר די פלאן־אויפגאבעס וואס זענען דיר פאקטיש צוגעטיילט.</p>'+
+  '<div class="inline">'+workButtons+'</div>'+
   '<h3>סטאטוס פון אלע איינגעשריבענע פלענער</h3>'+
   '<div class="inline">'+filters+'</div>'+
   '<form data-form="management-search" class="inline"><label>זוך פלאן, שריט אדער פאראנטווארטליכן'+

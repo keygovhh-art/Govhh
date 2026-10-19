@@ -34,7 +34,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',quickDaily:null,quickDailyError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,management:null,managementOrgId:null,managementError:'',managementFilter:'all',managementQuery:'',managementPage:1,managementEditorId:null,managementHistoryId:null,managementHistory:null,managementHistoryError:'',organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiSummary:null,gabbaiFilter:'pending',gabbaiQuery:'',gabbaiWorkload:null,gabbaiWorkloadError:'',gabbaiWorkloadFilter:'all',gabbaiWorkloadQuery:'',gabbaiWorkloadTeam:'',gabbaiWorkloadPage:1,gabbaiNewAssignee:'',gabbaiHandoffs:null,gabbaiHandoffsError:'',gabbaiHandoffId:null,gabbaiHandoffEvents:[],gabbaiHandoffFilter:'open',gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceFilter:'open',proGuidanceQuery:'',proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proNextAction:null,proNextActionError:'',proContacts:[],proFiles:null,proFilesError:'',proAutomations:null,proAutomationsError:'',proCallList:null,proCallListError:'',proCallListMode:'due',proCallListLimit:30,proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',quickDaily:null,quickDailyError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,management:null,managementOrgId:null,managementError:'',managementFilter:'all',managementQueue:'all',managementQuery:'',managementPage:1,managementEditorId:null,managementHistoryId:null,managementHistory:null,managementHistoryError:'',organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiSummary:null,gabbaiFilter:'pending',gabbaiQuery:'',gabbaiWorkload:null,gabbaiWorkloadError:'',gabbaiWorkloadFilter:'all',gabbaiWorkloadQuery:'',gabbaiWorkloadTeam:'',gabbaiWorkloadPage:1,gabbaiNewAssignee:'',gabbaiHandoffs:null,gabbaiHandoffsError:'',gabbaiHandoffId:null,gabbaiHandoffEvents:[],gabbaiHandoffFilter:'open',gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceFilter:'open',proGuidanceQuery:'',proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proNextAction:null,proNextActionError:'',proContacts:[],proFiles:null,proFilesError:'',proAutomations:null,proAutomationsError:'',proCallList:null,proCallListError:'',proCallListMode:'due',proCallListLimit:30,proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -84,12 +84,13 @@ async function refresh() {
     state.managementOrgId=state.orgId;state.management=null;
     state.managementEditorId=null;state.managementHistoryId=null;
     state.managementHistory=null;state.managementHistoryError='';
-    state.managementFilter='all';state.managementQuery='';state.managementPage=1;
+    state.managementFilter='all';state.managementQueue='all';state.managementQuery='';state.managementPage=1;
   }
   const orgRole=state.orgs.find(o=>o.id===state.orgId)?.role;
   if(state.orgId&&['owner','manager'].includes(orgRole)){
     try{
       const p=new URLSearchParams({status:state.managementFilter||'all',
+       queue:state.managementQueue||'all',
        query:state.managementQuery||'',page:String(state.managementPage||1)});
       state.management=await api('/management/organizations/'+state.orgId+'/management?'+p.toString());
       state.managementError='';
@@ -799,6 +800,14 @@ async function click(event){
     state.organizationMemoryHistory=btn.dataset.history==='true';await refresh();return;
   }
   if(a==='management-home'){state.tab='management';draw();return;}
+  if(a==='management-queue'){
+    const value=btn.dataset.value;
+    if(!['all','mine','needs_action','overdue','due_soon','unassigned'].includes(value))
+      return;
+    state.managementQueue=value;state.managementPage=1;
+    state.managementEditorId=null;state.managementHistoryId=null;state.managementHistory=null;
+    await refresh();return;
+  }
   if(a==='management-filter'){
     const value=btn.dataset.value;
     if(!['all','planned','ready','in_progress','waiting','blocked',
