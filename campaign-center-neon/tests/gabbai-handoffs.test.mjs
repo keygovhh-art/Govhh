@@ -123,6 +123,49 @@ test('Gabbai Pro real handoffs: manager assignment, member progress, private his
   assert.equal(bulkTeam?.members,505,'team totals must include all offscreen members');
   assert.equal(workload.data.totals.openTasks,2,'aggregate totals reflect all actual work');
   assert.equal(workload.data.totals.openHandoffs,1);
+  // Server-side search must find a member outside the first bounded 500-card
+  // payload, without exposing unrelated organizations.
+  const findOffscreen=await request(owner,'GET',
+   '/campaigns/'+cid+'/member-workload?search=bulk-helper-99&limit=50');
+  assert.equal(findOffscreen.status,200);
+  assert.equal(findOffscreen.data.serverFiltered,true);
+  assert.equal(findOffscreen.data.matchingMembers,1);
+  assert.equal(findOffscreen.data.members[0].subject,'bulk-helper-99');
+  assert.equal(findOffscreen.data.totalMembers,507);
+  assert.equal(findOffscreen.data.filterCounts.unassigned,505);
+  const pageOne=await request(owner,'GET','/campaigns/'+cid+
+   '/member-workload?filter=unassigned&limit=50&page=1');
+  assert.equal(pageOne.status,200);
+  assert.equal(pageOne.data.members.length,50);
+  assert.equal(pageOne.data.matchingMembers,505);
+  assert.equal(pageOne.data.pageCount,11);
+  assert.equal(pageOne.data.hasNext,true);
+  const lastPage=await request(owner,'GET','/campaigns/'+cid+
+   '/member-workload?filter=unassigned&limit=50&page=11');
+  assert.equal(lastPage.status,200);
+  assert.equal(lastPage.data.members.length,5);
+  assert.equal(lastPage.data.hasNext,false);
+  assert.equal(lastPage.data.hasPrevious,true);
+  const selectedTeam=await request(manager,'GET','/campaigns/'+cid+
+   '/member-workload?team=Bulk%20Helpers&limit=50&page=1');
+  assert.equal(selectedTeam.status,200);
+  assert.equal(selectedTeam.data.matchingMembers,505);
+  assert.ok(selectedTeam.data.members.every(x=>x.team_name==='Bulk Helpers'));
+  const overdueOnly=await request(owner,'GET','/campaigns/'+cid+
+   '/member-workload?filter=overdue&limit=50');
+  assert.equal(overdueOnly.status,200);
+  assert.equal(overdueOnly.data.matchingMembers,1);
+  assert.equal(overdueOnly.data.members[0].subject,worker);
+  assert.equal((await request(worker,'GET','/campaigns/'+cid+
+   '/member-workload?search=bulk-helper-99')).status,403);
+  assert.equal((await request(outsider,'GET','/campaigns/'+cid+
+   '/member-workload?search=bulk-helper-99')).status,404);
+  for(const invalid of ['filter=unknown','page=0','page=oops',
+   'limit=501','limit=0','search='+('a'.repeat(121))]){
+   assert.equal((await request(owner,'GET','/campaigns/'+cid+
+    '/member-workload?'+invalid)).status,400,invalid);
+  }
+
 
   const byMember=Object.fromEntries(workload.data.members.map(x=>[x.subject,x]));
   assert.equal(byMember[worker].open_tasks,1);
