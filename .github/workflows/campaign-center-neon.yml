@@ -81,6 +81,8 @@ jobs:
         run: node --test tests/gabbai-handoffs.test.mjs
       - name: Gabbai Pro phone-first workload search and filters
         run: node --test tests/gabbai-workload-view.test.mjs
+      - name: Gabbai Pro human blocker reasons and mobile manager board
+        run: node --test tests/gabbai-blocker-view.test.mjs
       - name: Organization owner-only multi-campaign currency-safe portfolio
         run: node --test tests/organization-portfolio.test.mjs
       - name: Organization capped resources, months, concurrency and private audit

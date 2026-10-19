@@ -5,12 +5,12 @@ export function gabbaiHandoffsView(state,esc){
  const stats=data.stats||{},filter=state.gabbaiHandoffFilter||'open';
  const isBoss=!!data.canCreate;
  const now=Date.now();
- const status={open:'אפן',in_progress:'אין ארבעט',done:'פארענדיגט'};
+ const status={open:'אפן',in_progress:'אין ארבעט',blocked:'פארהינדערט',done:'פארענדיגט'};
  const urgency={normal:'נארמאל',high:'וויכטיג',critical:'קריטיש'};
  const visible=(data.handoffs||[]).filter(h=>
   filter==='all'||(filter==='mine'?h.assigned_to===state.subject&&h.status!=='done':
    filter==='overdue'?h.status!=='done'&&h.due_at&&Date.parse(h.due_at)<now:
-   filter==='done'?h.status==='done':h.status!=='done'));
+   filter==='done'?h.status==='done':filter==='blocked'?h.status==='blocked':h.status!=='done'));
  const date=s=>s?esc(String(s).slice(0,16)):'נישט באשטימט';
  const history=selected?(state.gabbaiHandoffEvents||[]).map(e=>
   '<article class="item"><div><small>'+date(e.created_at)+' · '+esc(e.actor_subject)+
@@ -23,13 +23,17 @@ export function gabbaiHandoffsView(state,esc){
   '<p class="muted">באשטימט צו: '+esc(selected.assigned_to)+' · טערמין: '+date(selected.due_at)+
   ' · מצב: '+esc(status[selected.status])+'</p>'+
   '<div class="inline">'+
-  (selected.status==='open'&&(isBoss||selected.assigned_to===state.subject)?
+  ((selected.status==='open'||selected.status==='blocked')&&(isBoss||selected.assigned_to===state.subject)?
   '<button data-action="gabbai-handoff-status" data-id="'+esc(selected.id)+'" data-status="in_progress">אנגעהויבן</button>':'')+
   (selected.status!=='done'&&(isBoss||selected.assigned_to===state.subject)?
   '<button data-action="gabbai-handoff-status" data-id="'+esc(selected.id)+'" data-status="done">פארטיג</button>':'')+
   (selected.status==='done'&&isBoss?
   '<button data-action="gabbai-handoff-status" data-id="'+esc(selected.id)+'" data-status="open">ווידער עפענען</button>':'')+
-  '<button data-action="gabbai-handoff-back">צוריק צום איבערבליק</button></div>'+
+  '<button data-action="gabbai-handoff-back">צוריק צום איבערבליק</button></div>'+ 
+  (selected.status!=='done'&&selected.status!=='blocked'&&(isBoss||selected.assigned_to===state.subject)?
+  '<form data-form="gabbai-handoff-blocked" class="stack"><label>וואס האלט אפ די ארבעט?'+
+  '<textarea name="note" rows="3" required maxlength="1500" placeholder="שרייב קלאר וואס מען דארף צו קענען ווייטער גיין"></textarea></label>'+
+  '<button>איך בין פארהינדערט — מעלדן פאר דער הנהלה</button></form>':'')+
   '<h3>באריכטן און איבערגאב־געשיכטע</h3>'+
   (history||'<p class="muted">נאך נישטא קיין פארשריט־באריכט.</p>')+
   '<form data-form="gabbai-handoff-comment" class="stack">'+
@@ -49,11 +53,12 @@ export function gabbaiHandoffsView(state,esc){
   '<p class="muted">א קלארער סדר: ווער נעמט איבער, וואס איז דער קומענדיגער שריט, ביז ווען, און וואס האט מען שוין געטון. דאס איז א מענטשלעכער ארבעטס־באורד, נישט אויטאמאטישע רופן אדער מעסעדזשעס.</p>'+
   (state.gabbaiHandoffsError?'<p role="alert">'+esc(state.gabbaiHandoffsError)+'</p>':'')+
   '<div class="metrics"><div><span>אפן</span><strong>'+esc(stats.open||0)+'</strong></div>'+
+  '<div><span>פארהינדערט</span><strong>'+esc(stats.blocked||0)+'</strong></div>'+
   '<div><span>אין ארבעט</span><strong>'+esc(stats.in_progress||0)+'</strong></div>'+
   '<div><span>פארשפעטיגט</span><strong>'+esc(stats.overdue||0)+'</strong></div>'+
   '<div><span>פארטיג</span><strong>'+esc(stats.done||0)+'</strong></div></div>'+
   '<div class="inline">'+[
-   ['open','נאך אפן'],['mine','מיינע ארבעטן'],['overdue','פארשפעטיגט'],['done','פארענדיגט'],['all','אלע']
+   ['open','נאך אפן'],['mine','מיינע ארבעטן'],['blocked','פארהינדערט'],['overdue','פארשפעטיגט'],['done','פארענדיגט'],['all','אלע']
   ].map(([key,name])=>'<button data-action="gabbai-handoff-filter" data-value="'+key+'"'+
    (filter===key?' aria-pressed="true"':' aria-pressed="false"')+'>'+name+'</button>').join('')+'</div>'+
   '<p class="muted">געוויזן '+visible.length+' פון '+(data.handoffs||[]).length+' ערלויבטע איבערגאבן (מאקסימום 120).</p>'+
