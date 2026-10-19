@@ -45,6 +45,15 @@ jobs:
         run: CC_DISPOSABLE_MIGRATION_REHEARSAL=yes-local-ci-only node scripts/rehearse-complete-schema.mjs
       - name: Existing 026 Campaign Center data preserved through 034 upgrade
         run: CC_DISPOSABLE_MIGRATION_REHEARSAL=yes-local-ci-only node scripts/rehearse-preserving-upgrade.mjs
+      - name: Release 027–034 schema fail-closed contract tests
+        run: node --test tests/release-schema-contract.test.mjs
+      - name: Verify read-only release gate against fully upgraded disposable DB
+        env:
+          DATABASE_URL: postgresql://campaign_qa:only_local_ci_password@127.0.0.1:5432/campaign_upgrade_qa
+          CC_EXPECTED_DB_HOST: 127.0.0.1
+          NEON_AUTH_BASE_URL: https://auth.release-check.example
+          NEON_AUTH_JWKS_URL: https://auth.release-check.example/jwks
+        run: node scripts/release-preflight.mjs
       - name: Multi-member campaign team and Connect end-to-end test on disposable Postgres
         run: node --test tests/team-connect.test.mjs
       - name: Six-tier plan catalogue and immutable scope

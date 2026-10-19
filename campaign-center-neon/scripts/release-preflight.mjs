@@ -1,4 +1,5 @@
 import pg from 'pg';
+import {assessReleaseSchema} from './release-schema-contract.mjs';
 
 // Read-only preflight. Never writes or migrates a user database.
 // Run explicitly with DATABASE_URL, NEON_AUTH_BASE_URL and
@@ -42,7 +43,8 @@ try{
  if(missing.length)fail('Missing Campaign Center tables: '+missing.join(','));
  if(noRls.length)fail('RLS missing on: '+noRls.join(','));
  const cols=await db.query("SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=ANY($1::text[])",
- ['cc_conference_rooms','cc_live_rooms','cc_call_events','cc_floor_programs']);
+ [['cc_conference_rooms','cc_live_rooms','cc_call_events','cc_floor_programs',
+  'cc_pro_guidance_requests','cc_gabbai_handoffs','cc_gabbai_handoff_events']]);
  const byTable=new Map();
  for(const row of cols.rows){if(!byTable.has(row.table_name))byTable.set(row.table_name,new Set());byTable.get(row.table_name).add(row.column_name);}
  const needed={
@@ -54,6 +56,19 @@ try{
  for(const [table,fields] of Object.entries(needed)){
   for(const field of fields)if(!byTable.get(table)?.has(field))fail('Missing required '+table+'.'+field);
  }
+ // Stage 027–034 must be installed before starting the new API build.
+ // Catalog inspection only; no write privileges are used for this check.
+ const checks=await db.query(
+  "SELECT t.relname AS table_name,k.conname,pg_get_constraintdef(k.oid) AS definition"+
+  " FROM pg_constraint k JOIN pg_class t ON t.oid=k.conrelid"+
+  " JOIN pg_namespace n ON n.oid=t.relnamespace WHERE n.nspname='public'"+
+  " AND t.relname=ANY($1::text[]) AND k.contype='c'",
+  [['cc_gabbai_handoffs','cc_gabbai_handoff_events']]);
+ const release=assessReleaseSchema({
+  tables:result.rows,columns:cols.rows,constraints:checks.rows
+ });
+ for(const error of release.errors)fail(error);
+ if(!release.ready)fail('Release 027–034 schema incomplete; DO NOT deploy newer API code');
  const latest=await db.query("SELECT count(*)::int AS n FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE 'cc_%'");
  console.log('Read-only preflight: '+latest.rows[0].n+' Campaign Center tables inspected, '+requiredTables.length+' required tables cross-checked');
  if(!process.exitCode)console.log('PASS: schema, RLS, auth origin and database host ready for a separate authenticated release smoke test.');
