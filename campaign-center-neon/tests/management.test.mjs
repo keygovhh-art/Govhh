@@ -39,6 +39,9 @@ test('Leadership sees all management states, precise success/failure and immutab
   "INSERT INTO cc_campaigns(organization_id,title,status) VALUES($1,'Care campaign','active') RETURNING id",[org])).rows[0].id;
  const foreignCamp=(await pool.query(
   "INSERT INTO cc_campaigns(organization_id,title,status) VALUES($1,'Private other charity','active') RETURNING id",[outsideOrg])).rows[0].id;
+ await pool.query(
+  'INSERT INTO cc_campaign_members(organization_id,campaign_id,subject,team_name) VALUES($1,$2,$3,$4)',
+  [org,camp,member,'Charity team']);
  await pool.query("INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,due_at)"+
   " VALUES($1,$2,$3,'Contact families','2025-01-01T10:00:00Z')",[org,camp,member]);
  await pool.query(
