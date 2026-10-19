@@ -5,6 +5,9 @@ export function gabbaiWorkloadView(state,esc){
  if(!['owner','manager'].includes(state.gabbaiRole))return '';
  const t=workload?.totals||{};
  const members=workload?.members||[];
+ const groups=workload?.teams||[];
+ const chosenTeam=String(state.gabbaiWorkloadTeam||'');
+ const teamOf=m=>String(m.team_name||'').trim()||'נישט אין א גרופע';
  const filter=['all','overdue','soon','unassigned'].includes(state.gabbaiWorkloadFilter)
   ?state.gabbaiWorkloadFilter:'all';
  const query=String(state.gabbaiWorkloadQuery||'').trim().toLocaleLowerCase().slice(0,120);
@@ -17,7 +20,15 @@ export function gabbaiWorkloadView(state,esc){
   (filter==='all'||(filter==='overdue'&&delayed(m)>0)||
    (filter==='soon'&&Number(m.due_soon_tasks||0)>0)||
    (filter==='unassigned'&&total(m)===0))&&
-  (!query||[m.subject,m.team_name,m.role].some(v=>String(v||'').toLocaleLowerCase().includes(query))));
+  (!query||[m.subject,m.team_name,m.role].some(v=>String(v||'').toLocaleLowerCase().includes(query)))&&
+  (!chosenTeam||teamOf(m)===chosenTeam));
+ const groupCards=groups.slice(0,5).map(g=>
+  '<article class="item"><div><strong>'+esc(g.team_name)+'</strong>'+
+  '<small>'+esc(g.members)+' עסקנים · פארשפעטיגטע אויפגאבן: '+esc(g.overdue_tasks)+
+  ' · פארשפעטיגטע איבערגאבן: '+esc(g.overdue_handoffs)+'</small>'+
+  '<p class="muted">אפענע אויפגאבן: '+esc(g.open_tasks)+' · אפענע איבערגאבן: '+
+  esc(g.open_handoffs)+' · טערמין אין 48 שעה: '+esc(g.due_soon_tasks)+'</p></div>'+
+  '<button type="button" data-action="gabbai-workload-team" data-team="'+esc(g.team_name)+'">זען די גרופע</button></article>').join('');
  const staff=filtered.map(m=>{
   const delayed=(m.overdue_tasks||0)+(m.overdue_handoffs||0);
   return '<article class="item"><div><strong>'+esc(m.subject)+'</strong>'+
@@ -29,15 +40,26 @@ export function gabbaiWorkloadView(state,esc){
  }).join('');
  return '<section class="card"><h2>Gabbai Pro — אויפגאבן־לאסט פער עסקן</h2>'+
   '<p class="muted">אמתע ציפערן פון די צוגעטיילטע אויפגאבן און איבערגאבן. ס׳איז נישט קיין פערזענליכער ראַנג, און די מערכת צוטיילט נישט אליין קיין ארבעט.</p>'+
+  '<section><h3>גרופעס וואס דארפן אויפמערקזאמקייט</h3>'+
+  '<p class="muted">די גרופע־ציפערן קומען פון אלע אקטיווע קאמפיין־עסקנים, נישט בלויז פון די ערשטע 500 קארטלעך. זיי זאגן נישט אויס די פערזענליכע קוואליטעט פון אן עסקן.</p>'+
+  (groupCards||'<p class="muted">נאך נישטא קיין אקטיווע גרופעס.</p>')+'</section>'+
+  '<form data-form="gabbai-workload-team" class="inline"><label>קלייב א גרופע'+
+  '<select name="team"><option value="">אלע גרופעס</option>'+
+  groups.map(g=>'<option value="'+esc(g.team_name)+'"'+(chosenTeam===g.team_name?' selected':'')+
+  '>'+esc(g.team_name)+' ('+esc(g.members)+')</option>').join('')+
+  '</select></label><button>ווייז די גרופע</button></form>'+
   '<div class="inline">'+[['all','אלע'],['overdue','פארשפעטיגט'],['soon','טערמין אין 48 שעה'],['unassigned','קיין צוגעטיילטע ארבעט']].map(([key,label])=>
    '<button type="button" data-action="gabbai-workload-filter" data-value="'+key+'" aria-pressed="'+(filter===key?'true':'false')+'">'+label+' ('+counts[key]+')</button>').join('')+'</div>'+
   '<form data-form="gabbai-workload-search" class="inline"><label>זוך אן עסקן אדער גרופע'+
   '<input type="search" name="query" maxlength="120" value="'+esc(state.gabbaiWorkloadQuery||'')+
   '" placeholder="נאמען אדער גרופע"></label><button>זוכן</button></form>'+
   '<p class="muted">געוויזן '+filtered.length+' פון '+members.length+
-  ' אריינגעלאדענע מיטגלידער (מאקסימום '+esc(workload?.limit||500)+').'+
+  ' אריינגעלאדענע קארטלעך; סך הכל '+esc(workload?.totalMembers??members.length)+
+  ' אקטיווע מיטגלידער אין קאמפיין (מאקסימום '+esc(workload?.limit||500)+' קארטלעך).'+
+  (workload?.truncated?' עס זענען דא נאך עסקנים וואס דער עקראַן ווייזט נישט; די גרופע־סומעס רעכענען זיי יא.':'')+
   ' קיינער אן צוגעטיילטע ארבעט איז נישט בהכרח פריי — איבערפרעגן איידער מען טיילט צו.</p>'+
   (state.gabbaiWorkloadError?'<p role="alert">'+esc(state.gabbaiWorkloadError)+'</p>':'')+
+  '<h3>סך־הכל איבערן גאנצן קאמפיין</h3>'+ 
   '<div class="metrics"><div><span>אפענע אויפגאבן</span><strong>'+esc(t.openTasks||0)+'</strong></div>'+
   '<div><span>פארשפעטיגטע אויפגאבן</span><strong>'+esc(t.overdueTasks||0)+'</strong></div>'+
   '<div><span>אפענע איבערגאבן</span><strong>'+esc(t.openHandoffs||0)+'</strong></div>'+
