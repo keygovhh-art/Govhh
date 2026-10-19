@@ -518,6 +518,16 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal(afterClose.data.programs.find(x=>x.id===nextProgram.data.id).status,'completed','Active speaker event is closed and archived');
   assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:first,method:'POST'})).status,409);
 
+  // Service-to-service handshake: without the server secret NO database or
+  // feature metadata can be read, even before any accounts are linked.
+  assert.equal((await req('/connect/service/capabilities')).status,403);
+  const capabilities=await req('/connect/service/capabilities',{service:true});
+  assert.equal(capabilities.status,200);
+  assert.equal(capabilities.data.protocol,'gavhah-connect-v1');
+  assert.equal(capabilities.data.connectedBackend,true);
+  assert.equal(capabilities.data.automaticPhoneCalls,false);
+  assert.equal(capabilities.data.personalDonorSync,false);
+  assert.equal(capabilities.data.verifiedPaymentProcessor,false);
   // Link requires authenticated CC account and authenticated Gavhah service.
   const link=await req('/connect/code',{user:first,method:'POST'});
   assert.equal(link.status,201);assert.equal(link.data.code.length,32);
