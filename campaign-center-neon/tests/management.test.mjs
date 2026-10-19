@@ -20,7 +20,7 @@ const base={title:'Prepare campaign',details:'Family assistance planning',status
  nextAction:'Call the committee',waitingOn:'',issueReason:'',dueAt:null,note:'First step'};
 test('Leadership sees all management states, precise success/failure and immutable history',async()=>{
  for(const f of ['001_core.sql','002_team_connect.sql',
-  '021_gabbai_pro_finance_approvals.sql','022_organization_leadership_decisions.sql',
+  '019_askan_pro_guidance.sql','021_gabbai_pro_finance_approvals.sql','022_organization_leadership_decisions.sql',
   '033_gabbai_operations_handoffs.sql','034_gabbai_blocker_status.sql',
   '035_organization_management_progress.sql']){
   await pool.query(await readFile(join(import.meta.dirname,'../db',f),'utf8'));
@@ -68,6 +68,8 @@ test('Leadership sees all management states, precise success/failure and immutab
   assert.equal(initial.data.signals.overdue_tasks,1);
   assert.equal(initial.data.signals.blocked_handoffs,1);
   assert.equal(initial.data.signals.pending_approvals,1);
+  assert.equal(initial.data.signals.pending_guidance,0);
+  assert.equal(initial.data.signals.completed_tasks,0);
   assert.equal(initial.data.total,0);
   assert.equal((await call(member,'POST',home+'/items',base)).status,403);
   assert.equal((await call(owner,'POST',home+'/items',{...base,campaignId:foreignCamp})).status,404);
