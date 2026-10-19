@@ -3,6 +3,17 @@
 export function organizationPortfolioView(state,esc,money){
  const portfolio=state.organizationPortfolio;
  const stats=portfolio?.currencies||[];
+ const priority=(portfolio?.attentionQueue||[]).map(c=>
+  '<article class="item"><div><strong>'+esc(c.title)+'</strong>'+
+  '<small>'+esc(c.status)+' · פארשפעטיגט: '+esc(c.overdue_tasks)+
+  ' · קריטיש: '+esc(c.critical_tasks)+' · אין 48 שעה: '+esc(c.due_soon_tasks)+'</small>'+
+  (c.oldest_open_due?'<p class="muted">פריעסטער טערמין: '+esc(String(c.oldest_open_due).slice(0,16))+'</p>':'')+
+  '</div><button data-action="organization-campaign" data-id="'+esc(c.id)+'">גיי צו דעם קאמפיין</button></article>'
+ ).join('');
+ const priorityPanel='<section class="card"><h2>מוסד־הנהלה — וואו דארף מען יעצט העלפן?</h2>'+
+  '<p class="muted">די העכסטע 25 קאמפיינס לויט אמתע פארשפעטיגטע, קריטישע און נאנטע־טערמין אויפגאבן; אויך אויב א קאמפיין געפינט זיך נישט אין די 50 לעצטע Portfolio־רעקארדס. נאר צאלן ווערן געוויזן — פריוואטע נאטיצן נישט.</p>'+
+  (priority||'<p class="muted">דערווייל קיין רעקארדירטע דרינגליכע אויפגאבן אין דעם מוסד.</p>')+
+  '</section>';
  const labels=stats.map(x=>'<article class="item"><div><strong>'+esc(x.currency)+' — '+
    esc(x.campaigns)+' קאמפיינס</strong>'+
    '<p>צילן: '+esc(x.goal)+' · התחייבויות: '+esc(x.pledged)+
@@ -34,7 +45,7 @@ export function organizationPortfolioView(state,esc,money){
    ' · צוריקגעדרייט: '+esc(c.manually_reported_refunds)+'</p>'+
    '<p>אפענע אויפגאבן: '+esc(c.open_tasks)+' · פארשפעטיגט: '+esc(c.overdue_tasks)+'</p></div>'+
    '<button data-action="organization-campaign" data-id="'+esc(c.id)+'">עפענען דעם קאמפיין</button></article>').join('');
- return '<section class="card"><h2>Organization — אלע קאמפיינס אויף איין פלאץ</h2>'+
+ return priorityPanel+'<section class="card"><h2>Organization — אלע קאמפיינס אויף איין פלאץ</h2>'+
   '<p class="muted">בלויז פאר דער הנהלה פונעם מוסד. דא זעט מען געמיינזאמע חשבונות אן פריוואטע נדבן־נעמען, רוף־נאטיצן אדער אויסגעטיילטע קשר־דאטעס.</p>'+
   (state.organizationError?'<p role="alert">'+esc(state.organizationError)+'</p>':'')+
   (portfolio?'<p><strong>'+esc(portfolio.totalCampaigns)+' קאמפיינס</strong> אינעם מוסד.</p>'+
