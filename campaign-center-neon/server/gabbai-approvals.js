@@ -26,13 +26,29 @@ export default function gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim
   const status=req.query.status||'all';
   if(!['all','pending','approved','rejected'].includes(status))throw bad(400,'Invalid status filter');
   const q=await pool.query(
-   "SELECT id,category,amount::text amount,currency,subject,explanation,status,requested_by,created_at,decided_by,decided_at"+
-   " FROM cc_gabbai_approval_requests WHERE organization_id=$1 AND campaign_id=$2"+
-   " AND ($3='all' OR status=$3) ORDER BY created_at DESC,id DESC LIMIT 200",
+   "SELECT r.id,r.category,r.amount::text amount,r.currency,r.subject,r.explanation,r.status,r.requested_by,"+
+   " r.created_at,r.decided_by,r.decided_at,d.reason AS decision_reason"+
+   " FROM cc_gabbai_approval_requests r"+
+   " LEFT JOIN cc_gabbai_approval_decisions d ON d.request_id=r.id"+
+   " WHERE r.organization_id=$1 AND r.campaign_id=$2"+
+   " AND ($3='all' OR r.status=$3) ORDER BY r.created_at DESC,r.id DESC LIMIT 200",
    [c.organization_id,c.id,status]);
+  // Accurate whole-campaign counters, independent of the 200 newest rows.
+  // "Can review" always excludes one's own requests (two-person approval).
+  const summary=(await pool.query(
+   "SELECT COUNT(*)::int total,"+
+   " COUNT(*) FILTER (WHERE status='pending')::int pending,"+
+   " COUNT(*) FILTER (WHERE status='approved')::int approved,"+
+   " COUNT(*) FILTER (WHERE status='rejected')::int rejected,"+
+   " COUNT(*) FILTER (WHERE status='pending' AND requested_by<>$3)::int reviewable_count,"+
+   " COUNT(*) FILTER (WHERE requested_by=$3 AND status='pending')::int my_pending,"+
+   " COALESCE(SUM(amount) FILTER (WHERE status='pending'),0)::text pending_amount,"+
+   " COALESCE(SUM(amount) FILTER (WHERE status='pending' AND requested_by<>$3),0)::text reviewable_amount"+
+   " FROM cc_gabbai_approval_requests WHERE organization_id=$1 AND campaign_id=$2",
+   [c.organization_id,c.id,req.userId])).rows[0];
   res.set('Cache-Control','private,no-store');
-  res.json({requests:q.rows,limit:200,role:c.role,approvalDoesNotMoveMoney:true,
-   dualControl:true});
+  res.json({requests:q.rows,summary,limit:200,role:c.role,approvalDoesNotMoveMoney:true,
+   dualControl:true,summaryAcrossAllRows:true});
  }));
  router.get('/campaigns/:cid/priority-oversight',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
@@ -54,8 +70,24 @@ export default function gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim
    " WHERE cm.organization_id=$1 AND cm.campaign_id=$2"+
    " GROUP BY cm.team_name ORDER BY overdue_tasks DESC,active_blockers DESC,open_tasks DESC,cm.team_name LIMIT 50",
    [c.organization_id,c.id]);
+  // Actionable details behind the team totals: 25 highest urgency tasks,
+  // not inferred productivity rankings and not a separate task record.
+  const urgent=await pool.query(
+   "SELECT a.id,a.title,a.status,a.priority,a.due_at,a.assignee_subject,cm.team_name"+
+   " FROM cc_assignments a JOIN cc_campaign_members cm ON cm.organization_id=a.organization_id"+
+   " AND cm.campaign_id=a.campaign_id AND cm.subject=a.assignee_subject"+
+   " JOIN cc_memberships m ON m.organization_id=cm.organization_id"+
+   " AND m.subject=cm.subject AND m.membership_status='active'"+
+   " WHERE a.organization_id=$1 AND a.campaign_id=$2"+
+   " AND a.status IN ('open','in_progress')"+
+   " AND (a.priority IN ('critical','high') OR (a.due_at IS NOT NULL AND a.due_at<now()+interval '48 hours'))"+
+   " ORDER BY CASE WHEN a.due_at<now() THEN 0 ELSE 1 END,"+
+   " CASE a.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,"+
+   " a.due_at ASC NULLS LAST,a.created_at ASC,a.id ASC LIMIT 25",
+   [c.organization_id,c.id]);
   res.set('Cache-Control','private,no-store');
-  res.json({teams:data.rows,priorityOrder:'overdue-then-reported-blockers-then-open',
+  res.json({teams:data.rows,urgentTasks:urgent.rows,urgentLimit:25,
+   priorityOrder:'overdue-then-reported-blockers-then-open',
    isBasedOnRecordedTasksOnly:true,noEmployeePerformanceJudgement:true});
  }));
  router.get('/campaigns/:cid/ledger-review',run(async(req,res)=>{
@@ -113,6 +145,8 @@ export default function gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim
   if(!uuid(req.params.id)||!['approved','rejected'].includes(req.body?.decision)||
      (req.body.reason!==undefined&&(typeof req.body.reason!=='string'||req.body.reason.length>500)))
    throw bad(400,'Invalid review');
+  if(req.body.decision==='rejected'&&!(typeof req.body.reason==='string'&&req.body.reason.trim()))
+   throw bad(400,'A rejected financial request requires a written explanation');
   const result=await tx(async db=>{
    const item=(await db.query('SELECT * FROM cc_gabbai_approval_requests WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
    if(!item)throw bad(404,'Approval not found');
