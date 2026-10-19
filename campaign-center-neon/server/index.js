@@ -173,6 +173,7 @@ app.use('/api/pro',proGuidanceRouter({pool,campaignAccess,bad,trim,uuid,log}));
 app.use('/api/pro',proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log}));
 app.use('/api/gabbai',planPolicy.scoped('gabbai_pro'));
 app.use('/api/gabbai',gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim,log}));
+app.use('/api/gabbai',gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log}));
 app.use('/api/organization',planPolicy.scoped('organization'));
 app.use('/api/organization',organizationPortfolioRouter({pool,bad,uuid,trim,log}));
 app.use('/api/organization',organizationResourcesRouter({pool,bad,uuid,log}));
