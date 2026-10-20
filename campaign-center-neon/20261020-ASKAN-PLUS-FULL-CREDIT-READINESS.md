@@ -20,4 +20,4 @@ Disposable local PostgreSQL acceptance seeds 503 worker attributions, with 504 s
 
 Potential future improvements: pagination/performance indexes after production-matched staging benchmarks, signed payment-processor integration before "verified received" claims, correction event direction/reconciliation metadata. Do not classify this as bank settlement.
 
-This fixes a meaningful Askan Plus partial feature but **does not claim the entire 72-feature release is ready**. The Custom carrier/hotline and outbound integration is still not implemented; other partial features and the 027–037 Neon release readiness/UAT remain blocked.
+The catalogue's `team_credit` feature is now marked **pilot**, backed by tested person/team attribution and full historical manual credit paging. Pilot means built and tested in disposable CI; **it is not production-certified, contracted capacity or bank-verified payment**. This **does not mean the 72-feature release is ready**. The Custom carrier/hotline and outbound integration is still not implemented; other partial features and the 027–037 Neon release readiness/UAT remain blocked.
