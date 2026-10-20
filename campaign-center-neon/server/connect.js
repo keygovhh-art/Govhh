@@ -19,6 +19,11 @@ export function connectUserRouter({pool,authenticate,log,bad}) {
  const router=Router();router.use(authenticate);
  router.post('/code',wrap(async(req,res)=>{
   const result=await transaction(pool,async db=>{
+   const already=(await db.query(
+    "SELECT 1 FROM cc_external_account_links WHERE subject=$1"+
+    " AND external_system='gavhah_max' AND revoked_at IS NULL",
+    [req.userId])).rowCount;
+   if(already)throw bad(409,'This account is already linked to Gavhah');
    const prior=await db.query("SELECT COUNT(*)::int AS count FROM cc_connect_codes WHERE subject=$1 AND created_at>now()-interval '1 hour'",[req.userId]);
    if(prior.rows[0].count>=5)throw bad(429,'Please wait before requesting another link code');
    // A newly generated code supersedes any outstanding older one. The DB
