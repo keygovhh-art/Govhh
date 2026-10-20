@@ -110,6 +110,10 @@ jobs:
         run: node --test tests/pro-guidance-work-queue.test.mjs
       - name: Askan Pro blocker privacy, audited resolution and no fabricated insights
         run: node --test tests/pro-blockers.test.mjs
+      - name: Askan Pro full 258-blocker count, history, team scoping and six pages
+        run: node --test tests/blockers-full-stats.test.mjs
+      - name: Blocker Android full metrics, search and pagination
+        run: node --test tests/blockers-full-stats-view.test.mjs
       - name: Gabbai Pro maker-checker permissions and immutable approvals
         run: node --test tests/gabbai-approvals.test.mjs
       - name: Gabbai Pro financial decision desk and mobile queue
