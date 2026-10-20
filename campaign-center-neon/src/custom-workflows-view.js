@@ -59,7 +59,7 @@ export function customWorkflowsView(state,esc){
   (state.customWorkflowError?'<p role="alert">'+line(state.customWorkflowError)+'</p>':'')+
   '<div class="inline">'+['open','blocked','completed','cancelled'].map(key=>
    '<span>'+line(status[key])+' ('+line(data?.counts?.[key]||0)+')</span>').join('')+'</div>'+
-  (cards.join('')||'<p class="muted">נאך קיין צוגעטיילטע פראצעדורן.</p>')+
+  (cards||'<p class="muted">נאך קיין צוגעטיילטע פראצעדורן.</p>')+
   (data?.limit&&runs.length===data.limit?'<p class="muted">געוויזן בלויז די לעצטע 100; מער זוכן קומט אין קומענדיגן אויסבוי.</p>':'')+
   '</section>'+tpl+events;
 }
