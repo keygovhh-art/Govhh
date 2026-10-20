@@ -63,7 +63,7 @@ test('Clarity considers 380 real candidate rows, including older urgent work and
   [org,cid,b]);
  await pool.query(
   "INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy,assigned_team)"+
-  " SELECT $1,$2,$3,'Followup '||gs::text,'2125551234','campaign','A'"+
+  " SELECT $1,$2,$3,'Followup '||gs::text,'21255'||lpad(gs::text,5,'0'),'campaign','A'"+
   " FROM generate_series(1,120) gs",[org,cid,a]);
  await pool.query(
   "INSERT INTO cc_pro_contact_profiles(organization_id,campaign_id,contact_id,stage,priority,next_followup_at,last_updated_by)"+
