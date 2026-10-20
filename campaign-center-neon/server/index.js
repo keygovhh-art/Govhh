@@ -189,6 +189,7 @@ app.use('/api/pro',proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log}));
 app.use('/api/gabbai',planPolicy.scoped('gabbai_pro'));
 app.use('/api/gabbai',gabbaiApprovalsRouter({pool,campaignAccess,bad,uuid,trim,log}));
 app.use('/api/gabbai',gabbaiHandoffsRouter({pool,campaignAccess,bad,uuid,log}));
+app.use('/api/gabbai',customTeamRolesRouter({pool,member,bad,uuid,log}));
 app.use('/api/organization',planPolicy.scoped('organization'));
 app.use('/api/organization',organizationPortfolioRouter({pool,bad,uuid,trim,log}));
 // Management is a basic owner/manager function on every plan tier.
@@ -198,7 +199,6 @@ app.use('/api/organization',organizationMemoryRouter({pool,bad,uuid,trim,log}));
 app.use('/api/custom',planPolicy.scoped('custom'));
 app.use('/api/custom',customFocusRouter({pool,campaignAccess,bad,log}));
 app.use('/api/custom',customWorkflowsRouter({pool,campaignAccess,bad,uuid,log}));
-app.use('/api/custom',customTeamRolesRouter({pool,member,bad,uuid,log}));
 app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
 app.use('/api/team', (req,res,next)=>{
   // CSV export is Askan Pro. No lower-tier alias via the old team router.
