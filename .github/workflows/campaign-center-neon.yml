@@ -60,6 +60,10 @@ jobs:
         run: node --test tests/gavhah-connect-view.test.mjs
       - name: Six-tier plan catalogue and immutable scope
         run: node --test tests/six-plans.test.mjs
+      - name: Real scoped organizational capacity, Custom limits and downgrade denial
+        run: node --test tests/capacity-readiness.test.mjs
+      - name: Mobile capacity disclosure and fail-closed status cards
+        run: node --test tests/capacity-readiness-view.test.mjs
       - name: Campaign goal permissions, limits and immutable history
         run: node --test tests/goals.test.mjs
       - name: Source-grounded daily campaign Focus
