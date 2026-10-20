@@ -22,7 +22,7 @@ test('Leadership sees all management states, precise success/failure and immutab
  for(const f of ['001_core.sql','002_team_connect.sql',
   '019_askan_pro_guidance.sql','021_gabbai_pro_finance_approvals.sql','022_organization_leadership_decisions.sql',
   '033_gabbai_operations_handoffs.sql','034_gabbai_blocker_status.sql',
-  '035_organization_management_progress.sql']){
+  '035_organization_management_progress.sql','036_custom_manual_workflows.sql']){
   await pool.query(await readFile(join(import.meta.dirname,'../db',f),'utf8'));
  }
  const tag='mgt-'+Date.now(),owner=tag+'-owner',manager=tag+'-manager',
@@ -73,6 +73,8 @@ test('Leadership sees all management states, precise success/failure and immutab
   assert.equal(initial.data.signals.pending_approvals,1);
   assert.equal(initial.data.signals.pending_guidance,0);
   assert.equal(initial.data.signals.completed_tasks,0);
+  assert.equal(initial.data.signals.open_custom_workflows,0);
+  assert.equal(initial.data.signals.blocked_custom_workflows,0);
   assert.equal(initial.data.total,0);
   assert.equal((await call(member,'POST',home+'/items',base)).status,403);
   assert.equal((await call(owner,'POST',home+'/items',{...base,campaignId:foreignCamp})).status,404);
