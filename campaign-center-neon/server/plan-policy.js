@@ -171,7 +171,7 @@ export function makePlanPolicy({pool,bad}){
   ["GET","campaigns/:id/workflow-runs","custom_workflows"],
   ["POST","campaigns/:id/workflow-runs","custom_workflows"],
   ["POST","campaigns/:id/workflow-runs/:id/action","custom_workflows"],
-  ["GET","campaigns/:id/workflow-runs/:id/events","custom_workflows
+  ["GET","campaigns/:id/workflow-runs/:id/events","custom_workflows"]
  ]
  };
  const featureForRoute=(tier,method,path)=>{
