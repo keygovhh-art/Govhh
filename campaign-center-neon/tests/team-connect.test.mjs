@@ -51,7 +51,7 @@ const auth=(req,res,next)=>{req.userId=req.get('x-test-user')||'anonymous';next(
 
 async function prepare(){
  // Disposable Postgres on GitHub Actions only; NEVER any external production database.
- for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql','010_automatic_event_schedule.sql','011_sponsored_max_seats.sql','012_yemot_encrypted_connections.sql']){
+ for(const file of ['001_core.sql','002_team_connect.sql','003_web_hall.sql','004_conference_center.sql','005_virtual_campaign_floor.sql','006_floor_program_checkins.sql','007_conference_policy_lists.sql','008_opt_in_video.sql','009_experimental_browser_audio.sql','010_automatic_event_schedule.sql','011_sponsored_max_seats.sql','012_yemot_encrypted_connections.sql','037_custom_team_role_restrictions.sql']){
   const sql=await readFile(join(import.meta.dirname,'../db',file),'utf8');
   await pool.query(sql);
  }
@@ -102,6 +102,9 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
  assert.notEqual(unapproved.status,0,'Production runner must fail closed without owner approval');
  // Add the isolated new plan migration AFTER testing exact legacy 001–012 runner behavior.
  await pool.query(await readFile(join(import.meta.dirname,'../db/026_server_plan_entitlements.sql'),'utf8'));
+ // The legacy verified 001–012 migration is deliberately unchanged. Install
+ // the staged restrictive-role schema only AFTER its original 30-table audit.
+ await pool.query(await readFile(join(import.meta.dirname,'../db/037_custom_team_role_restrictions.sql'),'utf8'));
 
  const {server,url}=await launch();
  async function req(path,{user,method='GET',data,service=false}={}){
@@ -193,7 +196,8 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const secondInvite=await req(invitePath,{user:owner,method:'POST',data:{role:'askan',campaignId:c1}});
   assert.equal((await req('/team/invitations/redeem',{user:second,method:'POST',data:{invitationCode:secondInvite.data.invitationCode}})).status,200);
   const contact=(await pool.query("INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy) VALUES($1,$2,$3,'Test donor','0000000000','campaign') RETURNING id",[org1,c1,owner])).rows[0].id;
-  assert.equal((await req('/team/contacts/'+contact+'/claim',{user:first,method:'POST'})).status,200);
+  const initialClaim=await req('/team/contacts/'+contact+'/claim',{user:first,method:'POST'});
+   assert.equal(initialClaim.status,200,JSON.stringify(initialClaim.data));
   assert.equal((await req('/team/contacts/'+contact+'/claim',{user:second,method:'POST'})).status,409);
   assert.equal((await req('/team/contacts/'+contact+'/release',{user:first,method:'POST'})).status,200);
   assert.equal((await req('/team/contacts/'+contact+'/claim',{user:second,method:'POST'})).status,200);

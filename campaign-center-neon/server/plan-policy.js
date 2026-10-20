@@ -144,7 +144,10 @@ export function makePlanPolicy({pool,bad}){
   ["POST","campaigns/:id/approvals","approvals"],
   ["GET","campaigns/:id/priority-oversight","priority_oversight"],
   ["GET","campaigns/:id/ledger-review","ledger"],
-  ["POST","approvals/:id/decision","approvals"]
+  ["POST","approvals/:id/decision","approvals"],
+  ["GET","organizations/:id/role-profiles","custom_roles"],
+  ["POST","organizations/:id/role-profiles","custom_roles"],
+  ["POST","organizations/:id/permission-profile","custom_roles"]
  ],
  organization: [
   ["GET","organizations/:id/portfolio","portfolio"],
