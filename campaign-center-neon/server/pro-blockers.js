@@ -103,7 +103,7 @@ export default function proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log
   const c=await campaignAccess(pool,req.params.cid,req.userId);
   const q=req.query.q??'';
   if(typeof q!=='string'||q.length>100)throw bad(400,'Invalid search');
-  const search=q.trim(),higher=elevated.includes(c.role),squad=c.role==='squad_leader';
+  const search=q.trim(),higher=['owner','manager'].includes(c.role);
   const result=await pool.query(
    "SELECT t.id,t.title,t.priority,t.due_at,t.assignee_subject FROM cc_assignments t"+
    " WHERE t.organization_id=$1 AND t.campaign_id=$2"+
