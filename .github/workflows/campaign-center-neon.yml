@@ -66,6 +66,8 @@ jobs:
         run: node --test tests/capacity-readiness-view.test.mjs
       - name: Campaign goal permissions, limits and immutable history
         run: node --test tests/goals.test.mjs
+      - name: Goal 33-event manager history and conflict-safe Yiddish audit
+        run: node --test tests/goals-audit-view.test.mjs
       - name: Custom high-capacity goals whole-campaign paging and access controls
         run: node --test tests/full-goal-pages.test.mjs
       - name: Phone goal totals, paging buttons and safe restricted viewer

@@ -28,10 +28,30 @@ export function goalsView(state,esc){
     '<progress max="100" value="'+percent+'" aria-label="ציל פארשריט"></progress>'+
     (goal.description?'<p class="muted">'+esc(goal.description)+'</p>':'')+'</div>'+
     (manager?'<form data-form="goal-update" data-goal-id="'+esc(goal.id)+'" class="inline">'+
+      '<input type="hidden" name="expectedVersion" value="'+esc(goal.version??0)+'">'+
       '<label>יעצט <input name="currentValue" type="number" min="0" step="0.01" required value="'+esc(goal.current_value)+'"></label>'+
       '<label>מצב <select name="status">'+Object.entries(statuses).filter(([code])=>code!=='archived').map(([code,name])=>'<option value="'+code+'" '+(goal.status===code?'selected':'')+'>'+name+'</option>').join('')+'</select></label>'+
-      '<button type="submit">אפהיטן</button><button type="button" data-action="goal-archive" data-id="'+esc(goal.id)+'">ארכיוו</button></form>':'')+'</article>';
+      '<button type="submit">אפהיטן</button><button type="button" data-action="goal-archive" data-id="'+esc(goal.id)+'">ארכיוו</button>'+
+      '<button type="button" data-action="goal-history" data-id="'+esc(goal.id)+'">ציל־היסטאריע</button></form>':'')+'</article>';
  }).join('');
+ const audit=state.goalHistoryData,selected=state.goalHistoryId;
+ const auditLabels={created:'געשאפן',updated:'געענדערט',archived:'ארכיווירט'};
+ const auditPanel=selected&&manager?
+  '<section class="card"><h3>ציל־היסטאריע — ווער האט וואס געטון?</h3>'+
+  '<p class="muted">יעדער ענדערונג ווערט געהיטן אומפארענדערליך אין דער קאמפיין־דאטאבאזע; בלויז בארעכטיגטע מנהלים זעען די היסטאריע.</p>'+
+  '<button type="button" data-action="goal-history-close">פארמאכן</button>'+
+  (state.goalHistoryError?'<p role="alert">'+esc(state.goalHistoryError)+'</p>':'')+
+  (audit?'<p>איינטראָגן סך־הכל: '+esc(audit.total)+'</p>'+
+   (audit.history||[]).map(entry=>'<article class="item"><strong>'+
+    esc(auditLabels[entry.event_kind]||entry.event_kind)+'</strong>'+
+    '<p>'+esc(entry.actor_subject)+' · '+esc(String(entry.created_at??'').slice(0,19))+
+    '</p><p>מצב: '+esc(entry.status??'—')+
+    ' · באריכטעטע צאל: '+esc(entry.current_value??'—')+'</p></article>').join('')+
+   ((audit.pageCount||1)>1?'<nav class="inline">'+
+    (audit.page>1?'<button type="button" data-action="goal-history-page" data-page="'+(audit.page-1)+'">פריער</button>':'')+
+    '<span>זייט '+esc(audit.page)+' פון '+esc(audit.pageCount)+'</span>'+
+    (audit.page<audit.pageCount?'<button type="button" data-action="goal-history-page" data-page="'+(audit.page+1)+'">ווייטער</button>':'')+'</nav>':'')
+   :'<p>היסטאריע ווערט יעצט געלאדנט.</p>')+'</section>':'';
  const paging=meta&&pages>1?'<nav class="inline" aria-label="קאמפיין־צילן בלעטער">'+
  (page>1?'<button type="button" data-action="goal-page" data-page="'+(page-1)+'">פריער</button>':'')+
  '<span>זייט '+esc(page)+' פון '+esc(pages)+'</span>'+
@@ -42,5 +62,5 @@ export function goalsView(state,esc){
   ' צילן · איצטיגער פלאן־לימיט: '+esc(allowed)+' פער קאמפיין. קיין צילן ווערן נישט באהאלטן אינעם חשבון.</p>':
   '<p class="muted">דער סך־הכל ווערט ערשט באשטעטיגט דורך דעם סערווער.</p>')+
  (state.goalsError?'<p role="alert">צילן־דאטעבאזע נאך נישט גרייט: '+esc(state.goalsError)+'</p>':'')+
- (rows||'<p class="muted">נאך קיין צילן אויף דעם בלאט. דער הויפט געלט־ציל איז אין קאמפיין־פארוואלטונג.</p>')+paging+'</section>';
+ (rows||'<p class="muted">נאך קיין צילן אויף דעם בלאט. דער הויפט געלט־ציל איז אין קאמפיין־פארוואלטונג.</p>')+paging+'</section>'+auditPanel;
 }
