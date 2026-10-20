@@ -79,7 +79,7 @@ test('Gabbai Pro owner creates restrictive roles that narrow real contact privil
   "INSERT INTO cc_plan_entitlements(organization_id,plan_code,provision_reference,provisioned_by)"+
   " VALUES($1,$2,'approved-ci-fixture-only','platform-admin') ON CONFLICT(organization_id)"+
   " DO UPDATE SET plan_code=excluded.plan_code",[org,code]);
- const api='/api/gabbai/organizations/'+org,memberUrl=api+'/members/'+encodeURIComponent(worker)+'/permission-profile',
+ const api='/api/gabbai/organizations/'+org,memberUrl=api+'/permission-profile',
   leadUrl='/api/team/campaigns/'+campaign+'/lead-queue';
  try{
   assert.equal((await call(owner,'GET',api+'/role-profiles')).status,403);
@@ -95,10 +95,10 @@ test('Gabbai Pro owner creates restrictive roles that narrow real contact privil
    title:'View only',canViewLeadQueue:true,canClaimLeads:false,canExportSharedContacts:false});
   assert.equal(created.status,201,JSON.stringify(created.data));
   const profile=created.data.id;
-  assert.equal((await call(manager,'POST',memberUrl,{profileId:profile})).status,403);
-  assert.equal((await call(owner,'POST',memberUrl,{profileId:'00000000-0000-4000-8000-000000000000'})).status,404);
-  assert.equal((await call(owner,'POST',api+'/members/'+encodeURIComponent(manager)+'/permission-profile',{profileId:profile})).status,403);
-  assert.equal((await call(owner,'POST',memberUrl,{profileId:profile})).status,200);
+  assert.equal((await call(manager,'POST',memberUrl,{subject:worker,profileId:profile})).status,403);
+  assert.equal((await call(owner,'POST',memberUrl,{subject:worker,profileId:'00000000-0000-4000-8000-000000000000'})).status,404);
+  assert.equal((await call(owner,'POST',memberUrl,{subject:manager,profileId:profile})).status,403);
+  assert.equal((await call(owner,'POST',memberUrl,{subject:worker,profileId:profile})).status,200);
   const get=await call(owner,'GET',api+'/role-profiles');
   assert.equal(get.data.assignments.find(x=>x.subject===worker).profile_id,profile);
   assert.equal((await call(worker,'GET',leadUrl)).status,200);
@@ -107,13 +107,13 @@ test('Gabbai Pro owner creates restrictive roles that narrow real contact privil
   const lock=await call(owner,'POST',api+'/role-profiles',{
    title:'No contact list',canViewLeadQueue:false,canClaimLeads:false,canExportSharedContacts:false});
   assert.equal(lock.status,201);
-  assert.equal((await call(owner,'POST',memberUrl,{profileId:lock.data.id})).status,200);
+  assert.equal((await call(owner,'POST',memberUrl,{subject:worker,profileId:lock.data.id})).status,200);
   assert.equal((await call(worker,'GET',leadUrl)).status,403);
   assert.equal((await call(owner,'GET',leadUrl)).status,200,
    'Restricting worker never affects authorized leadership');
-  assert.equal((await call(owner,'POST',memberUrl,{profileId:null})).status,200);
+  assert.equal((await call(owner,'POST',memberUrl,{subject:worker,profileId:null})).status,200);
   assert.equal((await call(worker,'GET',leadUrl)).status,200);
-  assert.equal((await call(owner,'POST',memberUrl,{profileId:null})).data.changed,false);
+  assert.equal((await call(owner,'POST',memberUrl,{subject:worker,profileId:null})).data.changed,false);
   const events=await pool.query(
    'SELECT previous_profile_id,next_profile_id FROM cc_custom_team_permission_events WHERE organization_id=$1 AND subject=$2 ORDER BY created_at,id',[org,worker]);
   assert.equal(events.rows.length,3);
