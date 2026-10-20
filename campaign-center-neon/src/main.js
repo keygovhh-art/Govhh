@@ -256,7 +256,7 @@ async function refresh() {
         api('/team/organizations/'+state.orgId+'/members').then(v=>state.members=v)
       ]:[]),
       ...(['owner','manager'].includes(role)&&state.entitlements?.usableFeatures?.includes('custom_roles')?[
-        api('/custom/organizations/'+state.orgId+'/role-profiles')
+        api('/gabbai/organizations/'+state.orgId+'/role-profiles')
           .then(v=>{state.customRoleData=v;state.customRoleError='';})
           .catch(error=>{state.customRoleData=null;state.customRoleError=error.message;})
       ]:[])
@@ -444,7 +444,7 @@ async function submit(event){
       canExportSharedContacts:d.canExportSharedContacts==='on'};
      if((data.canClaimLeads||data.canExportSharedContacts)&&!data.canViewLeadQueue)
       throw new Error('צו נעמען אדער עקספארטירן דארף מען אויך קענען זען');
-     await api('/custom/organizations/'+state.orgId+'/role-profiles',{
+     await api('/gabbai/organizations/'+state.orgId+'/role-profiles',{
       method:'POST',body:JSON.stringify(data)});
      break;
    }
@@ -455,7 +455,7 @@ async function submit(event){
      if(d.profileId&&!state.customRoleData?.profiles?.some(p=>p.id===d.profileId))
       throw new Error('די רשות איז נישט געפונען');
      if(!confirm('באשטעטיגן דעם צוטריט־טויש פאר דעם עסקן?'))break;
-     await api('/custom/organizations/'+state.orgId+'/members/'+encodeURIComponent(d.subject)+
+     await api('/gabbai/organizations/'+state.orgId+'/members/'+encodeURIComponent(d.subject)+
       '/permission-profile',{method:'POST',body:JSON.stringify({profileId:d.profileId||null})});
      break;
    }
