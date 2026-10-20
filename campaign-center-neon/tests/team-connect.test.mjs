@@ -102,6 +102,9 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
  assert.notEqual(unapproved.status,0,'Production runner must fail closed without owner approval');
  // Add the isolated new plan migration AFTER testing exact legacy 001–012 runner behavior.
  await pool.query(await readFile(join(import.meta.dirname,'../db/026_server_plan_entitlements.sql'),'utf8'));
+ // The legacy verified 001–012 migration is deliberately unchanged. Install
+ // the staged restrictive-role schema only AFTER its original 30-table audit.
+ await pool.query(await readFile(join(import.meta.dirname,'../db/037_custom_team_role_restrictions.sql'),'utf8'));
 
  const {server,url}=await launch();
  async function req(path,{user,method='GET',data,service=false}={}){
