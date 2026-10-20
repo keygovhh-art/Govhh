@@ -433,7 +433,7 @@ export const PLAN_FEATURES = [
     "code": "custom_workflows",
     "yi": "אייגענע Workflows",
     "minTier": 5,
-    "status": "missing",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
