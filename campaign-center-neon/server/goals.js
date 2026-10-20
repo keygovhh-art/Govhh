@@ -111,7 +111,8 @@ export default function goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log,
      if(currentVersion!==expectedVersion)
        throw bad(409,'Goal changed by another manager; refresh before saving');
      const row=(await db.query(
-       'UPDATE cc_goals SET '+updates.join(',')+',updated_at=clock_timestamp() WHERE id=
+       'UPDATE cc_goals SET '+updates.join(',')+',updated_at=clock_timestamp() WHERE id=$'+(values.length+1)+
+       ' AND organization_id=$'+(values.length+2)+' RETURNING '+fields,
        [...values,previous.id,c.organization_id])).rows[0];
      const action=row.status==='archived'?'archived':'updated';
      await db.query('INSERT INTO cc_goal_history(organization_id,campaign_id,goal_id,actor_subject,event_kind,snapshot) VALUES($1,$2,$3,$4,$5,$6)',
