@@ -142,7 +142,10 @@ export default function managementRouter({pool,bad,uuid,log}){
     " (SELECT COUNT(*)::int FROM cc_pro_guidance_requests WHERE organization_id=$1 AND status='answered') answered_guidance,"+
     " (SELECT COUNT(*)::int FROM cc_org_leadership_decisions WHERE organization_id=$1 AND status='open') pending_decisions,"+
     " (SELECT COUNT(*)::int FROM cc_management_plan_items WHERE organization_id=$1"+
-    " AND due_at<now() AND status NOT IN ('completed','successful','cancelled')) overdue_plans",
+    " AND due_at<now() AND status NOT IN ('completed','successful','cancelled')) overdue_plans,"+
+    " (SELECT COUNT(*)::int FROM cc_custom_workflow_runs WHERE organization_id=$1 AND status='open') open_custom_workflows,"+
+    " (SELECT COUNT(*)::int FROM cc_custom_workflow_runs WHERE organization_id=$1 AND status='blocked') blocked_custom_workflows,"+
+    " (SELECT COUNT(*)::int FROM cc_custom_workflow_runs WHERE organization_id=$1 AND status='completed') completed_custom_workflows",
     [oid]),
    pool.query(
     "SELECT COUNT(*)::int all,"+
