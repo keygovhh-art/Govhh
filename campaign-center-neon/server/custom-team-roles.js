@@ -52,8 +52,8 @@ export default function customTeamRolesRouter({pool,member,bad,uuid,log}){
   });
   res.status(201).json(result);
  }));
- router.post('/organizations/:oid/members/:subject/permission-profile',wrap(async(req,res)=>{
-  const subject=req.params.subject,profileId=req.body?.profileId??null;
+ router.post('/organizations/:oid/permission-profile',wrap(async(req,res)=>{
+  const subject=req.body?.subject,profileId=req.body?.profileId??null;
   if(typeof subject!=='string'||!subject||subject.length>128||
    (profileId!==null&&!uuid(profileId)))throw bad(400,'Invalid member or profile');
   const answer=await tx(async db=>{
