@@ -108,6 +108,10 @@ jobs:
         run: node --test tests/pro-call-lists.test.mjs
       - name: Askan Pro seven-day personal Sprints and immutable 30-day activity
         run: node --test tests/pro-sprints.test.mjs
+      - name: Private Sprint 23-plan and 230-event complete memory with user isolation
+        run: node --test tests/sprint-memory-pages.test.mjs
+      - name: Private 7-day Sprint and 30-day Yiddish memory pages and fail-closed UI
+        run: node --test tests/sprint-memory-pages-view.test.mjs
       - name: Askan Pro private Guidance inbox and manager-message security
         run: node --test tests/pro-guidance.test.mjs
       - name: Askan Pro manager Guidance open/replied/closed work queue and mobile filtering

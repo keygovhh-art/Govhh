@@ -251,7 +251,7 @@ export const PLAN_FEATURES = [
     "code": "clarity",
     "yi": "Clarity Engine",
     "minTier": 2,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
@@ -279,7 +279,7 @@ export const PLAN_FEATURES = [
     "code": "sprint_memory",
     "yi": "7-Day Sprint און 30-Day Memory",
     "minTier": 2,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {

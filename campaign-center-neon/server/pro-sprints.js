@@ -28,17 +28,29 @@ export default function proSprintRouter({pool,campaignAccess,bad,log,uuid,trim})
  }
  router.get('/campaigns/:cid/sprints',run(async(req,res)=>{
   const campaign=await campaignAccess(pool,req.params.cid,req.userId);
-  const found=await pool.query(
-   'SELECT id,title,starts_on,status,created_at FROM cc_pro_sprints WHERE organization_id=$1 AND campaign_id=$2 AND owner_subject=$3 ORDER BY created_at DESC,id DESC LIMIT 10',
-   [campaign.organization_id,campaign.id,req.userId]);
+  const page=Number(req.query.page??1),limit=10;
+  if(!Number.isSafeInteger(page)||page<1||page>10000)throw bad(400,'Invalid sprint page');
+  const params=[campaign.organization_id,campaign.id,req.userId];
+  const [found,count]=await Promise.all([
+   pool.query(
+    'SELECT id,title,starts_on,status,created_at FROM cc_pro_sprints'+
+    ' WHERE organization_id=$1 AND campaign_id=$2 AND owner_subject=$3'+
+    ' ORDER BY created_at DESC,id DESC LIMIT $4 OFFSET $5',
+    [...params,limit,(page-1)*limit]),
+   pool.query('SELECT COUNT(*)::int total FROM cc_pro_sprints'+
+    ' WHERE organization_id=$1 AND campaign_id=$2 AND owner_subject=$3',params)
+  ]);
   const sprints=[];
   for(const row of found.rows){
    const steps=await pool.query(
-    'SELECT id,day_number,title,completed_at FROM cc_pro_sprint_steps WHERE sprint_id=$1 ORDER BY day_number,created_at,id',[row.id]);
+    'SELECT id,day_number,title,completed_at FROM cc_pro_sprint_steps'+
+    ' WHERE sprint_id=$1 ORDER BY day_number,created_at,id',[row.id]);
    sprints.push({...row,steps:steps.rows});
   }
+  const total=count.rows[0].total;
   res.set('Cache-Control','private,no-store');
-  res.json({sprints,scope:'self'});
+  res.json({sprints,total,page,pageCount:Math.max(1,Math.ceil(total/limit)),
+   limit,scope:'self',allPrivateSprintsCounted:true});
  }));
  router.post('/campaigns/:cid/sprints',run(async(req,res)=>{
   const title=trim(req.body?.title,160),startsOn=validDate(req.body?.startsOn);
@@ -104,15 +116,29 @@ export default function proSprintRouter({pool,campaignAccess,bad,log,uuid,trim})
  }));
  router.get('/campaigns/:cid/focus-history',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
-  const result=await pool.query(
-   "SELECT a.event_type,a.recorded_at,s.title AS sprint_title,st.title AS step_title,st.day_number"+
-   " FROM cc_pro_sprint_activity a JOIN cc_pro_sprints s ON s.id=a.sprint_id"+
-   " LEFT JOIN cc_pro_sprint_steps st ON st.id=a.step_id"+
+  const page=Number(req.query.page??1),limit=50;
+  if(!Number.isSafeInteger(page)||page<1||page>10000)throw bad(400,'Invalid memory page');
+  const args=[c.organization_id,c.id,req.userId];
+  const source=" FROM cc_pro_sprint_activity a"+
+   " JOIN cc_pro_sprints s ON s.id=a.sprint_id"+
    " WHERE s.organization_id=$1 AND s.campaign_id=$2 AND s.owner_subject=$3"+
-   " AND a.recorded_at>=now()-interval '30 days' ORDER BY a.recorded_at DESC,a.id DESC LIMIT 200",
-   [c.organization_id,c.id,req.userId]);
+   " AND a.recorded_at>=now()-interval '30 days'";
+  const [events,totalResult]=await Promise.all([
+   pool.query(
+    "SELECT a.event_type,a.recorded_at,a.id,s.title AS sprint_title,"+
+    " st.title AS step_title,st.day_number"+
+    " FROM cc_pro_sprint_activity a JOIN cc_pro_sprints s ON s.id=a.sprint_id"+
+    " LEFT JOIN cc_pro_sprint_steps st ON st.id=a.step_id"+
+    " WHERE s.organization_id=$1 AND s.campaign_id=$2 AND s.owner_subject=$3"+
+    " AND a.recorded_at>=now()-interval '30 days'"+
+    " ORDER BY a.recorded_at DESC,a.id DESC LIMIT $4 OFFSET $5",
+    [...args,limit,(page-1)*limit]),
+   pool.query('SELECT COUNT(*)::int total'+source,args)
+  ]);
+  const total=totalResult.rows[0].total;
   res.set('Cache-Control','private,no-store');
-  res.json({days:30,events:result.rows,scope:'self',notAutomated:true});
+  res.json({days:30,events:events.rows,total,page,pageCount:Math.max(1,Math.ceil(total/limit)),
+   limit,scope:'self',notAutomated:true,allPrivateEventsCounted:true});
  }));
  return router;
 }
