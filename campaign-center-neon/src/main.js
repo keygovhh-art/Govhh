@@ -658,7 +658,7 @@ async function submit(event){
        if(split<0)throw new Error('יעדע שורה: טאג | אויפגאבע');
        return {day:Number(line.slice(0,split).trim()),title:line.slice(split+1).trim()};
      });
-     await api('/pro/campaigns/'+state.campaignId+'/sprints',{method:'POST',body:JSON.stringify({title:d.title,startsOn:d.startsOn,steps})});break;
+     await api('/pro/campaigns/'+state.campaignId+'/sprints',{method:'POST',body:JSON.stringify({title:d.title,startsOn:d.startsOn,steps})});state.proSprintsPage=1;state.proHistoryPage=1;break;
    }
    case 'pro-call-list-filter': {
      const mode=String(d.mode||'due'),limit=Number(d.limit);
@@ -1167,12 +1167,12 @@ async function click(event){
   }
   if(a==='pro-step'){
     await api('/pro/sprints/'+btn.dataset.sprintId+'/steps/'+btn.dataset.id,{
-      method:'PATCH',body:JSON.stringify({status:btn.dataset.status})});await refresh();return;
+      method:'PATCH',body:JSON.stringify({status:btn.dataset.status})});state.proHistoryPage=1;await refresh();return;
   }
   if(a==='pro-sprint-close'){
     if(!confirm('דעם Sprint '+(btn.dataset.status==='completed'?'פארענדיגן':'ארכיווירן')+'? די געשיכטע בלייבט.'))return;
     await api('/pro/sprints/'+btn.dataset.id+'/status',{method:'PATCH',body:JSON.stringify({status:btn.dataset.status})});
-    await refresh();return;
+    state.proHistoryPage=1;state.proSprintsPage=1;await refresh();return;
   }
   if(a==='pro-next-task-status'){
     const id=btn.dataset.id,status=btn.dataset.status;
