@@ -13,7 +13,7 @@ export const PLAN_FEATURES = [
     "code": "goals",
     "yi": "באזונדערע קאמפיין־צילן",
     "minTier": 0,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
