@@ -57,7 +57,7 @@ test('Quick Focus picks the oldest overdue priority across 260+ tasks, without o
  }
  await pool.query(
   "INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,"+
-  "status,created_at) SELECT $1,$2,$3,'Ordinary '+gs::text,'normal','open',now()"+
+  "status,created_at) SELECT $1,$2,$3,'Ordinary '||gs::text,'normal','open',now()"+
   " FROM generate_series(1,260) gs",[org,cid,a]);
  const overdueA=(await pool.query(
   "INSERT INTO cc_assignments(organization_id,campaign_id,assignee_subject,title,priority,status,"+
