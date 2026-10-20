@@ -21,6 +21,12 @@ export function connectUserRouter({pool,authenticate,log,bad}) {
   const result=await transaction(pool,async db=>{
    const prior=await db.query("SELECT COUNT(*)::int AS count FROM cc_connect_codes WHERE subject=$1 AND created_at>now()-interval '1 hour'",[req.userId]);
    if(prior.rows[0].count>=5)throw bad(429,'Please wait before requesting another link code');
+   // A newly generated code supersedes any outstanding older one. The DB
+   // transaction makes this reliable even if the member opens two tabs.
+   await db.query(
+    "UPDATE cc_connect_codes SET redeemed_at=now()"+
+    " WHERE subject=$1 AND redeemed_at IS NULL AND expires_at>now()",
+    [req.userId]);
    const raw=code();
    await db.query("INSERT INTO cc_connect_codes(code_hash,subject,expires_at) VALUES($1,$2,now()+interval '10 minutes')",[digest(raw),req.userId]);
    return {code:raw,expiresInMinutes:10};
@@ -71,6 +77,11 @@ export function connectUserRouter({pool,authenticate,log,bad}) {
  router.post('/unlink',wrap(async(req,res)=>{
   await transaction(pool,async db=>{
    const r=await db.query("UPDATE cc_external_account_links SET revoked_at=now() WHERE subject=$1 AND external_system='gavhah_max' AND revoked_at IS NULL RETURNING id",[req.userId]);
+   // Unlink means all unexpired pairing invitations also become invalid.
+   await db.query(
+    "UPDATE cc_connect_codes SET redeemed_at=now()"+
+    " WHERE subject=$1 AND redeemed_at IS NULL AND expires_at>now()",
+    [req.userId]);
    if(r.rowCount)await db.query("INSERT INTO cc_activity_events(organization_id,actor_subject,event_type,details) SELECT organization_id,$1,'connect.unlinked',$2 FROM cc_memberships WHERE subject=$1 AND membership_status='active'",[req.userId,JSON.stringify({source:'gavhah_max'})]);
   });
   res.json({unlinked:true});
