@@ -543,8 +543,14 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal(capabilities.data.personalDonorSync,false);
   assert.equal(capabilities.data.verifiedPaymentProcessor,false);
   // Link requires authenticated CC account and authenticated Gavhah service.
+  const previous=await req('/connect/code',{user:first,method:'POST'});
+  assert.equal(previous.status,201);
   const link=await req('/connect/code',{user:first,method:'POST'});
   assert.equal(link.status,201);assert.equal(link.data.code.length,32);
+  assert.notEqual(link.data.code,previous.data.code,'Every pairing code is unique');
+  assert.equal((await req('/connect/service/redeem',{service:true,method:'POST',
+   data:{gavhahUserId:7,code:previous.data.code}})).status,404,
+   'A newer pairing code must revoke the older one');
   assert.equal((await req('/connect/service/redeem',{method:'POST',data:{gavhahUserId:7,code:link.data.code}})).status,403);
   const unlinkedStatus=await req('/connect/status',{user:first});
   assert.equal(unlinkedStatus.status,200);
@@ -554,6 +560,8 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const linkedStatus=await req('/connect/status',{user:first});
   assert.equal(linkedStatus.status,200);
   assert.equal(linkedStatus.data.linked,true);
+  assert.equal((await req('/connect/code',{user:first,method:'POST'})).status,409,
+   'A linked member cannot mint another pairing code');
   assert.ok(linkedStatus.data.connections.every(x=>!Object.hasOwn(x,'external_user_id')),
     'No external personal ID is published in account link status');
   assert.equal((await req('/connect/service/redeem',{service:true,method:'POST',data:{gavhahUserId:8,code:link.data.code}})).status,404);
@@ -644,6 +652,8 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await pool.query("SELECT COUNT(*)::int total FROM cc_finance_events WHERE source_system='gavhah_max'")).rows[0].total,2,'Exactly one source receipt PLUS one immutable manual reversal');
   // Unlink blocks access and does not delete the append-only financial history.
   assert.equal((await req('/connect/unlink',{user:first,method:'POST'})).status,200);
+  assert.equal((await pool.query("SELECT COUNT(*)::int n FROM cc_connect_codes WHERE subject=$1 AND redeemed_at IS NULL AND expires_at>now()",[first])).rows[0].n,0,
+   'Unlink invalidates all outstanding pairing invitations');
   assert.equal((await req('/connect/status',{user:first})).data.linked,false);
   assert.equal((await req(orgConnect,{user:owner})).data.linkedMembers,0);
   assert.equal((await req('/connect/service/campaigns?gavhahUserId=7',{service:true})).status,403);
