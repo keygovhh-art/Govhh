@@ -15,7 +15,7 @@ export function customRoleView(state,esc){
    (p.can_export_shared_contacts?'מעג עקספארטירן':'קען נישט עקספארטירן')+
    '</p></article>').join('');
  const ownerForm=owner?'<section class="card"><h3>א נייע רשות־מוסטער</h3>'+
-   '<p class="muted">די מוסטערן קענען נאר איינשרענקען די עקזיסטירנדע עסקן־רעכטן; קיין מנהל־ אדער באנק־רעכטן ווערן קיינמאל נישט צוגעלייגט.</p>'+
+   '<p class="muted">די רשות־מוסטערן קענען נאר איינשרענקען די עקזיסטירנדע עסקן־רעכטן; קיין מנהל־ אדער באנק־רעכטן ווערן קיינמאל נישט צוגעלייגט.</p>'+
    '<form data-form="custom-role-create" class="stack">'+
     '<label>נאמען<input name="title" maxlength="100" required placeholder="למשל: בלויז זען"></label>'+
     '<label><input name="canViewLeadQueue" type="checkbox" checked> מעג זען צוגעטיילטע רוף־ליסטעס</label>'+
@@ -33,7 +33,7 @@ export function customRoleView(state,esc){
      '</select></label><button>באשטעטיגן רשות</button></form>').join('')||
     '<p class="muted">נאך קיין אקטיווע עסקנים פאר אן אייגענער רשות.</p>')+
    '</section>':'';
- return '<section class="card"><h2>Custom — מאנשאפט־רעכטן</h2>'+
+ return '<section class="card"><h2>Gabbai Pro — מאנשאפט־רעכטן</h2>'+
   '<p class="muted">מוסטערן פאר עסקן און גרופע־פירער: ווער קען זען רוף־ליסטעס, נעמען קשרים און עקספארטירן. קיין מוסטער קען נישט איבערגיין די געבוירענע ראלע אדער דעם פלאן.</p>'+
   (state.customRoleError?'<p role="alert">'+esc(state.customRoleError)+'</p>':'')+
   (profilesText||'<p class="muted">נאך קיין אייגענע רשות־מוסטערן.</p>')+
