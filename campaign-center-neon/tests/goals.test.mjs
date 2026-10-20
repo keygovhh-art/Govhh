@@ -61,14 +61,28 @@ test('campaign goals are tenant-scoped, role-checked, quota-bounded and append-o
    assert.equal(created.status,201);goal=created.data;
   }
   assert.equal((await call(owner,'/campaigns/'+camp,'POST',{title:'Fourth',targetValue:'100'})).status,409);
-  assert.equal((await call(outsider,'/'+goal.id,'PATCH',{currentValue:'80'})).status,404);
-  assert.equal((await call(askan,'/'+goal.id,'PATCH',{currentValue:'80'})).status,403);
-  const changed=await call(owner,'/'+goal.id,'PATCH',{currentValue:'80.50',status:'at_risk'});
+  assert.equal((await call(outsider,'/'+goal.id,'PATCH',{currentValue:'80',expectedVersion:1})).status,404);
+  assert.equal((await call(askan,'/'+goal.id,'PATCH',{currentValue:'80',expectedVersion:1})).status,403);
+  const changed=await call(owner,'/'+goal.id,'PATCH',{currentValue:'80.50',status:'at_risk',expectedVersion:1});
   assert.equal(changed.status,200);assert.equal(Number(changed.data.current_value),80.5);
+  assert.equal(changed.data.version,2,'A successful edit advances the immutable audit version');
+  assert.equal((await call(owner,'/'+goal.id,'PATCH',{currentValue:'66',expectedVersion:1})).status,409,
+   'Stale manager writes must not overwrite recent progress');
+  assert.equal((await call(owner,'/'+goal.id,'PATCH',{status:'completed'})).status,400,
+   'Never permit unversioned goal writes');
+  const checked=await call(owner,'/campaigns/'+camp);
+  assert.equal(checked.data.goals.find(g=>g.id===goal.id).version,2);
+  assert.equal(Number(checked.data.goals.find(g=>g.id===goal.id).current_value),80.5);
   const history=await call(owner,'/'+goal.id+'/history');
   assert.equal(history.status,200);assert.equal(history.data.history.length,2);
+  assert.equal(history.data.total,2);
+  assert.equal(history.data.pageCount,1);
+  assert.equal(history.data.appendOnly,true);
+  assert.equal(history.data.history[0].actor_subject,owner);
+  assert.equal(history.data.history[0].current_value,'80.50');
+  assert.equal((await call(owner,'/'+goal.id+'/history?page=0')).status,400);
   assert.equal((await call(askan,'/'+goal.id+'/history')).status,403);
-  assert.equal((await call(owner,'/'+goal.id,'PATCH',{status:'archived'})).status,200);
+  assert.equal((await call(owner,'/'+goal.id,'PATCH',{status:'archived',expectedVersion:2})).status,200);
   assert.equal((await call(owner,'/campaigns/'+camp,'POST',{title:'New goal',targetValue:'5'})).status,201);
   await pool.query("INSERT INTO cc_plan_entitlements(organization_id,plan_code,provision_reference,provisioned_by) VALUES($1,'askan_pro','approved-ci-fixture-20261016','CI-operator')",[org]);
   assert.equal((await call(owner,'/campaigns/'+camp)).data.goalLimit,20);
