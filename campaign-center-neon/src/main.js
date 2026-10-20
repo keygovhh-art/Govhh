@@ -162,9 +162,15 @@ async function refresh() {
       state.sharedFocus=await api('/quick/campaigns/'+id+'/shared-focus'+teamQ);
       state.sharedFocusError='';
       if(state.sharedFocus.editable){
-        state.sharedFocusCandidates=await api('/quick/campaigns/'+id+'/shared-focus/candidates'+
-         '?'+(state.sharedFocusTeam?'team='+encodeURIComponent(state.sharedFocusTeam)+'&':'')+
-         'q='+encodeURIComponent(state.sharedFocusQuery));
+        try{
+          state.sharedFocusCandidates=await api('/quick/campaigns/'+id+'/shared-focus/candidates'+
+           '?'+(state.sharedFocusTeam?'team='+encodeURIComponent(state.sharedFocusTeam)+'&':'')+
+           'q='+encodeURIComponent(state.sharedFocusQuery));
+        }catch(error){
+          // A closed campaign stays readable even when new task selection is blocked.
+          state.sharedFocusCandidates=null;
+          state.sharedFocusError='די היסטאריע איז צוטריטבאר; נייע אויפגאבן קען מען נישט אויסקלייבן: '+error.message;
+        }
       }else state.sharedFocusCandidates=null;
     }catch(error){state.sharedFocus=null;state.sharedFocusCandidates=null;state.sharedFocusError=error.message;}
     try{
