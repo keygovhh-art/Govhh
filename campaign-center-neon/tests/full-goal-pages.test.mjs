@@ -57,7 +57,7 @@ test('Custom high-capacity campaign goal paging shows all 230, not truncated at 
   [org,camp,worker]);
  await pool.query(
   "INSERT INTO cc_plan_entitlements(organization_id,plan_code,max_members,max_campaigns,max_goals,provision_reference,provisioned_by)"+
-  " VALUES($1,'custom',10,3,250,'CI-only-reviewed','CI')",[org]);
+  " VALUES($1,'custom',10,3,250,'CI-only-reviewed','CI-operator')",[org]);
  await pool.query(
   "INSERT INTO cc_goals(organization_id,campaign_id,title,category,target_value,created_by)"+
   " SELECT $1,$2,'Goal '||gs::text,'calls',gs,$3 FROM generate_series(1,230) gs",
