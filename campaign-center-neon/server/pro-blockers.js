@@ -32,27 +32,89 @@ export default function proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log
   try{await db.query('BEGIN');const out=await fn(db);await db.query('COMMIT');return out;}
   catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}
  }
+ // All counts are computed over EVERY authorized task, not the first 200.
+ const viewerScope=
+  " FROM cc_pro_task_blockers b JOIN cc_assignments t"+
+  " ON t.id=b.task_id AND t.organization_id=b.organization_id"+
+  " AND t.campaign_id=b.campaign_id"+
+  " WHERE b.organization_id=$1 AND b.campaign_id=$2"+
+  " AND ($3::boolean OR t.assignee_subject=$4 OR ($5::boolean AND EXISTS("+
+  " SELECT 1 FROM cc_campaign_members captain JOIN cc_campaign_members peer"+
+  " ON peer.organization_id=captain.organization_id AND peer.campaign_id=captain.campaign_id"+
+  " AND peer.team_name=captain.team_name AND captain.team_name<>''"+
+  " WHERE captain.organization_id=$1 AND captain.campaign_id=$2"+
+  " AND captain.subject=$4 AND peer.subject=t.assignee_subject)))";
+ const activeCase="b.is_active AND t.status IN ('open','in_progress')";
  router.get('/campaigns/:cid/blockers',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
-  const higher=elevated.includes(c.role);
-  const squad=c.role==='squad_leader';
-  const result=await pool.query(
-   "SELECT b.task_id,b.reason,b.details,b.is_active,b.updated_at,t.title,t.status,t.assignee_subject,t.due_at"+
-   " FROM cc_pro_task_blockers b JOIN cc_assignments t ON t.id=b.task_id"+
-   " WHERE b.organization_id=$1 AND b.campaign_id=$2"+
+  const higher=elevated.includes(c.role),squad=c.role==='squad_leader';
+  const page=Number(req.query.page??1),filter=req.query.filter??'all',limit=50;
+  if(!Number.isSafeInteger(page)||page<1||page>10000)
+   throw bad(400,'Invalid blocker page');
+  if(typeof filter!=='string'||!['all','active','inactive'].includes(filter))
+   throw bad(400,'Invalid blocker filter');
+  const args=[c.organization_id,c.id,higher,req.userId,squad];
+  const match=filter==='active'?' AND ('+activeCase+')':
+    filter==='inactive'?' AND NOT ('+activeCase+')':'';
+  const list="SELECT b.task_id,b.reason,b.details,b.is_active,b.updated_at,"+
+   " t.title,t.status,t.assignee_subject,t.due_at"+viewerScope+match+
+   " ORDER BY ("+activeCase+") DESC,b.updated_at DESC,b.task_id DESC LIMIT $6 OFFSET $7";
+  const totals="SELECT COUNT(*)::int total,"+
+   " COUNT(*) FILTER(WHERE "+activeCase+")::int active,"+
+   " COUNT(*) FILTER(WHERE NOT ("+activeCase+"))::int inactive"+
+   viewerScope;
+  const reasonTotals="SELECT b.reason,COUNT(*)::int n"+viewerScope+
+   " AND "+activeCase+" GROUP BY b.reason ORDER BY n DESC,b.reason";
+  const filteredCount="SELECT COUNT(*)::int total"+viewerScope+match;
+  const since="30 days";
+  const historyCounts="SELECT h.action,COUNT(*)::int n"+
+   " FROM cc_pro_blocker_history h JOIN cc_assignments t"+
+   " ON t.id=h.task_id AND t.organization_id=h.organization_id"+
+   " AND t.campaign_id=h.campaign_id"+
+   " WHERE h.organization_id=$1 AND h.campaign_id=$2"+
+   " AND h.created_at>=now()-interval '30 days'"+
    " AND ($3::boolean OR t.assignee_subject=$4 OR ($5::boolean AND EXISTS("+
-   " SELECT 1 FROM cc_campaign_members leader JOIN cc_campaign_members worker"+
-   " ON worker.organization_id=leader.organization_id AND worker.campaign_id=leader.campaign_id"+
-   " AND worker.team_name=leader.team_name AND leader.team_name<>''"+
-   " WHERE leader.organization_id=$1 AND leader.campaign_id=$2 AND leader.subject=$4"+
-   " AND worker.subject=t.assignee_subject)))"+
-   " ORDER BY b.is_active DESC,b.updated_at DESC LIMIT 200",
-   [c.organization_id,c.id,higher,req.userId,squad]);
-  const counts={};
-  const visible=result.rows.filter(x=>x.is_active&&['open','in_progress'].includes(x.status));
-  for(const x of visible)counts[x.reason]=(counts[x.reason]||0)+1;
+   " SELECT 1 FROM cc_campaign_members captain JOIN cc_campaign_members peer"+
+   " ON peer.organization_id=captain.organization_id AND peer.campaign_id=captain.campaign_id"+
+   " AND peer.team_name=captain.team_name AND captain.team_name<>''"+
+   " WHERE captain.organization_id=$1 AND captain.campaign_id=$2"+
+   " AND captain.subject=$4 AND peer.subject=t.assignee_subject)))"+
+   " GROUP BY h.action ORDER BY h.action";
+  const [visible,total,filtered,reason,history]=await Promise.all([
+   pool.query(list,[...args,limit,(page-1)*limit]),
+   pool.query(totals,args),
+   pool.query(filteredCount,args),
+   pool.query(reasonTotals,args),
+   pool.query(historyCounts,args)
+  ]);
   res.set('Cache-Control','private,no-store');
-  res.json({blockers:result.rows,activeByReason:counts,scoped:true,onlyReportedBlockers:true});
+  res.json({
+   blockers:visible.rows,
+   total:total.rows[0].total,activeTotal:total.rows[0].active,
+   inactiveTotal:total.rows[0].inactive,filteredTotal:filtered.rows[0].total,
+   activeByReason:Object.fromEntries(reason.rows.map(x=>[x.reason,x.n])),
+   changesLast30Days:Object.fromEntries(history.rows.map(x=>[x.action,x.n])),
+   days:30,page,pageCount:Math.max(1,Math.ceil(filtered.rows[0].total/limit)),
+   limit,filter,allVisibleBlockersCounted:true,scoped:true,onlyReportedBlockers:true,
+   intelligenceSource:'recorded_blocker_history_not_prediction'
+  });
+ }));
+ router.get('/campaigns/:cid/blocker-candidates',run(async(req,res)=>{
+  const c=await campaignAccess(pool,req.params.cid,req.userId);
+  const q=req.query.q??'';
+  if(typeof q!=='string'||q.length>100)throw bad(400,'Invalid search');
+  const search=q.trim(),higher=['owner','manager'].includes(c.role);
+  const result=await pool.query(
+   "SELECT t.id,t.title,t.priority,t.due_at,t.assignee_subject FROM cc_assignments t"+
+   " WHERE t.organization_id=$1 AND t.campaign_id=$2"+
+   " AND t.status IN ('open','in_progress')"+
+   " AND ($3::boolean OR t.assignee_subject=$4) AND ($5='' OR t.title ILIKE '%'||$5||'%')"+
+   " ORDER BY (CASE WHEN t.due_at<now() THEN 0 ELSE 1 END),"+
+   " (CASE t.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END),"+
+   " t.due_at ASC NULLS LAST,t.created_at ASC,t.id ASC LIMIT 50",
+   [c.organization_id,c.id,higher,req.userId,search]);
+  res.set('Cache-Control','private,no-store');
+  res.json({candidates:result.rows,limit:50,search,filteredServerSide:true});
  }));
  router.put('/tasks/:id/blocker',run(async(req,res)=>{
   const isActive=req.body?.active;
