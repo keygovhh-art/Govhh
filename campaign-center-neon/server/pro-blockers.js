@@ -108,11 +108,11 @@ export default function proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log
    "SELECT t.id,t.title,t.priority,t.due_at,t.assignee_subject FROM cc_assignments t"+
    " WHERE t.organization_id=$1 AND t.campaign_id=$2"+
    " AND t.status IN ('open','in_progress')"+
-   " AND ($3::boolean OR t.assignee_subject=$4) AND ($6='' OR t.title ILIKE '%'||$6||'%')"+
+   " AND ($3::boolean OR t.assignee_subject=$4) AND ($5='' OR t.title ILIKE '%'||$5||'%')"+
    " ORDER BY (CASE WHEN t.due_at<now() THEN 0 ELSE 1 END),"+
    " (CASE t.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END),"+
    " t.due_at ASC NULLS LAST,t.created_at ASC,t.id ASC LIMIT 50",
-   [c.organization_id,c.id,higher,req.userId,squad,search]);
+   [c.organization_id,c.id,higher,req.userId,search]);
   res.set('Cache-Control','private,no-store');
   res.json({candidates:result.rows,limit:50,search,filteredServerSide:true});
  }));
