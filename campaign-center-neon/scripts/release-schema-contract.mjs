@@ -9,7 +9,8 @@ export const REQUIRED_RELEASE_TABLES=Object.freeze([
  'cc_gabbai_handoffs','cc_gabbai_handoff_events',
  'cc_management_plan_items','cc_management_plan_history',
  'cc_custom_workflow_templates','cc_custom_workflow_runs','cc_custom_workflow_events',
- 'cc_custom_team_permission_profiles','cc_custom_team_permission_bindings','cc_custom_team_permission_events'
+ 'cc_custom_team_permission_profiles','cc_custom_team_permission_bindings','cc_custom_team_permission_events',
+ 'cc_shared_focus_boards','cc_shared_focus_history'
 ]);
 export const REQUIRED_RELEASE_COLUMNS=Object.freeze({
  cc_pro_guidance_requests:['assigned_to','response_due_at','triaged_at'],
@@ -22,7 +23,9 @@ export const REQUIRED_RELEASE_COLUMNS=Object.freeze({
  cc_custom_workflow_events:['actor_subject','step_index','event_kind'],
  cc_custom_team_permission_profiles:['can_view_lead_queue','can_claim_leads','can_export_shared_contacts'],
  cc_custom_team_permission_bindings:['subject','profile_id'],
- cc_custom_team_permission_events:['actor_subject','previous_profile_id','next_profile_id']
+ cc_custom_team_permission_events:['actor_subject','previous_profile_id','next_profile_id'],
+ cc_shared_focus_boards:['team_name','task_ids','version','updated_by'],
+ cc_shared_focus_history:['previous_task_ids','new_task_ids','actor_subject','version']
 });
 
 const checkName=(row)=>String(row?.conname??row?.name??'');

@@ -47,7 +47,8 @@ try{
   'cc_pro_guidance_requests','cc_gabbai_handoffs','cc_gabbai_handoff_events',
   'cc_management_plan_items','cc_management_plan_history',
  'cc_custom_workflow_templates','cc_custom_workflow_runs','cc_custom_workflow_events',
- 'cc_custom_team_permission_profiles','cc_custom_team_permission_bindings','cc_custom_team_permission_events']]);
+ 'cc_custom_team_permission_profiles','cc_custom_team_permission_bindings','cc_custom_team_permission_events',
+ 'cc_shared_focus_boards','cc_shared_focus_history']]);
  const byTable=new Map();
  for(const row of cols.rows){if(!byTable.has(row.table_name))byTable.set(row.table_name,new Set());byTable.get(row.table_name).add(row.column_name);}
  const needed={

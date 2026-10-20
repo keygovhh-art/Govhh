@@ -43,7 +43,8 @@ const ORDER=[
  "034_gabbai_blocker_status.sql",
  "035_organization_management_progress.sql",
  "036_custom_manual_workflows.sql",
- "037_custom_team_role_restrictions.sql"
+ "037_custom_team_role_restrictions.sql",
+ "038_shared_focus_board.sql"
 ];
 const marker='CC_DISPOSABLE_MIGRATION_REHEARSAL';
 if(process.env[marker]!=='yes-local-ci-only')throw Error('Only an explicitly authorized disposable local rehearsal is allowed');
@@ -92,7 +93,8 @@ try{
   'cc_pro_guidance_requests','cc_pro_campaign_files','cc_organizations',
   'cc_management_plan_items','cc_management_plan_history',
   'cc_custom_workflow_templates','cc_custom_workflow_runs','cc_custom_workflow_events',
-  'cc_custom_team_permission_profiles','cc_custom_team_permission_bindings','cc_custom_team_permission_events'];
+  'cc_custom_team_permission_profiles','cc_custom_team_permission_bindings','cc_custom_team_permission_events',
+  'cc_shared_focus_boards','cc_shared_focus_history'];
  for(const table of essential)if(!tables.rows.some(r=>r.relname===table))throw Error('Missing late-stage table '+table);
  const blocked=await db.query("SELECT pg_get_constraintdef(oid) AS sql FROM pg_constraint WHERE conrelid='public.cc_gabbai_handoffs'::regclass AND conname='cc_gabbai_handoffs_status_check'");
  if(!blocked.rows[0]?.sql?.includes('blocked'))throw Error('034 blocker constraint not active');
