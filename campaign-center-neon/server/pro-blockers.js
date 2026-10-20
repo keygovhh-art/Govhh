@@ -108,13 +108,7 @@ export default function proBlockersRouter({pool,campaignAccess,bad,trim,uuid,log
    "SELECT t.id,t.title,t.priority,t.due_at,t.assignee_subject FROM cc_assignments t"+
    " WHERE t.organization_id=$1 AND t.campaign_id=$2"+
    " AND t.status IN ('open','in_progress')"+
-   " AND ($3::boolean OR t.assignee_subject=$4 OR ($5::boolean AND EXISTS("+
-   " SELECT 1 FROM cc_campaign_members captain JOIN cc_campaign_members peer"+
-   " ON peer.organization_id=captain.organization_id AND peer.campaign_id=captain.campaign_id"+
-   " AND peer.team_name=captain.team_name AND captain.team_name<>''"+
-   " WHERE captain.organization_id=$1 AND captain.campaign_id=$2"+
-   " AND captain.subject=$4 AND peer.subject=t.assignee_subject)))"+
-   " AND ($6='' OR t.title ILIKE '%'||$6||'%')"+
+   " AND ($3::boolean OR t.assignee_subject=$4) AND ($6='' OR t.title ILIKE '%'||$6||'%')"+
    " ORDER BY (CASE WHEN t.due_at<now() THEN 0 ELSE 1 END),"+
    " (CASE t.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END),"+
    " t.due_at ASC NULLS LAST,t.created_at ASC,t.id ASC LIMIT 50",
