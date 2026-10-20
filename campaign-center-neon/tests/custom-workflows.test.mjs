@@ -33,6 +33,10 @@ const log=(db,org,campaign,actor,type,target,details={})=>db.query(
 test('Custom templates and workers: tenant isolation, human progress, optimistic versioning and append-only history',async()=>{
  for(const p of ['001_core.sql','002_team_connect.sql','026_server_plan_entitlements.sql',
   '036_custom_manual_workflows.sql']){
+  if(p==='036_custom_manual_workflows.sql'){
+    const exists=await pool.query("SELECT to_regclass('public.cc_custom_workflow_templates') AS table_name");
+    if(exists.rows[0].table_name)continue;
+  }
   await pool.query(await readFile(join(import.meta.dirname,'../db',p),'utf8'));
  }
  const seed=Date.now()+'_'+Math.random().toString(36).slice(2);
