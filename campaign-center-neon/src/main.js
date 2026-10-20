@@ -235,7 +235,14 @@ async function refresh() {
       if(state.gabbaiHandoffId&&!state.gabbaiHandoffs.handoffs.some(h=>h.id===state.gabbaiHandoffId)){state.gabbaiHandoffId=null;state.gabbaiHandoffEvents=[];}
       if(state.gabbaiHandoffId){const details=await api('/gabbai/handoffs/'+state.gabbaiHandoffId+'/events');state.gabbaiHandoffEvents=details.events||[];}}
     catch(error){state.gabbaiHandoffs=null;state.gabbaiHandoffsError=error.message;state.gabbaiHandoffEvents=[];}
-    try{state.proBlockers=await api('/pro/campaigns/'+id+'/blockers?page='+state.proBlockerPage+'&filter='+state.proBlockerFilter);state.proBlockersError='';}
+    try{
+      let result=await api('/pro/campaigns/'+id+'/blockers?page='+state.proBlockerPage+'&filter='+state.proBlockerFilter);
+      if(state.proBlockerPage>result.pageCount&&result.pageCount>=1){
+        state.proBlockerPage=result.pageCount;
+        result=await api('/pro/campaigns/'+id+'/blockers?page='+state.proBlockerPage+'&filter='+state.proBlockerFilter);
+      }
+      state.proBlockers=result;state.proBlockersError='';
+    }
     catch(error){state.proBlockers=null;state.proBlockersError=error.message;}
     try{state.proBlockerCandidates=await api('/pro/campaigns/'+id+'/blocker-candidates?q='+encodeURIComponent(state.proBlockerQuery));}
     catch(error){state.proBlockerCandidates=null;state.proBlockersError=state.proBlockersError||error.message;}
@@ -930,7 +937,7 @@ async function click(event){
  const btn=event.target.closest('[data-action]');if(!btn)return;
  const a=btn.dataset.action;
  try {
-  if(a==='logout'){await stopSmallAudio();stopOptionalVideo();await state.auth.signOut();state.user=null;state.connectCode='';state.connectCodeDeadline=0;state.connectStatus=null;state.connectOrgSummary=null;state.connectError='';state.capacityAudit=null;state.capacityError='';state.goals=[];state.goalsMeta=null;state.goalHistoryId=null;state.goalHistoryData=null;state.goalHistoryError='';state.quickFocus=null;state.quickFocusError='';state.proBlockers=null;state.proBlockerCandidates=null;state.proBlockerQuery='';state.sharedFocus=null;state.sharedFocusCandidates=null;state.sharedFocusTeam='';state.sharedFocusQuery='';state.quickDaily=null;state.quickDailyError='';state.notice='';draw();return;}
+  if(a==='logout'){await stopSmallAudio();stopOptionalVideo();await state.auth.signOut();state.user=null;state.connectCode='';state.connectCodeDeadline=0;state.connectStatus=null;state.connectOrgSummary=null;state.connectError='';state.capacityAudit=null;state.capacityError='';state.goals=[];state.goalsMeta=null;state.goalHistoryId=null;state.goalHistoryData=null;state.goalHistoryError='';state.quickFocus=null;state.quickFocusError='';state.proBlockers=null;state.proBlockerCandidates=null;state.proBlockersError='';state.proBlockerPage=1;state.proBlockerFilter='all';state.proBlockerQuery='';state.sharedFocus=null;state.sharedFocusCandidates=null;state.sharedFocusTeam='';state.sharedFocusQuery='';state.quickDaily=null;state.quickDailyError='';state.notice='';draw();return;}
   if(a==='connect-open'){state.tab='connect';state.connectCode='';state.connectCodeDeadline=0;await refresh();draw();return;}
   if(a==='connect-refresh'){state.connectCode='';state.connectCodeDeadline=0;await refresh();draw();return;}
   if(a==='connect-generate'){
