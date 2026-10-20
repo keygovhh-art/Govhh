@@ -40,7 +40,17 @@ export function proCrmView(state,esc){
  }).join('');
  const decisionHistory='<details><summary>מיינע לעצטע באשלוסן</summary>'+
   (recentDecisions||'<p class="muted">נאך קיין באשלוסן.</p>')+'</details>';
- const clarity='<section class="card"><h2>Clarity — די קומענדיגע וויכטיגע שריט</h2><p class="muted">א פראקטישע אויסוואל לויט פארשפעטיגונג, וויכטיגקייט און טערמין פון דיינע ערלויבטע קאמפיין־רעקארדס. נישט קיין פארטיגע AI־אנאליז אדער אויטאמאטישע אקציעס.</p>'+nextSummary+(suggested||'<p class="muted">קיין רעקארדירטע אפענע שריט.</p>')+decisionHistory+'</section>';
+ const clarityData=state.proClarity;
+ const clarityReady=clarityData?.allEligibleActionsConsidered===true;
+ const clarity='<section class="card"><h2>Clarity — די קומענדיגע וויכטיגע שריט</h2>'+
+  '<p class="muted">אויפן סערווער אויסגערעכנט פון אלע ערלויבטע אפענע אויפגאבן און CRM־נאכפאלגן. אויסגעקליבן לויט פארשפעטיגונג, וויכטיגקייט און טערמין. קיין AI־השערות, אויטאמאטישע רופן אדער אפגעשיקטע מעסעדזשעס.</p>'+
+  (clarityReady?'<p><strong>ערלויבטע אפענע שריט אינגאנצן: '+esc(clarityData.eligibleTotal)+
+   '</strong> · געוויזן ביז '+esc(clarityData.limit)+
+   ' וויכטיגסטע, פון אלע ערלויבטע רעקארדס.</p>'+nextSummary+
+   (suggested||'<p class="muted">איצט זענען נישט דא קיין בארעכטיגטע אפענע שריט.</p>')+
+   decisionHistory:
+   '<p role="alert">דער פולער Clarity־באריכט איז נישט באשטעטיגט פונעם סערווער: '+
+   esc(state.proClarityError||'נישט צוטריטבאר')+'</p>')+'</section>';
  const listing=contacts.map(c=>
   '<article class="item"><div><strong>'+esc(c.display_name)+'</strong>'+
   '<small>'+esc(c.phone||'קיין נומער')+' · '+esc(stage[c.stage]||c.stage)+
