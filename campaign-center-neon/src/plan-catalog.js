@@ -342,7 +342,7 @@ export const PLAN_FEATURES = [
     "code": "custom_roles",
     "yi": "אייגענע ראלעס און רעכטן",
     "minTier": 3,
-    "status": "missing",
+    "status": "partial",
     "allocation": "planned"
   },
   {
