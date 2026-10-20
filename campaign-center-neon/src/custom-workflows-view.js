@@ -38,8 +38,13 @@ export function customWorkflowsView(state,esc){
    '<select name="templateId" required>'+templates.filter(t=>!t.archived_at).map(t=>
     '<option value="'+line(t.id)+'">'+line(t.title)+'</option>').join('')+'</select></label>'+
    '<label>אויפגאבע<input name="title" maxlength="160" required placeholder="ארגאניזירן דעם צוות"></label>'+
-   '<label>פאראנטווארטליכער עסקן<input name="assignedTo" maxlength="128" required placeholder="מיטגליד־ID"></label>'+
-   '<button '+(templates.some(t=>!t.archived_at)?'':'disabled')+'>צוטיילן די פראצעדור</button></form>'+
+   '<label>פאראנטווארטליכער עסקן<select name="assignedTo" required>'+
+   '<option value="">קלייבט דעם עסקן</option>'+
+   (state.manager?.members||[]).map(m=>
+    '<option value="'+line(m.subject)+'">'+line(m.subject)+
+    (m.team_name?' — '+line(m.team_name):'')+'</option>').join('')+
+   '</select></label>'+
+   '<button '+(templates.some(t=>!t.archived_at)&&(state.manager?.members||[]).length?'':'disabled')+'>צוטיילן די פראצעדור</button></form>'+
    (templates.map(t=>'<div class="inline"><strong>'+line(t.title)+'</strong>'+
     '<small>'+line(toSteps(t.step_titles).length)+' שריט</small>'+
     (t.archived_at?'<span class="muted">ארכיוו</span>':
