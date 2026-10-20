@@ -28,6 +28,7 @@ import customWorkflowsRouter from './custom-workflows.js';
 import customTeamRolesRouter from './custom-team-roles.js';
 import capacityReadinessRouter from './capacity-readiness.js';
 import quickDailyRouter from './quick-daily.js';
+import sharedFocusRouter from './shared-focus.js';
 import proFilesRouter from './pro-files.js';
 import proAutomationRouter from './pro-automations.js';
 import proCallListsRouter from './pro-call-lists.js';
@@ -175,6 +176,7 @@ app.get('/api/organizations/:oid/entitlements',async(req,res,next)=>{
 app.use('/api/capacity',capacityReadinessRouter({pool,planPolicy,bad}));
 app.use('/api/goals', goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log,planPolicy}));
 app.use('/api/quick',quickDailyRouter({pool,campaignAccess,planPolicy,bad,log}));
+app.use('/api/quick',sharedFocusRouter({pool,campaignAccess,planPolicy,bad,uuid,log}));
 app.use('/api/donation-links', donationLinksRouter({pool,campaignAccess,need,bad,trim,log}));
 app.use('/api/plus',planPolicy.scoped('askan_plus'));
 app.use('/api/plus',askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,log}));
