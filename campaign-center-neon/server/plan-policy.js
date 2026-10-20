@@ -6,7 +6,10 @@ import {CAMPAIGN_PLANS,PLAN_FEATURES} from '../src/plan-catalog.js';
 const byCode=new Map(CAMPAIGN_PLANS.map(p=>[p.code,p]));
 const tiers=CAMPAIGN_PLANS.map(p=>p.code);
 const starter=CAMPAIGN_PLANS[0];
-const activeFeature=new Map(PLAN_FEATURES.filter(f=>f.minTier!==null&&f.status!=='missing').map(f=>[f.code,f.minTier]));
+// A contracted capacity status describes a partially built audit tool only.
+// It must NOT activate contractual provider capacity without an independent agreement.
+const neverAutoActivate=new Set(['contracted_capacity']);
+const activeFeature=new Map(PLAN_FEATURES.filter(f=>f.minTier!==null&&f.status!=='missing'&&!neverAutoActivate.has(f.code)).map(f=>[f.code,f.minTier]));
 const guid=/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i;
 const caps=['members','goals','campaigns'];
 const columns={members:'max_members',goals:'max_goals',campaigns:'max_campaigns'};
