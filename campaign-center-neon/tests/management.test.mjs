@@ -23,6 +23,10 @@ test('Leadership sees all management states, precise success/failure and immutab
   '019_askan_pro_guidance.sql','021_gabbai_pro_finance_approvals.sql','022_organization_leadership_decisions.sql',
   '033_gabbai_operations_handoffs.sql','034_gabbai_blocker_status.sql',
   '035_organization_management_progress.sql','036_custom_manual_workflows.sql']){
+  if(f==='036_custom_manual_workflows.sql'){
+    const exists=await pool.query("SELECT to_regclass('public.cc_custom_workflow_templates') AS table_name");
+    if(exists.rows[0].table_name)continue;
+  }
   await pool.query(await readFile(join(import.meta.dirname,'../db',f),'utf8'));
  }
  const tag='mgt-'+Date.now(),owner=tag+'-owner',manager=tag+'-manager',
