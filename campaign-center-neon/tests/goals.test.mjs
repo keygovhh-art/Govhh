@@ -35,7 +35,7 @@ test('campaign goals are tenant-scoped, role-checked, quota-bounded and append-o
  const unique='goals-ci-'+Date.now();
  const org=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES($1,$2) RETURNING id",['CI test',unique+'owner'])).rows[0].id;
  const other=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES($1,$2) RETURNING id",['Other',unique+'other'])).rows[0].id;
- for(const [o,subject,role] of [[org,unique+'owner','owner'],[org,unique+'askan','askan'],[other,unique+'other','owner']])
+ for(const [o,subject,role] of [[org,unique+'owner','owner'],[org,unique+'manager','manager'],[org,unique+'askan','askan'],[other,unique+'other','owner']])
   await pool.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status) VALUES($1,$2,$3,'active')",[o,subject,role]);
  const camp=(await pool.query("INSERT INTO cc_campaigns(organization_id,title) VALUES($1,'Test campaign') RETURNING id",[org])).rows[0].id;
  await pool.query('INSERT INTO cc_campaign_members(organization_id,campaign_id,subject) VALUES($1,$2,$3)',[org,camp,unique+'askan']);
@@ -83,7 +83,30 @@ test('campaign goals are tenant-scoped, role-checked, quota-bounded and append-o
   assert.equal((await call(owner,'/'+goal.id+'/history?page=0')).status,400);
   assert.equal((await call(askan,'/'+goal.id+'/history')).status,403);
   assert.equal((await call(owner,'/'+goal.id,'PATCH',{status:'archived',expectedVersion:2})).status,200);
-  assert.equal((await call(owner,'/campaigns/'+camp,'POST',{title:'New goal',targetValue:'5'})).status,201);
+  const newGoal=await call(owner,'/campaigns/'+camp,'POST',{title:'New goal',targetValue:'5'});
+  assert.equal(newGoal.status,201);
+  // Real race: two independent leaders read the same version, only one may
+  // win, even if both send requests simultaneously.
+  const [writeA,writeB]=await Promise.all([
+   call(owner,'/'+newGoal.data.id,'PATCH',{currentValue:'1',expectedVersion:1}),
+   call(unique+'manager','/'+newGoal.data.id,'PATCH',{currentValue:'2',expectedVersion:1})
+  ]);
+  assert.deepEqual([writeA.status,writeB.status].sort(),[200,409],
+   'Manager writes must not silently overwrite each other');
+  for(let version=2;version<=32;version++){
+   const saved=await call(owner,'/'+newGoal.data.id,'PATCH',
+    {currentValue:String(version),expectedVersion:version});
+   assert.equal(saved.status,200,'Update for audit sequence '+version);
+   assert.equal(saved.data.version,version+1);
+  }
+  const trail1=await call(owner,'/'+newGoal.data.id+'/history?page=1');
+  const trail2=await call(owner,'/'+newGoal.data.id+'/history?page=2');
+  assert.equal(trail1.data.total,33);
+  assert.equal(trail1.data.history.length,30);
+  assert.equal(trail2.data.history.length,3);
+  assert.equal(trail1.data.pageCount,2);
+  assert.equal(trail1.data.history[0].event_kind,'updated');
+  assert.equal(trail2.data.history[2].event_kind,'created');
   await pool.query("INSERT INTO cc_plan_entitlements(organization_id,plan_code,provision_reference,provisioned_by) VALUES($1,'askan_pro','approved-ci-fixture-20261016','CI-operator')",[org]);
   assert.equal((await call(owner,'/campaigns/'+camp)).data.goalLimit,20);
   for(let i=0;i<17;i++){
