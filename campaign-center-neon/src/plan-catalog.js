@@ -447,7 +447,7 @@ export const PLAN_FEATURES = [
     "code": "contracted_capacity",
     "yi": "אפגערעדטע קאפאציטעט",
     "minTier": 5,
-    "status": "partial,
+    "status": "partial",
     "allocation": "planned"
   },
   {
