@@ -38,7 +38,10 @@ export function managementView(state,esc){
   ['open_handoffs','איבערגאבן נאך אין ארבעט'],
   ['pending_approvals','פינאנץ־בקשות וואס ווארטן'],
   ['pending_decisions','אפענע הנהלה־באשלוסן'],
-  ['overdue_plans','פארשפעטיגטע פלענער']
+  ['overdue_plans','פארשפעטיגטע פלענער'],
+  ['open_custom_workflows','Custom־פראצעדורן אין ארבעט'],
+  ['blocked_custom_workflows','Custom־פראצעדורן פארהינדערט'],
+  ['completed_custom_workflows','Custom־פראצעדורן פארענדיגט']
  ].map(([key,label])=>'<div><span>'+label+'</span><strong>'+
   escValue(urgency[key]??'—',esc)+'</strong></div>').join('');
  const actionQueue=state.managementQueue||'all';

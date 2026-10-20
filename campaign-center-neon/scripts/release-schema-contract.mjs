@@ -7,14 +7,18 @@ export const REQUIRED_RELEASE_TABLES=Object.freeze([
  'cc_pro_automation_rules','cc_pro_automation_task_links','cc_pro_automation_runs',
  'cc_pro_next_action_choices','cc_pro_next_action_history',
  'cc_gabbai_handoffs','cc_gabbai_handoff_events',
- 'cc_management_plan_items','cc_management_plan_history'
+ 'cc_management_plan_items','cc_management_plan_history',
+ 'cc_custom_workflow_templates','cc_custom_workflow_runs','cc_custom_workflow_events'
 ]);
 export const REQUIRED_RELEASE_COLUMNS=Object.freeze({
  cc_pro_guidance_requests:['assigned_to','response_due_at','triaged_at'],
  cc_gabbai_handoffs:['status','completed_at','assigned_to','campaign_id'],
  cc_gabbai_handoff_events:['status_to','body','actor_subject'],
  cc_management_plan_items:['status','progress','next_action','issue_reason','assigned_to','version'],
- cc_management_plan_history:['before_state','after_state','actor_subject']
+ cc_management_plan_history:['before_state','after_state','actor_subject'],
+ cc_custom_workflow_templates:['step_titles','created_by'],
+ cc_custom_workflow_runs:['status','next_step','assigned_to','version'],
+ cc_custom_workflow_events:['actor_subject','step_index','event_kind']
 });
 
 const checkName=(row)=>String(row?.conname??row?.name??'');

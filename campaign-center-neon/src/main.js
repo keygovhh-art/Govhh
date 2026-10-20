@@ -26,6 +26,7 @@ import { gavhahConnectView } from './gavhah-connect-view.js';
 import { organizationResourcesView } from './organization-resources-view.js';
 import { organizationMemoryView } from './organization-memory-view.js';
 import { customFocusView } from './custom-focus-view.js';
+import { customWorkflowsView } from './custom-workflows-view.js';
 import { hallView } from './hall-view.js';
 import { eventView } from './event-view.js';
 import { conferenceView } from './conference-view.js';
@@ -35,7 +36,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',connectStatus:null,connectOrgSummary:null,connectError:'',connectCode:'',connectCodeDeadline:0,gavhahPublicUrl:'',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',quickDaily:null,quickDailyError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,management:null,managementOrgId:null,managementError:'',managementFilter:'all',managementQueue:'all',managementQuery:'',managementPage:1,managementEditorId:null,managementHistoryId:null,managementHistory:null,managementHistoryError:'',organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiSummary:null,gabbaiFilter:'pending',gabbaiQuery:'',gabbaiWorkload:null,gabbaiWorkloadError:'',gabbaiWorkloadFilter:'all',gabbaiWorkloadQuery:'',gabbaiWorkloadTeam:'',gabbaiWorkloadPage:1,gabbaiNewAssignee:'',gabbaiHandoffs:null,gabbaiHandoffsError:'',gabbaiHandoffId:null,gabbaiHandoffEvents:[],gabbaiHandoffFilter:'open',gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceFilter:'open',proGuidanceQuery:'',proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proNextAction:null,proNextActionError:'',proContacts:[],proFiles:null,proFilesError:'',proAutomations:null,proAutomationsError:'',proCallList:null,proCallListError:'',proCallListMode:'due',proCallListLimit:30,proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',connectStatus:null,connectOrgSummary:null,connectError:'',connectCode:'',connectCodeDeadline:0,gavhahPublicUrl:'',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',quickDaily:null,quickDailyError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,management:null,managementOrgId:null,managementError:'',managementFilter:'all',managementQueue:'all',managementQuery:'',managementPage:1,managementEditorId:null,managementHistoryId:null,managementHistory:null,managementHistoryError:'',organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',customWorkflowData:null,customWorkflowTemplates:null,customWorkflowError:'',customWorkflowEventsId:null,customWorkflowEvents:[],gabbaiApprovals:[],gabbaiSummary:null,gabbaiFilter:'pending',gabbaiQuery:'',gabbaiWorkload:null,gabbaiWorkloadError:'',gabbaiWorkloadFilter:'all',gabbaiWorkloadQuery:'',gabbaiWorkloadTeam:'',gabbaiWorkloadPage:1,gabbaiNewAssignee:'',gabbaiHandoffs:null,gabbaiHandoffsError:'',gabbaiHandoffId:null,gabbaiHandoffEvents:[],gabbaiHandoffFilter:'open',gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceFilter:'open',proGuidanceQuery:'',proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proNextAction:null,proNextActionError:'',proContacts:[],proFiles:null,proFilesError:'',proAutomations:null,proAutomationsError:'',proCallList:null,proCallListError:'',proCallListMode:'due',proCallListLimit:30,proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -169,6 +170,11 @@ async function refresh() {
     try{state.customFocusRules=await api('/custom/campaigns/'+id+'/focus-rules');
       state.customFocusPreview=await api('/custom/campaigns/'+id+'/focus-preview');state.customFocusError='';}
     catch(error){state.customFocusRules=null;state.customFocusPreview=null;state.customFocusError=error.message;}
+    try{state.customWorkflowData=await api('/custom/campaigns/'+id+'/workflow-runs');
+      state.customWorkflowError='';}
+    catch(error){state.customWorkflowData=null;state.customWorkflowError=error.message;}
+    try{state.customWorkflowTemplates=await api('/custom/campaigns/'+id+'/workflow-templates');}
+    catch(error){state.customWorkflowTemplates=null;}
     try{const sprintData=await api('/pro/campaigns/'+id+'/sprints');state.proSprints=sprintData.sprints||[];}catch(error){state.proSprints=[];}
     try{const memory=await api('/pro/campaigns/'+id+'/focus-history');state.proHistory=memory.events||[];}catch(error){state.proHistory=[];}
     try{const help=await api('/pro/campaigns/'+id+'/guidance');state.proGuidance=help.requests||[];state.proGuidanceError='';}catch(error){state.proGuidance=[];state.proGuidanceError=error.message;}
@@ -303,7 +309,7 @@ function campaignNav(){
   ['guidance','עצה און הילף','guidance'],['files','קאמפיין־פיילן','files'],['automations','אויטאמאטישע נאכפאלגן','automations'],['calllists','רוף־ליסטעס','advanced_call_lists'],['blockers','שוועריקייטן','blocker_intelligence'],
   ['gabbai','Gabbai Pro — באשטעטיגונגען','approvals'],
   ['organization','Organization — מוסד','portfolio'],['orgmemory','מוסדישע Memory','organization_memory'],
-  ['custom','Custom Focus','custom_focus'],['finance','נדבות','manual_records'],
+  ['custom','Custom Focus','custom_focus'],['workflows','Custom־פראצעדורן','custom_workflows'],['finance','נדבות','manual_records'],
   ['history','היסטאריע',null],['team','מאנשאפט','team'],
   ['hall','עסקנים־זאל','virtual_floor'],['conference','התקבצו אסיפות','hitkabtzu'],
   ['yemot','ימות — צענטראל',null],['plans','די 6 פלענער',null]];
@@ -414,7 +420,7 @@ function draw(){
  $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.tab==='connect'?gavhahConnectView(state,esc):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button>'+
  (['owner','manager'].includes(state.orgs.find(o=>o.id===state.orgId)?.role)?
  '<button data-action="management-home">מענעדזשמענט — אלע פלענער</button>':'')+
- '</div>'+ (state.tab==='management'?managementView(state,esc):state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='management'?managementView(state,esc):state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='crm'?proCrmView(state,esc):state.tab==='files'?proFilesView(state,esc):state.tab==='automations'?proAutomationsView(state,esc):state.tab==='calllists'?proCallListView(state,esc):state.tab==='sprint'?proSprintsView(state,esc):state.tab==='guidance'?proGuidanceView(state,esc):state.tab==='blockers'?proBlockersView(state,esc):state.tab==='gabbai'?gabbaiWorkloadView(state,esc)+gabbaiHandoffsView(state,esc)+gabbaiApprovalsView(state,esc,money):state.tab==='organization'?organizationPortfolioView(state,esc,money)+organizationResourcesView(state,esc):state.tab==='orgmemory'?organizationMemoryView(state,esc):state.tab==='custom'?customFocusView(state,esc):state.tab==='finance'?finance()+(state.entitlements?.usableFeatures?.includes('partial_pledges')?plusPledgesView(state,esc,money):''):state.tab==='team'?teamView(state,esc,money)+(state.entitlements?.usableFeatures?.includes('teams_captains')?askanPlusView(state,esc,money):''):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
+ '</div>'+ (state.tab==='management'?managementView(state,esc):state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='management'?managementView(state,esc):state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='crm'?proCrmView(state,esc):state.tab==='files'?proFilesView(state,esc):state.tab==='automations'?proAutomationsView(state,esc):state.tab==='calllists'?proCallListView(state,esc):state.tab==='sprint'?proSprintsView(state,esc):state.tab==='guidance'?proGuidanceView(state,esc):state.tab==='blockers'?proBlockersView(state,esc):state.tab==='gabbai'?gabbaiWorkloadView(state,esc)+gabbaiHandoffsView(state,esc)+gabbaiApprovalsView(state,esc,money):state.tab==='organization'?organizationPortfolioView(state,esc,money)+organizationResourcesView(state,esc):state.tab==='orgmemory'?organizationMemoryView(state,esc):state.tab==='custom'?customFocusView(state,esc):state.tab==='workflows'?customWorkflowsView(state,esc):state.tab==='finance'?finance()+(state.entitlements?.usableFeatures?.includes('partial_pledges')?plusPledgesView(state,esc,money):''):state.tab==='team'?teamView(state,esc,money)+(state.entitlements?.usableFeatures?.includes('teams_captains')?askanPlusView(state,esc,money):''):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -425,6 +431,26 @@ async function submit(event){
  const d=Object.fromEntries(new FormData(form).entries());
  try {
   switch(form.dataset.form){
+   case 'custom-workflow-template': {
+     const steps=String(d.steps||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
+     if(steps.length<1||steps.length>12)throw new Error('שרייב 1 ביז 12 שריט');
+     await api('/custom/campaigns/'+state.campaignId+'/workflow-templates',{
+       method:'POST',body:JSON.stringify({title:d.title,steps})});
+     break;
+   }
+   case 'custom-workflow-run': {
+     await api('/custom/campaigns/'+state.campaignId+'/workflow-runs',{
+       method:'POST',body:JSON.stringify({
+        title:d.title,templateId:d.templateId,assignedTo:d.assignedTo})});
+     break;
+   }
+   case 'custom-workflow-block': {
+     const run=state.customWorkflowData?.runs?.find(x=>x.id===form.dataset.id);
+     if(!run)throw new Error('די פראצעדור איז נישט געפונען');
+     await api('/custom/campaigns/'+state.campaignId+'/workflow-runs/'+run.id+'/action',{
+       method:'POST',body:JSON.stringify({action:'block',version:run.version,note:d.note})});
+     break;
+   }
    case 'custom-focus-rules': {
      const payload={overdueWeight:Number(d.overdueWeight),dueSoonWeight:Number(d.dueSoonWeight),
        highPriorityWeight:Number(d.highPriorityWeight),followupWeight:Number(d.followupWeight)};
@@ -829,6 +855,33 @@ async function click(event){
   if(a==='organization-memory-history'){
     state.organizationMemoryHistory=btn.dataset.history==='true';await refresh();return;
   }
+  if(a==='custom-workflow-progress'){
+    const run=state.customWorkflowData?.runs?.find(x=>x.id===btn.dataset.id);
+    const action=btn.dataset.step;
+    if(!run||!['complete_step','resume','cancel'].includes(action))
+      throw new Error('די פראצעדור אדער שריט איז נישט געפונען');
+    if((action==='complete_step'||action==='cancel')&&
+      !confirm(action==='cancel'?'פארמאכן די פראצעדור?':'באשטעטיגן אז דער שריט איז באמת פארטיג?'))return;
+    await api('/custom/campaigns/'+state.campaignId+'/workflow-runs/'+run.id+'/action',{
+      method:'POST',body:JSON.stringify({action,version:run.version})});
+    await refresh();return;
+  }
+  if(a==='custom-workflow-archive'){
+    if(!state.customWorkflowTemplates?.templates?.some(t=>t.id===btn.dataset.id&&!t.archived_at))return;
+    if(!confirm('ארכיווירן דעם מוסטער? עקזיסטירנדע פראצעדורן בלייבן אפגעהיטן.'))return;
+    await api('/custom/campaigns/'+state.campaignId+'/workflow-templates/'+btn.dataset.id+'/archive',{method:'POST'});
+    await refresh();return;
+  }
+  if(a==='custom-workflow-events'){
+    if(!state.customWorkflowData?.runs?.some(x=>x.id===btn.dataset.id))return;
+    state.customWorkflowEventsId=btn.dataset.id;
+    const result=await api('/custom/campaigns/'+state.campaignId+'/workflow-runs/'+btn.dataset.id+'/events');
+    state.customWorkflowEvents=result.events||[];
+    draw();return;
+  }
+  if(a==='custom-workflow-close-events'){
+    state.customWorkflowEventsId=null;state.customWorkflowEvents=[];draw();return;
+  }
   if(a==='management-home'){state.tab='management';draw();return;}
   if(a==='management-queue'){
     const value=btn.dataset.value;
@@ -1181,8 +1234,8 @@ document.addEventListener('submit',submit);
 document.addEventListener('click',click);
 document.addEventListener('change',async e=>{
  try {
-  if(e.target?.dataset?.action==='org-select'){state.orgId=e.target.value;state.campaignId=null;state.proContactId=null;state.proSelected=null;state.proGuidanceId=null;state.proGuidanceMessages=[];state.gabbaiHandoffId=null;state.gabbaiHandoffEvents=[];state.proQuery='';state.joinedRoomId=null;state.showCampaignForm=false;state.invitationCode='';state.connectCode='';state.csvPage=1;state.importRows=null;state.importPreview=null;await refresh();}
-  if(e.target?.dataset?.action==='campaign-select'){state.campaignId=e.target.value;state.csvPage=1;state.joinedRoomId=null;state.proContactId=null;state.proSelected=null;state.proGuidanceId=null;state.proGuidanceMessages=[];state.gabbaiHandoffId=null;state.gabbaiHandoffEvents=[];state.proQuery='';await refresh();}
+  if(e.target?.dataset?.action==='org-select'){state.orgId=e.target.value;state.campaignId=null;state.customWorkflowEventsId=null;state.customWorkflowEvents=[];state.customWorkflowData=null;state.customWorkflowTemplates=null;state.proContactId=null;state.proSelected=null;state.proGuidanceId=null;state.proGuidanceMessages=[];state.gabbaiHandoffId=null;state.gabbaiHandoffEvents=[];state.proQuery='';state.joinedRoomId=null;state.showCampaignForm=false;state.invitationCode='';state.connectCode='';state.csvPage=1;state.importRows=null;state.importPreview=null;await refresh();}
+  if(e.target?.dataset?.action==='campaign-select'){state.campaignId=e.target.value;state.customWorkflowEventsId=null;state.customWorkflowEvents=[];state.customWorkflowData=null;state.customWorkflowTemplates=null;state.csvPage=1;state.joinedRoomId=null;state.proContactId=null;state.proSelected=null;state.proGuidanceId=null;state.proGuidanceMessages=[];state.gabbaiHandoffId=null;state.gabbaiHandoffEvents=[];state.proQuery='';await refresh();}
   if(e.target?.dataset?.action==='plus-days'){state.plusDays=Number(e.target.value);await refresh();}
   if(e.target?.dataset?.action==='gabbai-days'){state.gabbaiDays=Number(e.target.value);await refresh();}
  }catch(error){say(error.message);}

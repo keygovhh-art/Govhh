@@ -41,11 +41,11 @@ jobs:
       - run: npm install --ignore-scripts
       - run: npm run check
       - run: npm run build
-      - name: Full 001–034 schema rehearsal on separate disposable localhost PostgreSQL
+      - name: Full 001–036 schema rehearsal on separate disposable localhost PostgreSQL
         run: CC_DISPOSABLE_MIGRATION_REHEARSAL=yes-local-ci-only node scripts/rehearse-complete-schema.mjs
-      - name: Existing 026 Campaign Center data preserved through 034 upgrade
+      - name: Existing 026 Campaign Center data preserved through 036 upgrade
         run: CC_DISPOSABLE_MIGRATION_REHEARSAL=yes-local-ci-only node scripts/rehearse-preserving-upgrade.mjs
-      - name: Release 027–034 schema fail-closed contract tests
+      - name: Release 027–036 schema fail-closed contract tests
         run: node --test tests/release-schema-contract.test.mjs
       - name: Verify read-only release gate against fully upgraded disposable DB
         env:
@@ -114,5 +114,9 @@ jobs:
         run: node --test tests/organization-memory.test.mjs
       - name: Custom Focus rule-scoring privacy, DNC and immutable config
         run: node --test tests/custom-focus.test.mjs
+      - name: Custom human workflows including plan gating, cross-org security and immutable history
+        run: node --test tests/custom-workflows.test.mjs
+      - name: Custom workflow Yiddish mobile progress and private manager forms
+        run: node --test tests/custom-workflows-view.test.mjs
       - name: Six-tier server plan grants, quota gates, tenant isolation and immutable audit
         run: node --test tests/server-plan-entitlements.test.mjs

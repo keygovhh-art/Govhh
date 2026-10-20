@@ -161,7 +161,14 @@ export function makePlanPolicy({pool,bad}){
  custom: [
   ["GET","campaigns/:id/focus-rules","custom_focus"],
   ["PUT","campaigns/:id/focus-rules","custom_focus"],
-  ["GET","campaigns/:id/focus-preview","custom_focus"]
+  ["GET","campaigns/:id/focus-preview","custom_focus"],
+  ["GET","campaigns/:id/workflow-templates","custom_workflows"],
+  ["POST","campaigns/:id/workflow-templates","custom_workflows"],
+  ["POST","campaigns/:id/workflow-templates/:id/archive","custom_workflows"],
+  ["GET","campaigns/:id/workflow-runs","custom_workflows"],
+  ["POST","campaigns/:id/workflow-runs","custom_workflows"],
+  ["POST","campaigns/:id/workflow-runs/:id/action","custom_workflows"],
+  ["GET","campaigns/:id/workflow-runs/:id/events","custom_workflows"]
  ]
  };
  const featureForRoute=(tier,method,path)=>{

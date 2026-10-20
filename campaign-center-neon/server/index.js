@@ -24,6 +24,7 @@ import organizationResourcesRouter from './organization-resources.js';
 import organizationMemoryRouter from './organization-memory.js';
 import managementRouter from './management.js';
 import customFocusRouter from './custom-focus.js';
+import customWorkflowsRouter from './custom-workflows.js';
 import quickDailyRouter from './quick-daily.js';
 import proFilesRouter from './pro-files.js';
 import proAutomationRouter from './pro-automations.js';
@@ -195,6 +196,7 @@ app.use('/api/organization',organizationResourcesRouter({pool,bad,uuid,log}));
 app.use('/api/organization',organizationMemoryRouter({pool,bad,uuid,trim,log}));
 app.use('/api/custom',planPolicy.scoped('custom'));
 app.use('/api/custom',customFocusRouter({pool,campaignAccess,bad,log}));
+app.use('/api/custom',customWorkflowsRouter({pool,campaignAccess,bad,uuid,log}));
 app.use('/api/connect', connectUserRouter({pool,authenticate,log,bad}));
 app.use('/api/team', (req,res,next)=>{
   // CSV export is Askan Pro. No lower-tier alias via the old team router.

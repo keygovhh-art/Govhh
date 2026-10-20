@@ -5,7 +5,7 @@ import pg from 'pg';
 import {spawnSync} from 'node:child_process';
 
 // Simulate the specific production upgrade path: preserve 001–026 records,
-// then apply 027–035, on a fresh throwaway LOCAL CI database only.
+// then apply 027–036, on a fresh throwaway LOCAL CI database only.
 if(process.env.CC_DISPOSABLE_MIGRATION_REHEARSAL!=='yes-local-ci-only')
  throw Error('Refusing without disposable local-only consent');
 const connection=process.env.TEST_DATABASE_URL;
@@ -16,7 +16,7 @@ if(!['localhost','127.0.0.1'].includes(url.hostname)||url.pathname!=='/campaign_
 const database='campaign_upgrade_qa';
 const dir=join(dirname(fileURLToPath(import.meta.url)),'..','db');
 const candidates=readdirSync(dir).filter(x=>/^\d{3}_.*\.sql$/.test(x));
-const files=Array.from({length:35},(_,i)=>{
+const files=Array.from({length:36},(_,i)=>{
  const number=String(i+1).padStart(3,'0');
  const matches=candidates.filter(x=>x.startsWith(number+'_'));
  if(number==='007'){
@@ -50,7 +50,7 @@ try{
  const campaign=(await db.query("INSERT INTO cc_campaigns(organization_id,title,status) VALUES($1,'Preserved fundraiser','active') RETURNING id",[org])).rows[0].id;
  // The real proposed operator-run script must be proved on this existing
  // local 026 database. It must refuse without flags and be single-use.
- const command=join(dir,'..','scripts','apply-additive-027-035.mjs');
+ const command=join(dir,'..','scripts','apply-additive-027-036.mjs');
  const env={...process.env,DATABASE_URL:target.toString(),
   CC_EXPECTED_DB_HOST:target.hostname,CC_MIGRATION_MODE:'staging',
   CC_STAGING_MIGRATION_APPROVED:'yes-reviewed-staging'};
