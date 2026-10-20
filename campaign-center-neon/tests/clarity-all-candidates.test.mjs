@@ -77,15 +77,15 @@ test('Clarity considers 380 real candidate rows, including older urgent work and
   "INSERT INTO cc_pro_contact_profiles(organization_id,campaign_id,contact_id,stage,priority,next_followup_at,last_updated_by)"+
   " VALUES($1,$2,$3,'followup','high',now()-interval '30 days',$4)",
   [org,cid,bestContact,a]);
- for(const [name,dnc,team,privacy] of [
-  ['DNC protected',true,'A','campaign'],
-  ['Private another team',false,'B','private'],
-  ['Empty team secret',false,'','campaign']
+ for(const [name,dnc,team,privacy,phone] of [
+  ['DNC protected',true,'A','campaign','2125559001'],
+  ['Private another team',false,'B','private','2125559002'],
+  ['Empty team secret',false,'','campaign','2125559003']
  ]){
   const id=(await pool.query(
    "INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy,assigned_team,do_not_call)"+
-   " VALUES($1,$2,$3,$4,'2125554444',$5,$6,$7) RETURNING id",
-   [org,cid,b,name,privacy,team,dnc])).rows[0].id;
+   " VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id",
+   [org,cid,b,name,phone,privacy,team,dnc])).rows[0].id;
   await pool.query(
    "INSERT INTO cc_pro_contact_profiles(organization_id,campaign_id,contact_id,stage,priority,next_followup_at,last_updated_by)"+
    " VALUES($1,$2,$3,'followup','high',now()-interval '90 days',$4)",
