@@ -66,6 +66,10 @@ jobs:
         run: node --test tests/capacity-readiness-view.test.mjs
       - name: Campaign goal permissions, limits and immutable history
         run: node --test tests/goals.test.mjs
+      - name: Custom high-capacity goals whole-campaign paging and access controls
+        run: node --test tests/full-goal-pages.test.mjs
+      - name: Phone goal totals, paging buttons and safe restricted viewer
+        run: node --test tests/full-goal-pages-view.test.mjs
       - name: Source-grounded daily campaign Focus
         run: node --test tests/focus-board.test.mjs
       - name: Chesed Quick daily facts, cross-tenant and team privacy, immutable 7-day memory
