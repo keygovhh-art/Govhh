@@ -144,7 +144,10 @@ export function makePlanPolicy({pool,bad}){
   ["POST","campaigns/:id/approvals","approvals"],
   ["GET","campaigns/:id/priority-oversight","priority_oversight"],
   ["GET","campaigns/:id/ledger-review","ledger"],
-  ["POST","approvals/:id/decision","approvals"]
+  ["POST","approvals/:id/decision","approvals"],
+  ["GET","organizations/:id/role-profiles","custom_roles"],
+  ["POST","organizations/:id/role-profiles","custom_roles"],
+  ["POST","organizations/:id/members/:id/permission-profile","custom_roles"]
  ],
  organization: [
   ["GET","organizations/:id/portfolio","portfolio"],
@@ -168,10 +171,7 @@ export function makePlanPolicy({pool,bad}){
   ["GET","campaigns/:id/workflow-runs","custom_workflows"],
   ["POST","campaigns/:id/workflow-runs","custom_workflows"],
   ["POST","campaigns/:id/workflow-runs/:id/action","custom_workflows"],
-  ["GET","campaigns/:id/workflow-runs/:id/events","custom_workflows"],
-  ["GET","organizations/:id/role-profiles","custom_roles"],
-  ["POST","organizations/:id/role-profiles","custom_roles"],
-  ["POST","organizations/:id/members/:id/permission-profile","custom_roles"]
+  ["GET","campaigns/:id/workflow-runs/:id/events","custom_workflows
  ]
  };
  const featureForRoute=(tier,method,path)=>{
