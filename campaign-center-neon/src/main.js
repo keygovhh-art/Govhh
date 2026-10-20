@@ -842,6 +842,13 @@ async function submit(event){
          method:'PATCH',body:JSON.stringify({
           currentValue:d.currentValue,status:d.status,expectedVersion:v})});
      }catch(error){await refresh();throw error;}
+     // The history panel must never keep showing stale audit data after an edit.
+     if(state.goalHistoryId===item.id){
+       try{
+         state.goalHistoryData=await api('/goals/'+encodeURIComponent(item.id)+'/history?page=1');
+         state.goalHistoryPage=1;state.goalHistoryError='';
+       }catch(error){state.goalHistoryData=null;state.goalHistoryError=error.message;}
+     }
      break;
    }
     case 'task': {const raw=d.dueAt?new Date(d.dueAt):null;
@@ -879,7 +886,7 @@ async function click(event){
  const btn=event.target.closest('[data-action]');if(!btn)return;
  const a=btn.dataset.action;
  try {
-  if(a==='logout'){await stopSmallAudio();stopOptionalVideo();await state.auth.signOut();state.user=null;state.connectCode='';state.connectCodeDeadline=0;state.connectStatus=null;state.connectOrgSummary=null;state.connectError='';state.capacityAudit=null;state.capacityError='';state.notice='';draw();return;}
+  if(a==='logout'){await stopSmallAudio();stopOptionalVideo();await state.auth.signOut();state.user=null;state.connectCode='';state.connectCodeDeadline=0;state.connectStatus=null;state.connectOrgSummary=null;state.connectError='';state.capacityAudit=null;state.capacityError='';state.goals=[];state.goalsMeta=null;state.goalHistoryId=null;state.goalHistoryData=null;state.goalHistoryError='';state.notice='';draw();return;}
   if(a==='connect-open'){state.tab='connect';state.connectCode='';state.connectCodeDeadline=0;await refresh();draw();return;}
   if(a==='connect-refresh'){state.connectCode='';state.connectCodeDeadline=0;await refresh();draw();return;}
   if(a==='connect-generate'){
