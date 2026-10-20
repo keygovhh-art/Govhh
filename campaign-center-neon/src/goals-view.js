@@ -3,10 +3,15 @@ const format=n=>Number(n||0).toLocaleString('en-US',{maximumFractionDigits:2});
 export function goalsView(state,esc){
  const role=state.overview?.campaign?.role,manager=['owner','manager'].includes(role);
  const goals=state.goals||[];
+ const meta=state.goalsMeta;
+ const allowed=Number(meta?.goalLimit||3);
+ const total=Number(meta?.total??goals.length);
+ const page=Number(meta?.page||1),pages=Number(meta?.pageCount||1);
+
  const names={money:'געלט',members:'עסקנים',calls:'רופן',pledges:'התחייבויות',tasks:'אויפגאבן',custom:'אנדערע'};
  const statuses={active:'אקטיוו',at_risk:'אין געפאר',completed:'פארענדיגט',paused:'אפגעשטעלט',archived:'ארכיווירט'};
  const form=manager?'<section class="card"><h2>נייער באזונדערער ציל</h2>'+
-  '<p class="muted">פארן איצטיגן Pilot: ביז דריי אקטיווע צילן פער קאמפיין. די העכערע פלאן־לימיטן ווערן נאר אקטיוו נאך Verified Billing/Entitlements.</p>'+
+  '<p class="muted">דער איצטיגער סערווער־פלאן ערלויבט '+esc(allowed)+' נישט־ארכיווירטע צילן פער קאמפיין. די העכערע צאלן דארפן אן באשטעטיגטע פלאן־צוטיילונג; דער סקרין קען נישט אליין העכערן די גרעניצן.</p>'+
   '<form data-form="goal" class="stack"><label>ציל־נאמען<input name="title" required maxlength="160" placeholder="צום ביישפיל: 50 רופן"></label>'+
   '<label>סארט<select name="category">'+Object.entries(names).map(([code,name])=>'<option value="'+code+'">'+name+'</option>').join('')+'</select></label>'+
   '<label>וויפיל איז דער ציל?<input required name="targetValue" min="0.01" step="0.01" type="number"></label>'+
@@ -27,7 +32,15 @@ export function goalsView(state,esc){
       '<label>מצב <select name="status">'+Object.entries(statuses).filter(([code])=>code!=='archived').map(([code,name])=>'<option value="'+code+'" '+(goal.status===code?'selected':'')+'>'+name+'</option>').join('')+'</select></label>'+
       '<button type="submit">אפהיטן</button><button type="button" data-action="goal-archive" data-id="'+esc(goal.id)+'">ארכיוו</button></form>':'')+'</article>';
  }).join('');
- return form+'<section class="card"><h2>קאמפיין־צילן <span class="count">'+goals.length+'</span></h2>'+
+ const paging=meta&&pages>1?'<nav class="inline" aria-label="קאמפיין־צילן בלעטער">'+
+ (page>1?'<button type="button" data-action="goal-page" data-page="'+(page-1)+'">פריער</button>':'')+
+ '<span>זייט '+esc(page)+' פון '+esc(pages)+'</span>'+
+ (page<pages?'<button type="button" data-action="goal-page" data-page="'+(page+1)+'">ווייטער</button>':'')+
+ '</nav>':'';
+ return form+'<section class="card"><h2>קאמפיין־צילן <span class="count">'+esc(total)+'</span></h2>'+
+ (meta?'<p class="muted">געוויזן '+esc(goals.length)+' פון '+esc(total)+
+  ' צילן · איצטיגער פלאן־לימיט: '+esc(allowed)+' פער קאמפיין. קיין צילן ווערן נישט באהאלטן אינעם חשבון.</p>':
+  '<p class="muted">דער סך־הכל ווערט ערשט באשטעטיגט דורך דעם סערווער.</p>')+
  (state.goalsError?'<p role="alert">צילן־דאטעבאזע נאך נישט גרייט: '+esc(state.goalsError)+'</p>':'')+
- (rows||'<p class="muted">נאך קיין צילן. דער הויפט געלט־ציל איז אויך אין די קאמפיין־פארוואלטונג.</p>')+'</section>';
+ (rows||'<p class="muted">נאך קיין צילן אויף דעם בלאט. דער הויפט געלט־ציל איז אין קאמפיין־פארוואלטונג.</p>')+paging+'</section>';
 }

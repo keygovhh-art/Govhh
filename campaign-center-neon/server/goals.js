@@ -30,9 +30,26 @@ export default function goalsRouter({pool,campaignAccess,need,bad,trim,uuid,log,
  }
  router.get('/campaigns/:cid',wrap(async(req,res)=>{
    const c=await campaignAccess(pool,req.params.cid,req.userId);
-   const rows=await pool.query('SELECT '+fields+' FROM cc_goals WHERE organization_id=$1 AND campaign_id=$2 AND status<>\'archived\' ORDER BY created_at DESC LIMIT 200',[c.organization_id,c.id]);
-   const access=await planPolicy.forMember(pool,c.organization_id,req.userId);
-   res.json({goals:rows.rows,goalLimit:access.limits.goals,planCode:access.planCode,serverEnforced:true});
+   const page=Number(req.query.page??1),limit=50;
+   if(!Number.isSafeInteger(page)||page<1||page>10000)
+     throw bad(400,'Invalid goals page');
+   // Never confuse the first 50 rows with all goals in a large approved plan.
+   // Exact count and paginated data are scoped to this campaign and organization.
+   const [rows,count,access]=await Promise.all([
+     pool.query(
+       'SELECT '+fields+' FROM cc_goals WHERE organization_id=$1 AND campaign_id=$2'+
+       " AND status<>'archived' ORDER BY created_at DESC,id DESC LIMIT $3 OFFSET $4",
+       [c.organization_id,c.id,limit,(page-1)*limit]),
+     pool.query(
+       "SELECT COUNT(*)::int total FROM cc_goals WHERE organization_id=$1"+
+       " AND campaign_id=$2 AND status<>'archived'",[c.organization_id,c.id]),
+     planPolicy.forMember(pool,c.organization_id,req.userId)
+   ]);
+   const total=count.rows[0].total;
+   res.set('Cache-Control','private,no-store');
+   res.json({goals:rows.rows,total,page,pageCount:Math.max(1,Math.ceil(total/limit)),limit,
+     goalLimit:access.limits.goals,planCode:access.planCode,
+     serverEnforced:true,allCampaignGoalsCounted:true});
  }));
  router.post('/campaigns/:cid',wrap(async(req,res)=>{
    const title=trim(req.body?.title,160),description=trim(req.body?.description,1000);
