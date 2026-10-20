@@ -5,7 +5,7 @@ import {Router} from 'express';
 export default function sharedFocusRouter({pool,campaignAccess,planPolicy,bad,uuid,log}){
  const router=Router(),wrap=fn=>(req,res,next)=>Promise.resolve(fn(req,res)).catch(next);
  const leaders=new Set(['owner','manager']);
- const readerRoles=new Set(['owner','manager','squad_leader','askan','finance','auditor']);
+ const readerRoles=new Set(['owner','manager','squad_leader','askan']);
  function teamParam(req){
   const name=req.query.team??req.body?.team??'';
   if(typeof name!=='string'||name.length>100)throw bad(400,'Invalid team');
@@ -18,14 +18,15 @@ export default function sharedFocusRouter({pool,campaignAccess,planPolicy,bad,uu
   if(!readerRoles.has(c.role))throw bad(403,'Campaign membership required');
   if(canWrite&&!leaders.has(c.role)&&c.role!=='squad_leader')
    throw bad(403,'Only leadership and team captain can curate Focus');
-  const team=teamParam(req);
+  let team=teamParam(req);
   if(!leaders.has(c.role)){
    const row=(await db.query(
     "SELECT team_name FROM cc_campaign_members WHERE organization_id=$1"+
     " AND campaign_id=$2 AND subject=$3",
     [c.organization_id,c.id,req.userId])).rows[0];
-   if(!row||!row.team_name||team!==row.team_name)
-    throw bad(403,'Only your named campaign team is available');
+   if(!row||!row.team_name)throw bad(403,'Named team membership required');
+   if(req.query.team===undefined&&req.body?.team===undefined)team=row.team_name;
+   if(team!==row.team_name)throw bad(403,'Only your named campaign team is available');
   }
   if(canWrite&&c.status==='closed')throw bad(409,'Closed campaign');
   return {c,team,leader:leaders.has(c.role),curator:leaders.has(c.role)||c.role==='squad_leader'};
@@ -78,7 +79,14 @@ export default function sharedFocusRouter({pool,campaignAccess,planPolicy,bad,uu
  }
  router.get('/campaigns/:cid/shared-focus',wrap(async(req,res)=>{
   const ctx=await scope(pool,req);ctx.userId=req.userId;
-  res.set('Cache-Control','private,no-store').json(await response(pool,ctx,true));
+  const result=await response(pool,ctx,true);
+  if(ctx.leader){
+   const teams=await pool.query("SELECT DISTINCT team_name FROM cc_campaign_members"+
+    " WHERE organization_id=$1 AND campaign_id=$2 AND team_name<>''"+
+    " ORDER BY team_name LIMIT 100",[ctx.c.organization_id,ctx.c.id]);
+   result.availableTeams=teams.rows.map(x=>x.team_name);
+  }
+  res.set('Cache-Control','private,no-store').json(result);
  }));
  router.get('/campaigns/:cid/shared-focus/candidates',wrap(async(req,res)=>{
   const ctx=await scope(pool,req,true),query=req.query.q??'';
