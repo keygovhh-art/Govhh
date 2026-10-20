@@ -168,7 +168,10 @@ export function makePlanPolicy({pool,bad}){
   ["GET","campaigns/:id/workflow-runs","custom_workflows"],
   ["POST","campaigns/:id/workflow-runs","custom_workflows"],
   ["POST","campaigns/:id/workflow-runs/:id/action","custom_workflows"],
-  ["GET","campaigns/:id/workflow-runs/:id/events","custom_workflows"]
+  ["GET","campaigns/:id/workflow-runs/:id/events","custom_workflows"],
+  ["GET","organizations/:id/role-profiles","custom_roles"],
+  ["POST","organizations/:id/role-profiles","custom_roles"],
+  ["POST","organizations/:id/members/:id/permission-profile","custom_roles"]
  ]
  };
  const featureForRoute=(tier,method,path)=>{
