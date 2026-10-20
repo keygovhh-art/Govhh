@@ -28,8 +28,48 @@ export function askanPlusView(state,esc,money) {
   '<p class="muted">'+esc(m.subject)+' · '+esc(m.team_name||'נישט צוגעטיילט')+
   ' · לעצטע מאנועלע רוף־באריכט: '+esc(m.last_manual_call_at?.slice(0,10)||'קיינער')+'</p>'
  ).join(''):'';
- const creditRows=credits.map(item=>'<article class="item"><div><strong>'+esc(item.subject)+'</strong><small>גרופע: '+esc(item.team_name||'נישט צוגעטיילט')+'</small><p>צוגעזאגט: '+money(item.pledged)+' · מאנועל באקומען: '+money(item.receipts)+' · צוריקגעדרייט: '+money(item.refunds)+' · נעטא: '+money(item.manual_net)+'</p></div></article>').join('');
- const creditPanel='<section class="card"><h2>קרעדיט פער עסקן — לויטן רעקארדירטן Ledger</h2><p class="muted">יעדער געלט־איינטראָג ווערט נאר איינמאל גערעכנט פארן צוגעטיילטן עסקן. די היינטיגע גרופע קען זיך האבן געביטן. דאס איז מאנועל באריכטעט, נישט באנק־באשטעטיגט.</p>'+(creditRows||'<p class="muted">נאך קיין מאנועלע קרעדיט־רעקארדס.</p>')+'</section>';
+ const creditMeta=state.plusCreditMeta;
+ const manual=(currency,amount)=>esc(currency||'?')+' '+esc(String(amount??'0'));
+ const creditRows=credits.map(item=>{
+  const old=!item.current_campaign_member||item.member_status!=='active';
+  return '<article class="item"><div><strong>'+esc(item.subject)+'</strong>'+
+   '<small>גרופע יעצט: '+esc(item.team_name||'נישט צוגעטיילט')+
+   (old?' · היסטארישער קרעדיט (נישט אקטיוו / נישט מער אינעם קאמפיין)':'')+
+   '</small><p>צוגעזאגט: '+manual(item.currency,item.pledged)+
+   ' · מאנועל באקומען: '+manual(item.currency,item.receipts)+
+   ' · צוריקגעדרייט: '+manual(item.currency,item.refunds)+
+   ' · נעטא: '+manual(item.currency,item.manual_net)+'</p>'+
+   (Number(item.corrections)>0?'<p class="muted">באזונדערע קארעקטורן (נאכנישט אריינגערעכנט אינעם נעטא): '+
+     manual(item.currency,item.corrections)+'</p>':'')+
+   '</div></article>';
+ }).join('');
+ const ledgerTotals=(creditMeta?.currencyTotals||[]).map(t=>
+  '<article class="item"><strong>'+esc(t.currency)+'</strong>'+
+  '<p>צוגעזאגט: '+manual(t.currency,t.pledged)+' · באקומען: '+
+  manual(t.currency,t.receipts)+' · צוריקגעדרייט: '+manual(t.currency,t.refunds)+
+  ' · נעטא מאנועל באריכטעט: '+manual(t.currency,t.manual_net)+'</p>'+
+  '<small>איינטראָגן: '+esc(t.ledger_event_count)+
+  (manager?' · נישט צוגעטיילט פאר אן עסקן: '+esc(t.unattributed_events):'')+
+  ' · קארעקטורן: '+manual(t.currency,t.corrections)+'</small></article>').join('');
+ const creditPaging=creditMeta?.pageCount>1?
+  '<nav class="inline" aria-label="קרעדיט־באריכט בלעטער">'+
+  (creditMeta.page>1?'<button type="button" data-action="plus-credit-page" data-page="'+
+   (creditMeta.page-1)+'">פריער</button>':'')+
+  '<span>זייט '+esc(creditMeta.page)+' פון '+esc(creditMeta.pageCount)+'</span>'+
+  (creditMeta.page<creditMeta.pageCount?
+   '<button type="button" data-action="plus-credit-page" data-page="'+
+    (creditMeta.page+1)+'">ווייטער</button>':'')+'</nav>':'';
+ const creditPanel='<section class="card"><h2>קרעדיט פער עסקן — גאנצע היסטאריע</h2>'+
+  '<p class="muted">אלע היסטארישע מאנועלע פינאנץ־איינטראָגן בלייבן אינעם חשבון, אויך ווען אן עסקן פארלאזט א קאמפיין. סומעס פון פארשידענע וואלוטעס ווערן קיינמאל נישט צוזאמענגערעכנט. קארעקטורן ווערן געוויזן באזונדער. דאס איז נישט באשטעטיגט דורך א באנק אדער פעימענט־פראוויידער.</p>'+
+  (state.plusCreditError?'<p role="alert">'+esc(state.plusCreditError)+'</p>':'')+
+  (creditMeta?'<p><strong>קרעדיט־רעקארדס: '+esc(creditMeta.totalCreditRows)+
+    '</strong> · געוויזן אויף דעם בלאט: '+esc(creditMeta.shown)+'</p>'+
+    '<h3>מאנועלע Ledger־ציפערן לויט וואלוטע</h3>'+
+    (ledgerTotals||'<p class="muted">קיין מאנועלע געלט־איינטראָגן.</p>')+
+    (creditRows||'<p class="muted">קיין פערזענליכע קרעדיט־רעקארדס אויף דעם בלאט.</p>')+
+    creditPaging:
+    '<p class="muted">דער פינאנץ־באריכט איז נאך נישט צוטריטבאר אין דעם סערווער־רעליס.</p>')+
+  '</section>';
  const warnings='<section class="card"><h2>עסקן פלאס — היינטיגע ווארענונגען</h2>'+
    '<p class="muted">דער סיסטעם ציילט בלויז רעקארדירטע פארשפעטיגטע אויפגאבן. קיין Push אדער Email ווערן נישט געשיקט דורך דעם איבערבליק.</p>'+
    (alerts?'<p><strong>פארשפעטיגטע אויפגאבן: '+esc(alerts.overdueCount)+'</strong></p>'+
