@@ -163,7 +163,8 @@ async function refresh() {
       state.sharedFocusError='';
       if(state.sharedFocus.editable){
         state.sharedFocusCandidates=await api('/quick/campaigns/'+id+'/shared-focus/candidates'+
-         (teamQ||'?team=')+(teamQ?'&':'&')+'q='+encodeURIComponent(state.sharedFocusQuery));
+         '?'+(state.sharedFocusTeam?'team='+encodeURIComponent(state.sharedFocusTeam)+'&':'')+
+         'q='+encodeURIComponent(state.sharedFocusQuery));
       }else state.sharedFocusCandidates=null;
     }catch(error){state.sharedFocus=null;state.sharedFocusCandidates=null;state.sharedFocusError=error.message;}
     try{
