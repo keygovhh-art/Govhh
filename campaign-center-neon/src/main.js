@@ -154,7 +154,16 @@ async function refresh() {
     ]);
     try{state.quickDaily=await api('/quick/campaigns/'+id+'/daily');state.quickDailyError='';}
     catch(error){state.quickDaily=null;state.quickDailyError=error.message;}
-    try{const goalResult=await api('/goals/campaigns/'+id+'?page='+state.goalsPage);state.goals=goalResult.goals||[];state.goalsMeta=goalResult;state.goalsError='';}
+    try{
+      let goalResult=await api('/goals/campaigns/'+id+'?page='+state.goalsPage);
+      // Archiving the last goal on the final page must not strand mobile users
+      // on an empty page with an older, invalid page number.
+      if(state.goalsPage>goalResult.pageCount&&goalResult.pageCount>=1){
+        state.goalsPage=goalResult.pageCount;
+        goalResult=await api('/goals/campaigns/'+id+'?page='+state.goalsPage);
+      }
+      state.goals=goalResult.goals||[];state.goalsMeta=goalResult;state.goalsError='';
+    }
     catch(error){state.goals=[];state.goalsMeta=null;state.goalsError=error.message||'נישט צוטריטבאר';}
     try{state.donationLink=await api('/donation-links/'+id);}catch(error){state.donationLink={link:null,error:error.message};}
     try{state.plusDesk=await api('/plus/campaigns/'+id+'/member-desk');}catch(error){state.plusDesk=null;}
