@@ -117,6 +117,20 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const org1=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES('A', $1) RETURNING id",[owner])).rows[0].id;
   await pool.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,'owner','active',now())",[org1,owner]);
 
+  // A real cross-service readiness handshake requires the server secret and
+  // announces only implemented capabilities — never private donors or calls.
+  assert.equal((await req('/connect/service/capabilities')).status,403);
+  const handshake=await req('/connect/service/capabilities',{service:true});
+  assert.equal(handshake.status,200);
+  assert.equal(handshake.data.service,'campaign_center');
+  assert.equal(handshake.data.protocol,'gavhah-connect-v1');
+  assert.equal(handshake.data.connectedBackend,true);
+  assert.equal(handshake.data.ownAssignments,true);
+  assert.equal(handshake.data.personalDonorSync,false);
+  assert.equal(handshake.data.automaticPhoneCalls,false);
+  assert.equal(handshake.data.verifiedPaymentProcessor,false);
+  assert.ok(!JSON.stringify(handshake.data).includes(secret));
+
   // Per-organization secret is AES-GCM sealed, never reflected, and owner-only.
   const ym='/yemot/organizations/'+org1;
   assert.equal((await req(ym,{user:first})).status,404,'Unjoined account cannot inspect Yemot configuration');
@@ -518,13 +532,50 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal(afterClose.data.programs.find(x=>x.id===nextProgram.data.id).status,'completed','Active speaker event is closed and archived');
   assert.equal((await req('/floor-program/'+eventId+'/check-in',{user:first,method:'POST'})).status,409);
 
+  // Service-to-service handshake: without the server secret NO database or
+  // feature metadata can be read, even before any accounts are linked.
+  assert.equal((await req('/connect/service/capabilities')).status,403);
+  const capabilities=await req('/connect/service/capabilities',{service:true});
+  assert.equal(capabilities.status,200);
+  assert.equal(capabilities.data.protocol,'gavhah-connect-v1');
+  assert.equal(capabilities.data.connectedBackend,true);
+  assert.equal(capabilities.data.automaticPhoneCalls,false);
+  assert.equal(capabilities.data.personalDonorSync,false);
+  assert.equal(capabilities.data.verifiedPaymentProcessor,false);
   // Link requires authenticated CC account and authenticated Gavhah service.
+  const previous=await req('/connect/code',{user:first,method:'POST'});
+  assert.equal(previous.status,201);
   const link=await req('/connect/code',{user:first,method:'POST'});
   assert.equal(link.status,201);assert.equal(link.data.code.length,32);
+  assert.notEqual(link.data.code,previous.data.code,'Every pairing code is unique');
+  assert.equal((await req('/connect/service/redeem',{service:true,method:'POST',
+   data:{gavhahUserId:7,code:previous.data.code}})).status,404,
+   'A newer pairing code must revoke the older one');
   assert.equal((await req('/connect/service/redeem',{method:'POST',data:{gavhahUserId:7,code:link.data.code}})).status,403);
+  const unlinkedStatus=await req('/connect/status',{user:first});
+  assert.equal(unlinkedStatus.status,200);
+  assert.equal(unlinkedStatus.data.linked,false);
   const redeemed=await req('/connect/service/redeem',{service:true,method:'POST',data:{gavhahUserId:7,code:link.data.code}});
   assert.equal(redeemed.status,200);
+  const linkedStatus=await req('/connect/status',{user:first});
+  assert.equal(linkedStatus.status,200);
+  assert.equal(linkedStatus.data.linked,true);
+  assert.equal((await req('/connect/code',{user:first,method:'POST'})).status,409,
+   'A linked member cannot mint another pairing code');
+  assert.ok(linkedStatus.data.connections.every(x=>!Object.hasOwn(x,'external_user_id')),
+    'No external personal ID is published in account link status');
   assert.equal((await req('/connect/service/redeem',{service:true,method:'POST',data:{gavhahUserId:8,code:link.data.code}})).status,404);
+  // A manager receives only organization-scoped counters, never another
+  // user's MAX account id, finance records or private personal notes.
+  const orgConnect='/connect/organizations/'+org1+'/overview';
+  const orgConnectStatus=await req(orgConnect,{user:owner});
+  assert.equal(orgConnectStatus.status,200);
+  assert.equal(orgConnectStatus.data.linkedMembers,1);
+  assert.ok(orgConnectStatus.data.activeMembers>=2);
+  assert.equal(orgConnectStatus.data.countsOnly,true);
+  assert.ok(!JSON.stringify(orgConnectStatus.data).includes('external_user_id'));
+  assert.equal((await req(orgConnect,{user:first})).status,403);
+  assert.equal((await req(orgConnect,{user:'unrelated'})).status,404);
   const campaigns=await req('/connect/service/campaigns?gavhahUserId=7',{service:true});
   assert.equal(campaigns.status,200);assert.deepEqual(campaigns.data.campaigns.map(c=>c.id),[c1]);
   assert.equal((await req('/connect/service/campaigns?gavhahUserId=8',{service:true})).status,403);
@@ -601,6 +652,10 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   assert.equal((await pool.query("SELECT COUNT(*)::int total FROM cc_finance_events WHERE source_system='gavhah_max'")).rows[0].total,2,'Exactly one source receipt PLUS one immutable manual reversal');
   // Unlink blocks access and does not delete the append-only financial history.
   assert.equal((await req('/connect/unlink',{user:first,method:'POST'})).status,200);
+  assert.equal((await pool.query("SELECT COUNT(*)::int n FROM cc_connect_codes WHERE subject=$1 AND redeemed_at IS NULL AND expires_at>now()",[first])).rows[0].n,0,
+   'Unlink invalidates all outstanding pairing invitations');
+  assert.equal((await req('/connect/status',{user:first})).data.linked,false);
+  assert.equal((await req(orgConnect,{user:owner})).data.linkedMembers,0);
   assert.equal((await req('/connect/service/campaigns?gavhahUserId=7',{service:true})).status,403);
   assert.equal((await pool.query("SELECT COUNT(*)::int n FROM cc_finance_events WHERE source_event_key='receipt:123'")).rows[0].n,1);
   assert.equal((await req('/campaigns/'+c1,{user:first,method:'PATCH',data:{goalAmount:'10.00'}})).status,403,'An askan cannot edit goal');

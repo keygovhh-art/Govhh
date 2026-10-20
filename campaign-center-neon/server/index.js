@@ -140,7 +140,19 @@ app.get('/api/health', async (req, res, next) => {
   try { await q('SELECT 1'); res.json({ status:'ok',database:'neon' }); }
   catch (error) { next(error); }
 });
-app.get('/api/config', (_req,res) => res.json({ neonAuthUrl: authBase.toString().replace(/\/$/,'') ,ready: Boolean(pool),experimentalAudioEnabled:process.env.CC_EXPERIMENTAL_P2P_AUDIO==='true'}));
+app.get('/api/config', (_req,res) => {
+ const requested=process.env.GAVHAH_PUBLIC_URL||'https://gavhah.onrender.com';
+ let gavhahPublicUrl=null;
+ try{
+  const url=new URL(requested);
+  if(url.protocol==='https:'&&!url.username&&!url.password&&!url.search&&!url.hash&&
+      (url.pathname==='/'||url.pathname===''))
+   gavhahPublicUrl=url.origin;
+ }catch{}
+ res.json({neonAuthUrl:authBase.toString().replace(/\/$/,''),
+  ready:Boolean(pool),experimentalAudioEnabled:process.env.CC_EXPERIMENTAL_P2P_AUDIO==='true',
+  gavhahPublicUrl});
+});
 // Public product catalogue is informational; no automatic subscription is granted.
 app.get('/api/plans',(_req,res)=>res.json({plans:CAMPAIGN_PLANS,features:PLAN_FEATURES,paidPlanActivation:false,guidedManagedAreAddOns:true}));
 app.use('/api', (req,res,next) => pool ? next() : res.status(503).json({error:'Neon DATABASE_URL configuration required'}));

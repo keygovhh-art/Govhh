@@ -19,8 +19,19 @@ export function connectUserRouter({pool,authenticate,log,bad}) {
  const router=Router();router.use(authenticate);
  router.post('/code',wrap(async(req,res)=>{
   const result=await transaction(pool,async db=>{
+   const already=(await db.query(
+    "SELECT 1 FROM cc_external_account_links WHERE subject=$1"+
+    " AND external_system='gavhah_max' AND revoked_at IS NULL",
+    [req.userId])).rowCount;
+   if(already)throw bad(409,'This account is already linked to Gavhah');
    const prior=await db.query("SELECT COUNT(*)::int AS count FROM cc_connect_codes WHERE subject=$1 AND created_at>now()-interval '1 hour'",[req.userId]);
    if(prior.rows[0].count>=5)throw bad(429,'Please wait before requesting another link code');
+   // A newly generated code supersedes any outstanding older one. The DB
+   // transaction makes this reliable even if the member opens two tabs.
+   await db.query(
+    "UPDATE cc_connect_codes SET redeemed_at=now()"+
+    " WHERE subject=$1 AND redeemed_at IS NULL AND expires_at>now()",
+    [req.userId]);
    const raw=code();
    await db.query("INSERT INTO cc_connect_codes(code_hash,subject,expires_at) VALUES($1,$2,now()+interval '10 minutes')",[digest(raw),req.userId]);
    return {code:raw,expiresInMinutes:10};
@@ -31,9 +42,51 @@ export function connectUserRouter({pool,authenticate,log,bad}) {
   const r=await pool.query("SELECT external_system,linked_at FROM cc_external_account_links WHERE subject=$1 AND revoked_at IS NULL",[req.userId]);
   res.json({linked:r.rowCount>0,connections:r.rows});
  }));
+ // Read-only leadership summary; accounts in other organizations and all
+ // personal MAX records remain unavailable. A count is NOT remote health.
+ router.get('/organizations/:oid/overview',wrap(async(req,res)=>{
+  const oid=req.params.oid;
+  if(typeof oid!=='string'||!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(oid))
+   throw bad(400,'Invalid organization');
+  const role=(await pool.query(
+   "SELECT role FROM cc_memberships WHERE organization_id=$1 AND subject=$2"+
+   " AND membership_status='active'",[oid,req.userId])).rows[0]?.role;
+  if(!role)throw bad(404,'Organization not found');
+  if(!['owner','manager'].includes(role))throw bad(403,'Leadership required');
+  const [memberCounts,followups,finance]=await Promise.all([
+   pool.query(
+    "SELECT COUNT(*)::int active_members,"+
+    " COUNT(*) FILTER(WHERE EXISTS(SELECT 1 FROM cc_external_account_links x"+
+    " WHERE x.subject=m.subject AND x.external_system='gavhah_max'"+
+    " AND x.revoked_at IS NULL))::int linked_members"+
+    " FROM cc_memberships m WHERE m.organization_id=$1 AND m.membership_status='active'",
+    [oid]),
+   pool.query(
+    "SELECT COUNT(*)::int shared_followup_links FROM cc_shared_followup_links"+
+    " WHERE organization_id=$1",[oid]),
+   pool.query(
+    "SELECT COUNT(*)::int reported_finance_events FROM cc_finance_events"+
+    " WHERE organization_id=$1 AND source_system='gavhah_max'",[oid])
+  ]);
+  const row=memberCounts.rows[0];
+  res.set('Cache-Control','private,no-store');
+  res.json({
+   activeMembers:row.active_members,linkedMembers:row.linked_members,
+   notLinkedMembers:row.active_members-row.linked_members,
+   sharedFollowupLinks:followups.rows[0].shared_followup_links,
+   reportedFinanceEvents:finance.rows[0].reported_finance_events,
+   scope:'current_organization_leadership',countsOnly:true,
+   financeReportsNotProcessorVerified:true,remoteHealthyNotImplied:true
+  });
+ }));
  router.post('/unlink',wrap(async(req,res)=>{
   await transaction(pool,async db=>{
    const r=await db.query("UPDATE cc_external_account_links SET revoked_at=now() WHERE subject=$1 AND external_system='gavhah_max' AND revoked_at IS NULL RETURNING id",[req.userId]);
+   // Unlink means all unexpired pairing invitations also become invalid.
+   await db.query(
+    "UPDATE cc_connect_codes SET redeemed_at=now()"+
+    " WHERE subject=$1 AND redeemed_at IS NULL AND expires_at>now()",
+    [req.userId]);
    if(r.rowCount)await db.query("INSERT INTO cc_activity_events(organization_id,actor_subject,event_type,details) SELECT organization_id,$1,'connect.unlinked',$2 FROM cc_memberships WHERE subject=$1 AND membership_status='active'",[req.userId,JSON.stringify({source:'gavhah_max'})]);
   });
   res.json({unlinked:true});
@@ -60,6 +113,17 @@ export function connectServiceRouter({pool,bad,uuid,log}) {
   if(!r.rowCount)throw bad(403,'No active campaign membership');
   return r.rows[0];
  }
+ // Real server-to-server handshake, not a claim that a member is linked.
+ // The shared secret gate above is mandatory even for this minimal diagnostic.
+ router.get('/capabilities',wrap(async(_req,res)=>{
+  await pool.query('SELECT 1');
+  res.set('Cache-Control','private,no-store');
+  res.json({service:'campaign_center',protocol:'gavhah-connect-v1',
+   connectedBackend:true,accountLinking:true,ownAssignments:true,
+   memberStatusUpdates:true,manualFinanceShare:true,manualFinanceReversals:true,
+   scopedSharedFollowups:true,scopedLiveRooms:true,
+   personalDonorSync:false,automaticPhoneCalls:false,verifiedPaymentProcessor:false});
+ }));
  router.post('/redeem',wrap(async(req,res)=>{
   const gavhahUserId=req.body?.gavhahUserId,raw=req.body?.code;
   if(!numericUser(gavhahUserId)||typeof raw!=='string'||!/^[A-Za-z0-9_-]{32}$/.test(raw))throw bad(400,'Invalid link request');
