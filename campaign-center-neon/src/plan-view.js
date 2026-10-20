@@ -18,6 +18,23 @@ export function plansView(state) {
       '<p class="muted">'+safe(entitlement.validUntil?'צוטיילונג ביז: '+entitlement.validUntil:'קיין באשטעטיגטע אויסלויף־צייט')+' · קיין באצאלונג ווערט דא נישט אוטאמאטיש באשטעטיגט.</p>':
       '<p role="alert">דער סערווער־פלאן־מצב איז נישט צוטריטבאר: '+safe(state.entitlementError||'נישט באשטעטיגט')+'. קיין העכערע רעכטן ווערן נישט געוויזן אלס אקטיוו.</p>')+
     '</section>'; 
+  const capacity=state.capacityAudit;
+  const quota=capacity?.breakdown;
+  const capacityView=capacity?'<section class="card"><h3>פלאן־קאפאציטעט — אמתע נומערן</h3>'+
+    '<p class="muted">די ציפערן קומען דירעקט פונעם בארעכטיגטן מוסד־דאטאבאזע. דאָס איז נישט קיין באשטעטיגטע באצאלונג אדער דרויסנדיגער קאנטראקט.</p>'+
+    '<div class="metrics">'+
+    [['אקטיווע עסקנים',quota?.members],['קאמפיינס',quota?.campaigns]].map(([label,v])=>
+      '<div><span>'+safe(label)+'</span><strong>'+safe(v?.used??0)+' / '+safe(v?.limit??'—')+
+      '</strong>'+(v?.overLimit?'<small>איבער דער גרעניץ — דארף הנהלה־איבערבליק</small>':'')+'</div>').join('')+
+    '</div>'+
+    '<p><strong>צילן פער קאמפיין:</strong> ביז '+safe(quota?.goalsPerCampaign?.limit??'—')+
+    ' · סך־הכל איינגעשריבענע צילן: '+safe(quota?.goalsPerCampaign?.totalAcrossCampaigns??0)+
+    ' · קאמפיינס איבער זייער ציל־גרעניץ: '+safe(quota?.goalsPerCampaign?.campaignsOverLimit??0)+'</p>'+
+    (capacity.customCapacityGranted?
+      '<p>Custom — באשטעטיגטע פלאן־צוטיילונג אינעם סערווער. נישט א פארזיכערונג פון טעלעפאן־ אדער באצאלונגס־קאפאציטעט.</p>':
+      '<p class="muted">קיין באשטעטיגטע Custom־צוטיילונג; דער איצטיגער פלאן באשטימט די גרעניצן.</p>')+
+    '</section>':state.capacityError?'<section class="card"><h3>קאפאציטעט־טשעק</h3>'+
+    '<p role="alert">דער סערווער האט נישט געקענט באשטעטיגן די ציפערן: '+safe(state.capacityError)+'</p></section>':'';
   const features = PLAN_FEATURES.filter(feature => allowed.has(feature.code));
   const status = status => status === 'pilot' ? 'pilot' : status === 'partial' ? 'partial' : 'pending';
   const counts = features.reduce((a, f) => (a[f.status]++, a), {pilot:0,partial:0,missing:0});
@@ -32,7 +49,7 @@ export function plansView(state) {
     (usable.has(item.code)?'ערלויבט דורך דעם סערווער':item.status==='missing'?'נאכנישט געבויט':
      access<i?'דארף העכערן פלאן':'נישט אקטיוו / נישט באשטעטיגט')+'</small></div></li>'
   ).join('');
-  return effective+'<section class="card plan-guide"><h2>די זעקס קאמפיין־פלענער</h2>' +
+  return effective+capacityView+'<section class="card plan-guide"><h2>די זעקס קאמפיין־פלענער</h2>' +
     '<p>דער מאסטער־פלאן מיט פונקציעס און אמתן אויפבוי־מצב. דאס איז א פירמע־פלאן; ' +
     'דערווייל זענען נישטא קיין באשטעטיגטע פרייזן אדער אקטיווע Paid Subscriptions. ' +
     'א פלאן־פונקציע וואס שטייט דא איז נישט אויטאמאטיש אנגעצונדן. Personal Askan איז בלויז אין גבהה — נישט אין קאמפיין סענטער.</p>' +
