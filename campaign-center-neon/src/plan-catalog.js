@@ -286,7 +286,7 @@ export const PLAN_FEATURES = [
     "code": "blocker_intelligence",
     "yi": "שוועריקייטן און הצלחה־מוסטערן דערקענען",
     "minTier": 2,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
