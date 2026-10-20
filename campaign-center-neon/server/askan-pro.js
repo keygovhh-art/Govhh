@@ -34,52 +34,67 @@ export default function askanProRouter({pool,campaignAccess,bad,trim,log}){
     !Number.isFinite(Date.parse(value)))throw bad(400,'Follow-up time must include a timezone');
   return new Date(value).toISOString();
  }
+ // Clarity ranks the ENTIRE authorized task + CRM follow-up pool in SQL.
+ // Never pre-truncate each category to 50: an old high-priority action must
+ // remain eligible even with many newer records. No AI or automatic actions.
  router.get('/campaigns/:cid/clarity',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
-  const elevated=authorized.includes(c.role);
-  const squad=c.role==='squad_leader';
-  const [tasks,followups]=await Promise.all([
-   pool.query(
-    "SELECT a.id,a.title,a.priority,a.status,a.due_at,a.assignee_subject FROM cc_assignments a"+
-    " WHERE a.organization_id=$1 AND a.campaign_id=$2 AND a.status IN ('open','in_progress')"+
-    " AND ($3::boolean OR a.assignee_subject=$4 OR ($5::boolean AND EXISTS("+
-    " SELECT 1 FROM cc_campaign_members l JOIN cc_campaign_members peer"+
-    " ON peer.organization_id=l.organization_id AND peer.campaign_id=l.campaign_id"+
-    " AND peer.team_name=l.team_name AND peer.team_name<>''"+
-    " WHERE l.organization_id=a.organization_id AND l.campaign_id=a.campaign_id AND l.subject=$4"+
-    " AND peer.subject=a.assignee_subject)))"+
-    " ORDER BY a.due_at ASC NULLS LAST,a.created_at ASC LIMIT 50",
-    [c.organization_id,c.id,elevated,req.userId,squad]),
-   pool.query(
-    "SELECT c.id,c.display_name,p.next_followup_at,p.priority FROM cc_contacts c"+
-    " JOIN cc_pro_contact_profiles p ON p.contact_id=c.id AND p.organization_id=c.organization_id"+
-    " WHERE c.organization_id=$1 AND c.campaign_id=$2 AND p.next_followup_at IS NOT NULL"+
-    " AND c.do_not_call=false AND c.phone<>'' AND p.stage<>'closed'"+
-    " AND (c.claimed_by IS NULL OR c.claim_expires_at<=now() OR c.claimed_by=$3)"+
-    " AND ((c.privacy='private' AND c.created_by=$3) OR"+
-    " (c.privacy='campaign' AND ($4::boolean OR NULLIF(c.assigned_team,'')=("+
-    " SELECT team_name FROM cc_campaign_members WHERE organization_id=$1 AND campaign_id=$2 AND subject=$3))))"+
-    " ORDER BY p.next_followup_at ASC LIMIT 50",
-    [c.organization_id,c.id,req.userId,elevated])
-  ]);
-  const now=Date.now();
-  const score=(due,priority)=>{
-   const delta=due?Date.parse(due)-now:Infinity;
-   // Overdue first, then high-priority, then near deadline.
-   return (delta<=0?0:delta<86400000?10:delta<604800000?20:30)+
-    ({high:0,critical:0,normal:2,low:4}[priority]??3);
-  };
-  const actions=[
-   ...tasks.rows.map(t=>({source:'task',id:t.id,title:t.title,status:t.status,dueAt:t.due_at,
-     priority:t.priority,score:score(t.due_at,t.priority)})),
-   ...followups.rows.map(p=>({source:'crm_followup',id:p.id,title:p.display_name,dueAt:p.next_followup_at,
-     priority:p.priority,score:score(p.next_followup_at,p.priority)}))
-  ].sort((a,b)=>a.score-b.score||String(a.dueAt||'9999').localeCompare(String(b.dueAt||'9999'))||
-    a.id.localeCompare(b.id)).slice(0,5);
+  const elevated=authorized.includes(c.role),squad=c.role==='squad_leader';
+  const query=
+   " WITH authorized_tasks AS ("+
+   " SELECT 'task'::text source,a.id,a.title,a.priority,a.status,"+
+   " a.due_at,a.created_at FROM cc_assignments a"+
+   " WHERE a.organization_id=$1 AND a.campaign_id=$2"+
+   " AND a.status IN ('open','in_progress')"+
+   " AND ($3::boolean OR a.assignee_subject=$4 OR ($5::boolean AND EXISTS ("+
+   " SELECT 1 FROM cc_campaign_members lead JOIN cc_campaign_members member"+
+   " ON member.organization_id=lead.organization_id AND member.campaign_id=lead.campaign_id"+
+   " AND member.team_name=lead.team_name AND lead.team_name<>''"+
+   " WHERE lead.organization_id=$1 AND lead.campaign_id=$2"+
+   " AND lead.subject=$4 AND member.subject=a.assignee_subject)))"+
+   " ),authorized_followups AS ("+
+   " SELECT 'crm_followup'::text source,c.id,c.display_name title,p.priority,"+
+   " 'open'::text status,p.next_followup_at due_at,c.created_at"+
+   " FROM cc_contacts c JOIN cc_pro_contact_profiles p"+
+   " ON p.contact_id=c.id AND p.organization_id=c.organization_id"+
+   " AND p.campaign_id=c.campaign_id"+
+   " WHERE c.organization_id=$1 AND c.campaign_id=$2"+
+   " AND p.next_followup_at IS NOT NULL AND p.stage<>'closed'"+
+   " AND c.do_not_call=false AND c.phone<>''"+
+   " AND (c.claimed_by IS NULL OR c.claim_expires_at<=now() OR c.claimed_by=$4)"+
+   " AND ((c.privacy='private' AND c.created_by=$4) OR"+
+   " (c.privacy='campaign' AND ("+
+   " ($3::boolean) OR (NULLIF(c.assigned_team,'') IS NOT NULL AND"+
+   " c.assigned_team=(SELECT m.team_name FROM cc_campaign_members m"+
+   " WHERE m.organization_id=$1 AND m.campaign_id=$2 AND m.subject=$4)))))"+
+   " ),all_actions AS ("+
+   " SELECT * FROM authorized_tasks UNION ALL SELECT * FROM authorized_followups"+
+   " ),ranked AS ("+
+   " SELECT source,id,title,priority,status,due_at,created_at,"+
+   " (CASE WHEN due_at<=now() THEN 0"+
+   " WHEN due_at<now()+interval '1 day' THEN 10"+
+   " WHEN due_at<now()+interval '7 days' THEN 20 ELSE 30 END"+
+   " + CASE priority WHEN 'critical' THEN 0 WHEN 'high' THEN 0"+
+   " WHEN 'normal' THEN 2 WHEN 'low' THEN 4 ELSE 3 END)::int score"+
+   " FROM all_actions"+
+   " ) SELECT source,id,title,priority,status,due_at,score,"+
+   " COUNT(*) OVER ()::int eligible_total"+
+   " FROM ranked ORDER BY score ASC,due_at ASC NULLS LAST,created_at ASC,"+
+   " source ASC,id ASC LIMIT 5";
+  const rows=await pool.query(query,[c.organization_id,c.id,elevated,req.userId,squad]);
+  const recommendations=rows.rows.map(({eligible_total, ...r})=>({
+   source:r.source,id:r.id,title:r.title,priority:r.priority,status:r.status,
+   dueAt:r.due_at,score:r.score
+  }));
   res.set('Cache-Control','private,no-store');
-  res.json({recommendations:actions,scoring:'overdue-then-priority-then-deadline',noAiClaims:true,
-    source:'current_authorized_tasks_and_crm_followups',
-    note:'Only currently recorded activities; not a predictive or autonomous agent.'});
+  res.json({
+   recommendations,eligibleTotal:rows.rows[0]?.eligible_total??0,
+   allEligibleActionsConsidered:true,rankedServerSide:true,limit:5,
+   scoring:'overdue-then-priority-then-deadline',
+   noAiClaims:true,autonomousCalls:false,automatedNotifications:false,
+   source:'current_authorized_tasks_and_crm_followups',
+   note:'Five recommendations from every authorized open assignment and eligible CRM follow-up; not a predictive or autonomous agent.'
+  });
  }));
  router.get('/campaigns/:cid/contacts',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
