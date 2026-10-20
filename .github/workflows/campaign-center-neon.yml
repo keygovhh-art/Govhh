@@ -74,6 +74,8 @@ jobs:
         run: node --test tests/full-goal-pages-view.test.mjs
       - name: Source-grounded daily campaign Focus
         run: node --test tests/focus-board.test.mjs
+      - name: Quick Focus ranks all 263 tasks with team, scope, and no truncation
+        run: node --test tests/quick-focus-full-ranking.test.mjs
       - name: Chesed Quick daily facts, cross-tenant and team privacy, immutable 7-day memory
         run: node --test tests/quick-daily.test.mjs
       - name: External donation URL audit, tenant and gateway honesty

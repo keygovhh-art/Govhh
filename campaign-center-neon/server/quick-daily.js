@@ -65,6 +65,47 @@ export default function quickDailyRouter({pool,campaignAccess,planPolicy,bad,log
    [c.organization_id,c.id,req.userId,day]);
   return r.rows;
  }
+ // Shared campaign Focus uses the entire database, never the front-end's
+ // 200 most-recent-task page. Keep exactly the same team visibility as
+ // the authenticated Quick Watch, including rejecting blank team names.
+ router.get('/campaigns/:cid/focus',wrap(async(req,res)=>{
+  const c=await scope(pool,req);
+  const args=[c.organization_id,c.id,elevated.has(c.role),req.userId,c.role==='squad_leader'];
+  const visible=
+   " WITH visible AS ("+
+   " SELECT a.id,a.title,a.kind,a.priority,a.status,a.due_at,"+
+   " a.assignee_subject,a.created_at,(a.assignee_subject=$4) mine"+
+   " FROM cc_assignments a WHERE a.organization_id=$1 AND a.campaign_id=$2"+
+   " AND a.status IN ('open','in_progress')"+
+   " AND ($3::boolean OR a.assignee_subject=$4 OR ($5::boolean AND EXISTS ("+
+   " SELECT 1 FROM cc_campaign_members me JOIN cc_campaign_members peer"+
+   " ON peer.organization_id=me.organization_id AND peer.campaign_id=me.campaign_id"+
+   " AND peer.team_name=me.team_name AND me.team_name<>''"+
+   " WHERE me.organization_id=$1 AND me.campaign_id=$2 AND me.subject=$4"+
+   " AND peer.subject=a.assignee_subject)))"+
+   " )";
+  const [count,chosen]=await Promise.all([
+   pool.query(visible+" SELECT COUNT(*)::int visible_open,"+
+    " COUNT(*) FILTER(WHERE mine)::int own_open FROM visible",args),
+   pool.query(visible+", scope AS (SELECT COUNT(*)::int own_open FROM visible WHERE mine)"+
+    " SELECT v.id,v.title,v.kind,v.priority,v.status,v.due_at,v.assignee_subject,"+
+    " v.created_at,v.mine FROM visible v CROSS JOIN scope sc"+
+    " WHERE v.mine OR sc.own_open=0"+
+    " ORDER BY (CASE WHEN v.due_at<now() THEN 0 ELSE 1 END),"+
+    " (CASE v.priority WHEN 'critical' THEN 0 WHEN 'high' THEN 1"+
+    " WHEN 'normal' THEN 2 WHEN 'low' THEN 3 ELSE 4 END),"+
+    " v.due_at ASC NULLS LAST,v.created_at ASC,v.id ASC LIMIT 3",args)
+  ]);
+  const totals=count.rows[0],personal=totals.own_open>0;
+  res.set('Cache-Control','private,no-store').json({
+   tasks:chosen.rows,visibleOpenTaskCount:totals.visible_open,
+   ownOpenTaskCount:totals.own_open,
+   chosenScope:personal?'personal':'permitted_campaign_or_team',
+   allVisibleTasksConsidered:true,limit:3,
+   selection:'overdue_then_priority_then_due_date_then_created_at',
+   artificialIntelligence:false,automatedNotifications:false
+  });
+ }));
  router.get('/campaigns/:cid/daily',wrap(async(req,res)=>{
   const c=await scope(pool,req),day=nyDay();
   const [stats,saved]=await Promise.all([snapshot(pool,req,c),history(pool,req,c,day)]);
