@@ -193,7 +193,8 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const secondInvite=await req(invitePath,{user:owner,method:'POST',data:{role:'askan',campaignId:c1}});
   assert.equal((await req('/team/invitations/redeem',{user:second,method:'POST',data:{invitationCode:secondInvite.data.invitationCode}})).status,200);
   const contact=(await pool.query("INSERT INTO cc_contacts(organization_id,campaign_id,created_by,display_name,phone,privacy) VALUES($1,$2,$3,'Test donor','0000000000','campaign') RETURNING id",[org1,c1,owner])).rows[0].id;
-  assert.equal((await req('/team/contacts/'+contact+'/claim',{user:first,method:'POST'})).status,200);
+  const initialClaim=await req('/team/contacts/'+contact+'/claim',{user:first,method:'POST'});
+   assert.equal(initialClaim.status,200,JSON.stringify(initialClaim.data));
   assert.equal((await req('/team/contacts/'+contact+'/claim',{user:second,method:'POST'})).status,409);
   assert.equal((await req('/team/contacts/'+contact+'/release',{user:first,method:'POST'})).status,200);
   assert.equal((await req('/team/contacts/'+contact+'/claim',{user:second,method:'POST'})).status,200);
