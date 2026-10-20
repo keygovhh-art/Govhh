@@ -455,8 +455,8 @@ async function submit(event){
      if(d.profileId&&!state.customRoleData?.profiles?.some(p=>p.id===d.profileId))
       throw new Error('די רשות איז נישט געפונען');
      if(!confirm('באשטעטיגן דעם צוטריט־טויש פאר דעם עסקן?'))break;
-     await api('/gabbai/organizations/'+state.orgId+'/members/'+encodeURIComponent(d.subject)+
-      '/permission-profile',{method:'POST',body:JSON.stringify({profileId:d.profileId||null})});
+     await api('/gabbai/organizations/'+state.orgId+'/permission-profile',{
+       method:'POST',body:JSON.stringify({subject:d.subject,profileId:d.profileId||null})});
      break;
    }
    case 'custom-workflow-template': {
