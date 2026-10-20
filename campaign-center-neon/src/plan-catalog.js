@@ -167,7 +167,7 @@ export const PLAN_FEATURES = [
     "code": "team_credit",
     "yi": "פארשריט און קרעדיט פער עסקן/גרופע",
     "minTier": 1,
-    "status": "partial",
+    "status": "pilot",
     "allocation": "planned"
   },
   {
