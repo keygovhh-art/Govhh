@@ -41,26 +41,73 @@ export default function askanPlusRouter({pool,campaignAccess,need,bad,uuid,trim,
   const c=await campaignAccess(pool,req.params.cid,req.userId);
   need(c.role,workRoles);
   const elevated=['owner','manager','finance','auditor'].includes(c.role);
-  // Each event is counted ONCE; original credited_member_subject remains
-  // immutable. This is internal campaign credit, not payment verification.
-  const r=await pool.query(
-   "SELECT f.credited_member_subject subject,cm.team_name,"+
+  const page=Number(req.query.page??1);
+  if(!Number.isSafeInteger(page)||page<1||page>10000)
+   throw bad(400,'Invalid credit report page');
+  if(!elevated&&page!==1)throw bad(403,'Personal credit is one page');
+  const limit=100;
+  // The immutable finance-event source is the authority for historical
+  // campaign attribution, even after the originally credited worker leaves
+  // the organization or the campaign. Never filter against active membership.
+  // Group by currency to avoid mathematically false cross-currency totals.
+  const source=
+   " FROM cc_finance_events f"+
+   " WHERE f.organization_id=$1 AND f.campaign_id=$2"+
+   " AND ($3::boolean OR f.credited_member_subject=$4)";
+  const params=[c.organization_id,c.id,elevated,req.userId];
+  const byMember=
+   " WITH amounts AS ("+
+   " SELECT f.credited_member_subject subject,f.currency,"+
    " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='pledge'),0)::text pledged,"+
    " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='receipt'),0)::text receipts,"+
    " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='refund'),0)::text refunds,"+
-   " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='receipt'),0)::numeric"+
-   " -COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='refund'),0)::numeric AS manual_net"+
-   " FROM cc_finance_events f"+
-   " JOIN cc_campaign_members cm ON cm.organization_id=f.organization_id AND cm.campaign_id=f.campaign_id"+
-   " AND cm.subject=f.credited_member_subject"+
-   " JOIN cc_memberships m ON m.organization_id=cm.organization_id AND m.subject=cm.subject"+
-   " AND m.membership_status='active'"+
-   " WHERE f.organization_id=$1 AND f.campaign_id=$2 AND ($3::boolean OR f.credited_member_subject=$4)"+
-   " GROUP BY f.credited_member_subject,cm.team_name ORDER BY manual_net DESC,f.credited_member_subject LIMIT 500",
-   [c.organization_id,c.id,elevated,req.userId]);
+   " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='correction'),0)::text corrections,"+
+   " (COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='receipt'),0)"+
+   " -COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='refund'),0))::text manual_net"+
+   source+
+   " AND f.credited_member_subject IS NOT NULL"+
+   " GROUP BY f.credited_member_subject,f.currency"+
+   " )"+
+   " SELECT a.*,COALESCE(cm.team_name,'') team_name,"+
+   " COALESCE(m.membership_status,'not_listed') member_status,"+
+   " (cm.subject IS NOT NULL) current_campaign_member"+
+   " FROM amounts a LEFT JOIN cc_campaign_members cm"+
+   " ON cm.organization_id=$1 AND cm.campaign_id=$2 AND cm.subject=a.subject"+
+   " LEFT JOIN cc_memberships m ON m.organization_id=$1 AND m.subject=a.subject"+
+   " ORDER BY (a.manual_net)::numeric DESC,a.subject,a.currency"+
+   " LIMIT $5 OFFSET $6";
+  const countQuery=
+   " SELECT COUNT(*)::int total FROM ("+
+   " SELECT f.credited_member_subject,f.currency"+source+
+   " AND f.credited_member_subject IS NOT NULL"+
+   " GROUP BY f.credited_member_subject,f.currency) s";
+  const currencyTotals=
+   " SELECT f.currency,"+
+   " COUNT(*)::int ledger_event_count,"+
+   " COUNT(*) FILTER(WHERE f.credited_member_subject IS NULL)::int unattributed_events,"+
+   " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='pledge'),0)::text pledged,"+
+   " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='receipt'),0)::text receipts,"+
+   " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='refund'),0)::text refunds,"+
+   " COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='correction'),0)::text corrections,"+
+   " (COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='receipt'),0)"+
+   " -COALESCE(SUM(f.amount) FILTER(WHERE f.event_kind='refund'),0))::text manual_net"+
+   source+" GROUP BY f.currency ORDER BY f.currency";
+  const [pageRows,countResult,totalsResult]=await Promise.all([
+   pool.query(byMember,[...params,limit,(page-1)*limit]),
+   pool.query(countQuery,params),
+   pool.query(currencyTotals,params)
+  ]);
+  const total=countResult.rows[0].total;
   res.set('Cache-Control','private,no-store');
-  res.json({scope:elevated?'leadership':'self',credits:r.rows,immutableAttribution:true,
-   explanation:'Original ledger attribution, not a verified payment, and not evidence of individual fundraiser effort. Current team membership is used for grouping.'});
+  res.json({
+   scope:elevated?'leadership':'self',credits:pageRows.rows,
+   totalCreditRows:total,page,pageCount:Math.max(1,Math.ceil(total/limit)),
+   shown:pageRows.rows.length,limit,currencyTotals:totalsResult.rows,
+   allMemberStatusesRetained:true,allCurrenciesSeparated:true,
+   immutableAttribution:true,manualNotProcessorVerified:true,
+   correctionsNotAppliedWithoutDirection:true,
+   explanation:'Manual historical attribution includes departed campaign staff. Per-currency ledger totals include unattributed entries; credit rows exclude those entries. Corrections are separately disclosed, not silently treated as receipts or refunds. This is not verified payment or individual performance.'
+  });
  }));
  const visibleAlertTask=
    " AND ($3::boolean OR a.assignee_subject=$4 OR ($5::boolean AND EXISTS ("+
