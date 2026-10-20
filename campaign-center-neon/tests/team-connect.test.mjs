@@ -117,6 +117,20 @@ test('signed team invitations, lead locks, private linking and exactly-once cros
   const org1=(await pool.query("INSERT INTO cc_organizations(name,owner_subject) VALUES('A', $1) RETURNING id",[owner])).rows[0].id;
   await pool.query("INSERT INTO cc_memberships(organization_id,subject,role,membership_status,joined_at) VALUES($1,$2,'owner','active',now())",[org1,owner]);
 
+  // A real cross-service readiness handshake requires the server secret and
+  // announces only implemented capabilities — never private donors or calls.
+  assert.equal((await req('/connect/service/capabilities')).status,403);
+  const handshake=await req('/connect/service/capabilities',{service:true});
+  assert.equal(handshake.status,200);
+  assert.equal(handshake.data.service,'campaign_center');
+  assert.equal(handshake.data.protocol,'gavhah-connect-v1');
+  assert.equal(handshake.data.connectedBackend,true);
+  assert.equal(handshake.data.ownAssignments,true);
+  assert.equal(handshake.data.personalDonorSync,false);
+  assert.equal(handshake.data.automaticPhoneCalls,false);
+  assert.equal(handshake.data.verifiedPaymentProcessor,false);
+  assert.ok(!JSON.stringify(handshake.data).includes(secret));
+
   // Per-organization secret is AES-GCM sealed, never reflected, and owner-only.
   const ym='/yemot/organizations/'+org1;
   assert.equal((await req(ym,{user:first})).status,404,'Unjoined account cannot inspect Yemot configuration');
