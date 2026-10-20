@@ -74,6 +74,10 @@ jobs:
         run: node --test tests/donation-links.test.mjs
       - name: Askan Plus member and team privacy, audited hand-offs
         run: node --test tests/askan-plus.test.mjs
+      - name: Askan Plus 503-member historical finance credit, separate currencies and pagination
+        run: node --test tests/plus-credit-ledger.test.mjs
+      - name: Askan Plus ledger credit Android view and HTML-escape regression
+        run: node --test tests/plus-credit-ledger-view.test.mjs
       - name: Askan Plus accurate cash/check installments and receipt immutability
         run: node --test tests/plus-pledges.test.mjs
       - name: Askan Pro CRM privacy, append-only relationship history, followups and two-team permissions
