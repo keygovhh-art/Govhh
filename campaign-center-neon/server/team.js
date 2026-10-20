@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { createHash, randomBytes } from 'node:crypto';
+import {ensureCustomContactRestriction} from './custom-team-roles.js';
 
 // The caller has a verified Neon Auth session; all authorization is DB-backed.
 export default function teamRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim,planPolicy}) {
@@ -9,7 +10,11 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
  async function tx(fn){const db=await pool.connect();try{await db.query('BEGIN');const result=await fn(db);await db.query('COMMIT');return result;}catch(e){await db.query('ROLLBACK');throw e;}finally{db.release();}}
  router.get('/organizations/:oid/members',run(async(req,res)=>{
   need(await member(pool,req.params.oid,req.userId),['owner','manager']);
-  const r=await pool.query('SELECT subject,role,membership_status,joined_at FROM cc_memberships WHERE organization_id=$1 ORDER BY joined_at DESC NULLS LAST',[req.params.oid]);
+  const r=await pool.query(
+   "SELECT m.subject,m.role,m.membership_status,m.joined_at,b.profile_id AS permission_profile_id"+
+   " FROM cc_memberships m LEFT JOIN cc_custom_team_permission_bindings b"+
+   " ON b.organization_id=m.organization_id AND b.subject=m.subject"+
+   " WHERE m.organization_id=$1 ORDER BY m.joined_at DESC NULLS LAST",[req.params.oid]);
   res.json(r.rows);
  }));
  router.post('/organizations/:oid/invitations',run(async(req,res)=>{
@@ -116,6 +121,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
  router.get('/campaigns/:cid/lead-queue',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);need(c.role,['owner','manager','squad_leader','askan']);
   const isManager=['owner','manager'].includes(c.role);
+  await ensureCustomContactRestriction(pool,c.organization_id,req.userId,c.role,'view_lead_queue',bad);
   const r=await pool.query("SELECT id,display_name,phone,do_not_call,status,assigned_team,claimed_by,claim_expires_at FROM cc_contacts WHERE campaign_id=$1 AND organization_id=$2 AND privacy='campaign' AND ($3::boolean OR assigned_team=(SELECT team_name FROM cc_campaign_members WHERE campaign_id=$1 AND subject=$4)) ORDER BY created_at DESC LIMIT 200",
     [c.id,c.organization_id,isManager,req.userId]);
   res.json(r.rows);
@@ -126,6 +132,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    const lead=(await db.query('SELECT * FROM cc_contacts WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
    if(!lead||lead.privacy!=='campaign')throw bad(404,'Shared contact missing');
    const c=await campaignAccess(db,lead.campaign_id,req.userId);need(c.role,['owner','manager','squad_leader','askan']);
+   await ensureCustomContactRestriction(db,c.organization_id,req.userId,c.role,'claim_leads',bad);
    await checkLeadTeam(db,c,req.userId,lead.assigned_team);
    if(lead.do_not_call)throw bad(409,'Do not call');
    if(lead.claimed_by&&lead.claimed_by!==req.userId&&new Date(lead.claim_expires_at).getTime()>Date.now())throw bad(409,'Another member currently claims this contact');
@@ -139,6 +146,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    const lead=(await db.query('SELECT * FROM cc_contacts WHERE id=$1 FOR UPDATE',[req.params.id])).rows[0];
    if(!lead||lead.privacy!=='campaign')throw bad(404,'Shared contact missing');
    const c=await campaignAccess(db,lead.campaign_id,req.userId);
+   await ensureCustomContactRestriction(db,c.organization_id,req.userId,c.role,'claim_leads',bad);
    await checkLeadTeam(db,c,req.userId,lead.assigned_team);
    if(lead.claimed_by!==req.userId)need(c.role,['owner','manager']);
    const found=(await db.query('UPDATE cc_contacts SET claimed_by=NULL,claim_expires_at=NULL WHERE id=$1 RETURNING id,claimed_by',[lead.id])).rows[0];
@@ -159,6 +167,7 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
  }));
  router.get('/campaigns/:cid/contacts.csv',run(async(req,res)=>{
    const c=await campaignAccess(pool,req.params.cid,req.userId);
+   await ensureCustomContactRestriction(pool,c.organization_id,req.userId,c.role,'export_shared_contacts',bad);
    if(!['owner','manager','finance','auditor','squad_leader','askan'].includes(c.role))
      throw bad(403,'Not permitted to export contacts');
    const all=['owner','manager','finance','auditor'].includes(c.role);
