@@ -52,3 +52,24 @@ test('Phone session and code schema remain separate and additive',()=>{
  assert.match(migration,/call_hash text PRIMARY KEY/);
  assert.doesNotMatch(migration,/DROP TABLE|DELETE FROM|TRUNCATE|ALTER TABLE .*DROP/);
 });
+
+test('Two-press confirmation updates only a linked member assigned task or own contact',()=>{
+ assert.match(bridge,/pending_id,pending_kind/);
+ assert.match(bridge,/pendingId===target.id&&pendingKind===path/);
+ assert.match(bridge,/path==='21'\|\|path==='32'/);
+ assert.match(bridge,/a.assignee_subject=\$2/);
+ assert.match(bridge,/UPDATE cc_assignments SET status='done'/);
+ assert.match(bridge,/UPDATE cc_contacts SET do_not_call=true/);
+ assert.match(bridge,/created_by=\$2/);
+ assert.match(bridge,/cc_activity_events/);
+ assert.match(bridge,/task.completed.phone/);
+ assert.match(bridge,/contact.do_not_call.phone/);
+ assert.match(bridge,/pendingId=null;pendingKind=null/);
+ assert.doesNotMatch(bridge,/do_not_call=false.*AND created_by/);
+});
+test('Confirmation migration adds only two nullable fields and retains old sessions',()=>{
+ const next=read('db/029_phone_action_confirmations.sql');
+ assert.match(next,/ADD COLUMN IF NOT EXISTS pending_id uuid/);
+ assert.match(next,/ADD COLUMN IF NOT EXISTS pending_kind text/);
+ assert.doesNotMatch(next,/DROP TABLE|TRUNCATE|DELETE FROM|ALTER TABLE .*DROP/);
+});
