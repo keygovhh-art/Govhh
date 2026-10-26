@@ -17,7 +17,7 @@ ALTER TABLE public.cc_platform_yemot_line ENABLE ROW LEVEL SECURITY;
 CREATE TABLE IF NOT EXISTS public.cc_platform_yemot_audit (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   actor_subject text NOT NULL,
-  event_type text NOT NULL CHECK (event_type IN ('credential.saved','credential.removed','credential.read_only_test_passed')),
+  event_type text NOT NULL CHECK (event_type IN ('credential.saved','credential.removed','credential.read_only_test_passed','callback.installed')),
   line_number text NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
