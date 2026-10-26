@@ -269,14 +269,14 @@ function yemotPanel(){
   '<p>דער איצטיגער גבהה־נומער בלייבט אויף גבהה. דער דאָזיגער שליסל ווערט געהיטן נאר אין קאמפיין סענטערס אייגענער דאטעבאזע, באזונדער פונעם גבהה API.</p>'+
   (setting.error?'<p role="alert">'+esc(setting.error)+'</p>':'')+
   '<p>נייער נומער: <strong>'+esc(setting.lineNumber||'נאכנישט אריינגעלייגט')+'</strong> · API: <strong>'+(setting.configured?'פארשלאסען אפגעהיטן':'נאכנישט פארבונדן')+'</strong> · טעסט: <strong>'+(setting.tested?'דורכגעגאנגען':'נאך נישט')+'</strong></p>'+
-  '<p class="muted">דאס אפהיטן אדער טעסטן וועט נישט אריבערפירן קיין רופן, טוישן מעניוס, אדער עפענען ארויסגייענדע רופן. די נומער־אייגנטימערשאפט דארף באזונדער באשטעטיגט ווערן.</p>'+
+  '<p class="muted">ביים טעסטן ווערט די נומער באשטעטיגט דורך ימות־המשיח. נאר אויב דער טעסט איז געלונגען קען דער סופער־עדמין אקטיוויזירן דעם נייעם ליין; דאס טוישט נאר דעם נייעם פראוויידער־אקאונט, נישט גבהה.</p>'+
   (!setting.storageReady?'<p class="muted">דער סערווער דארף א באזונדערן CC_YEMOT_ENCRYPTION_KEY. קיין שליסל ווערט נישט אפגעהיטן אן פארשלאסענער סטארעדזש.</p>':'')+
   (!setting.separationReady?'<p class="muted">פאר א פארבינדונג־טעסט דארף מען קודם באשטימען GAVHAH_EXISTING_LINE_NUMBER אויפן קאמפיין־סערווער, כדי צו בלאקירן דעם אלטן גבהה־נומער.</p>':'')+
   '<form class="stack" data-form="campaign-yemot-save" autocomplete="off">'+
    '<label>דער נייער קאמפיין־נומער<input type="tel" name="lineNumber" required inputmode="tel" dir="ltr" maxlength="24" value="'+esc(setting.lineNumber||'')+'" placeholder="Second line only"></label>'+
    '<label>דער נייער ימות API־שליסל<input type="password" name="token" required autocomplete="new-password" dir="ltr" minlength="12" maxlength="768" placeholder="Campaign Center API token"></label>'+
    '<button type="submit" class="primary">אפהיטן דעם נייעם שליסל פארשלאסען</button></form>'+
-  (setting.configured?'<div class="inline"><button type="button" data-action="campaign-yemot-test" '+(!setting.separationReady?'disabled':'')+'>פרובירן פארבינדונג (בלויז לייענען)</button><button type="button" data-action="campaign-yemot-remove">אויסמעקן בלויז דעם קאמפיין־שליסל</button></div>':'')+
+  (setting.configured?'<div class="inline"><button type="button" data-action="campaign-yemot-test" '+(!setting.separationReady||setting.active?'disabled':'')+'>באשטעטיגן די נייע נומער ביים פראוויידער</button>'+(setting.tested&&!setting.active&&setting.installState==='not_installed'?'<button type="button" class="primary" data-action="campaign-yemot-install">אקטיוויזירן דעם נייעם קאמפיין־ליין</button>':'')+(!setting.active&&setting.installState==='not_installed'?'<button type="button" data-action="campaign-yemot-remove">אויסמעקן בלויז דעם קאמפיין־שליסל</button>':'')+'</div>':'')+
   '<p class="muted">צוטריט נאר פארן קאמפיין סענטער־סופער־עדמין. דער שליסל ווערט קיינמאל נישט צוריקגעשיקט צום בלעטערער.</p></section>';
 }
 function campaignAdminPanel(){
@@ -642,6 +642,11 @@ async function click(event){
  const btn=event.target.closest('[data-action]');if(!btn)return;
  const a=btn.dataset.action;
  try {
+  if(a==='campaign-yemot-install'){
+    if(!state.isCampaignLineAdmin||!confirm('באשטעטיגסטו אז דעם נייעם קאמפיין־נומער זאל מען פארבינדן מיטן קאמפיין־סענטער IVR? דער אלטער גבהה־ליין ווערט נישט געטוישט.'))return;
+    const outcome=await api('/yemot/campaign-line/install',{method:'POST',body:'{}'});
+    await refresh();say(outcome.message||'דער נייע קאמפיין־ליין איז פארבונדן. רוף אריין און פראביר.');return;
+  }
   if(a==='campaign-yemot-test'){
     if(!state.isCampaignLineAdmin)throw new Error('נאר פארן סופער־עדמין');
     const outcome=await api('/yemot/campaign-line/test',{method:'POST',body:'{}'});
