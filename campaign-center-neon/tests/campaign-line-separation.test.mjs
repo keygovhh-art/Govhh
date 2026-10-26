@@ -30,9 +30,26 @@ test('separate API credentials are platform-admin only and encrypted',()=>{
 });
 test('saving and testing cannot activate or reroute either hotline',()=>{
  assert.match(router,/active:false/);
- assert.match(router,/GetTemplates/);
- assert.doesNotMatch(router,/UpdateExtension|UploadFile|DeleteFile|StartCall|originate|dialOut/);
+ assert.match(router,/GetSession/);
+ assert.match(router,/username/);
+ assert.match(router,/numberOwnershipVerified:true/);
+ assert.match(router,/install_state/);
+ assert.match(router,/UpdateExtension/);
+ assert.match(router,/callback_hash/);
+ assert.match(router,/install_state='pending'/);
+ assert.match(router,/install_state='live'/);
+ assert.doesNotMatch(router,/UploadFile|DeleteFile|StartCall|originate|dialOut/);
  assert.doesNotMatch(router,/GAVHAH_API_BASE_URL|YEMOT_CENTRAL_SHARED_SECRET/);
  assert.match(router,/last_test_attempt_at/);
  assert.match(router,/last_verified_at/);
+});
+
+test('provider-verified Campaign Center IVR is standalone, session-hashed and privacy-locked',()=>{
+ const callback=read('../server/campaign-ivr.js');
+ assert.match(callback,/entryKey/);
+ assert.match(callback,/timingSafeEqual/);
+ assert.match(callback,/cc_platform_yemot_call_states/);
+ assert.match(callback,/Campaign Center/);
+ assert.doesNotMatch(callback,/Gavhah.*api\//);
+ assert.match(schema,/cc_platform_yemot_call_states/);
 });
