@@ -22,6 +22,7 @@ import organizationPortfolioRouter from './organization-portfolio.js';
 import organizationResourcesRouter from './organization-resources.js';
 import organizationMemoryRouter from './organization-memory.js';
 import customFocusRouter from './custom-focus.js';
+import campaignLineRouter from './campaign-line.js';
 import {makePlanPolicy} from './plan-policy.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
@@ -113,6 +114,13 @@ async function campaignAccess(db, id, user) {
   return c;
 }
 function need(role, allowed) { if (!allowed.includes(role)) throw bad(403,'Insufficient permission'); }
+// A designated Campaign Center platform operator, not every organization owner.
+// Empty/unset env setting fails CLOSED: no one can manage provider credentials.
+const campaignLineAdminSubject = (process.env.CC_YEMOT_ADMIN_SUBJECT||'').trim();
+const isCampaignLineAdmin = subject => Boolean(campaignLineAdminSubject && subject === campaignLineAdminSubject);
+function requireCampaignLineAdmin(subject) {
+  if (!isCampaignLineAdmin(subject)) throw bad(403,'Campaign Center phone settings require platform-admin authorization');
+}
 
 async function ensureContactAccess(db,c,contact,subject){
   if(contact.privacy==='private'){
@@ -175,25 +183,14 @@ app.use('/api/team', teamRouter({pool,authenticate,member,campaignAccess,need,lo
 app.use('/api/rooms', webHallRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/conferences',conferenceRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/rtc',rtcAudioRouter({pool,authenticate,member,campaignAccess,bad,uuid,log}));
-// Global Yemot credentials now live only on Gavhah under the platform super-admin.
-// Deny legacy organization-level reads AND writes at the server layer.
-app.all('/api/yemot/organizations/{*path}', (_req,res) =>
-  res.status(410).json({error:'Individual Yemot credentials were retired. Manage the single central connection in Gavhah.'}));
-app.get('/api/yemot/central-status',async(_req,res)=>{
-  const secret=process.env.YEMOT_CENTRAL_SHARED_SECRET||'';
-  if(secret.length<32)return res.status(503).json({error:'Central connection is not configured on both services'});
-  try {
-    const url=new URL('/api/yemot/service/status',process.env.GAVHAH_API_BASE_URL||'https://gavhah.onrender.com');
-    if(url.protocol!=='https:'||url.username||url.password)throw Error('Invalid central API endpoint');
-    const reply=await fetch(url,{headers:{'x-gavhah-connect-secret':secret},
-      signal:AbortSignal.timeout(9000),redirect:'error',cache:'no-store'});
-    if(!reply.ok)throw Error('Central service unavailable');
-    const data=await reply.json();
-    res.set('Cache-Control','private, no-store');
-    res.json({configured:!!data.configured,connected:!!data.connectedToGlobalProvider,
-      lineNumber:data.lineNumber||null, routes:['1 — גבהה','2 — קאמפיין סענטער']});
-  }catch{res.status(502).json({error:'Central Gavhah Yemot status unavailable'});}
-});
+// Own Campaign Center line: separate database, encryption and operator from Gavhah.
+app.use('/api/yemot/campaign-line',campaignLineRouter({pool,bad,platformAdmin:requireCampaignLineAdmin}));
+// Deliberately retire the old cross-service status bridge and legacy org credentials.
+// No Campaign Center request should fetch a Gavhah API token or hotline status.
+app.all('/api/yemot/central-status',(_req,res)=>
+  res.status(410).json({error:'Replaced with the independent Campaign Center line'}));
+app.all('/api/yemot/organizations/{*path}',(_req,res)=>
+  res.status(410).json({error:'Per-organization provider credentials are disabled'}));
 app.use('/api/video',videoRouter({pool,authenticate,member,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/floor',floorRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
 app.use('/api/floor-program',programRouter({pool,authenticate,campaignAccess,need,log,bad,uuid,trim}));
@@ -203,7 +200,7 @@ app.use('/api/import', contactsImportRouter({pool,authenticate,campaignAccess,ne
 app.get('/api/me', async (req,res,next) => {
   try {
     const result = await q("SELECT o.id,o.name,m.role FROM cc_organizations o JOIN cc_memberships m ON m.organization_id=o.id WHERE m.subject=$1 AND m.membership_status='active' ORDER BY o.created_at DESC",[req.userId]);
-    res.json({ subject:req.userId, organizations:result.rows });
+    res.json({ subject:req.userId, organizations:result.rows, isCampaignLineAdmin:isCampaignLineAdmin(req.userId) });
   } catch(error) { next(error); }
 });
 app.post('/api/organizations', async (req,res,next) => {
