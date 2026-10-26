@@ -167,6 +167,8 @@ export function campaignPairingRouter({pool}){
    const s=secret();if(!s)return res.status(503).json({error:'Telephone pairing not configured'});
    const user=String(req.userId||'');if(!user)return res.status(401).json({error:'Sign in first'});
    if(!await accountQuery(pool,user))return res.status(403).json({error:'Active Campaign Center membership required'});
+   const recent=await pool.query("SELECT count(*)::int AS n FROM cc_phone_pairing_codes WHERE subject=$1 AND created_at>now()-interval '15 minutes'",[user]);
+   if((recent.rows[0]?.n||0)>=5)return res.status(429).json({error:'Too many pairing codes. Try later.'});
    const code=String(randomInt(10000000,100000000));
    const hash=hmac(s,'cc-pair:'+code);
    const db=await pool.connect();
@@ -205,8 +207,9 @@ export function campaignBridgeRouter({pool}){
       'SELECT step,path,page,subject,linked_until,failures FROM cc_phone_bridge_states WHERE call_hash=$1 FOR UPDATE',[callHash])).rows[0];
     let path=state.path||'',page=state.page||0,step=state.step||0,subject=state.subject,failures=state.failures||0;
     if(!Number.isInteger(step)||step>9000){step=0;path='';page=0;subject=null;}
+    if(failures>=5){path='';subject=null;}
     if(!state.linked_until||new Date(state.linked_until).getTime()<=Date.now())subject=null;
-    const expectedKey=step===0?'':(path==='P'?'ln':'iv')+step;
+    const expectedKey=(path==='P'?'ln':'iv')+step;
     if(key && key===expectedKey){
      if(path==='P'){
       if(failures>=5){path='';subject=null;}
