@@ -220,7 +220,7 @@ function toolbar() {
  <section class="selects">
   <label>דיין ארבעטס־פלאץ <select data-action="org-select">${state.orgs.map(o=>`<option value="${esc(o.id)}" ${o.id===state.orgId?'selected':''}>${esc(o.name)}</option>`).join('')}</select></label>
   <label>קאמפיין <select data-action="campaign-select">${state.campaigns.map(c=>`<option value="${esc(c.id)}" ${c.id===state.campaignId?'selected':''}>${esc(c.title)}</option>`).join('')}</select></label>
-  <div class="eyebrow">${org?'רשות: '+esc(org.role):'נאך קיין ארבעטס־פלאץ'}</div>
+  <div class="eyebrow">${org?'רשות: '+esc(org.role):'נאך קיין ארבעטס־פלאץ'}</div><details><summary>מיין זיכערער אקאונט־ID</summary><code dir="ltr">${esc(state.subject||'')}</code><small>דעם ID ניצט מען נאר צו באשטימען דער סופער־עדמין אויף Render; דאס איז נישט קיין API־שליסל.</small></details>
  </section>
  <section class="card invite-redeem">
   <details><summary>איך האב נאך אן איינלאדונגס־קאוד</summary>
