@@ -43,7 +43,7 @@ test('Finance is permission-checked and nothing charges donors or starts outgoin
  assert.match(bridge,/if\(!finance\)/);
  assert.match(bridge,/No card payment is taken by phone/);
  assert.match(bridge,/Outbound dialing is not started/);
- assert.match(bridge,/requires your own account/);
+ assert.match(bridge,/require your own account/);
  assert.doesNotMatch(bridge,/UpdateExtension|DeleteFile|UploadFile|process\.env\.DATABASE_URL/);
 });
 test('Phone session and code schema remain separate and additive',()=>{
