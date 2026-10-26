@@ -78,8 +78,9 @@ async function summary(db,path,subject,page){
   const filters=path==='22'?" AND kind='followup'":path==='21'?" AND status NOT IN ('done','cancelled')":'';
   const r=await q("SELECT a.title,a.status,a.kind FROM cc_assignments a JOIN cc_campaigns c ON c.id=a.campaign_id "+
    "JOIN cc_memberships m ON m.organization_id=c.organization_id AND m.subject=$1 AND m.membership_status='active' "+
-   "WHERE a.assignee_subject=$1 AND c.organization_id=$2"+filters+
-   " ORDER BY a.created_at DESC,a.id DESC LIMIT 1 OFFSET $3",[subject,org,current]);
+   "WHERE a.assignee_subject=$1 AND c.organization_id=$2 AND "+ 
+   "($4::boolean OR EXISTS(SELECT 1 FROM cc_campaign_members cm WHERE cm.campaign_id=a.campaign_id AND cm.subject=$1))"+filters+
+   " ORDER BY a.created_at DESC,a.id DESC LIMIT 1 OFFSET $3",[subject,org,current,manager]);
   return r.title?'Work '+(current+1)+'. '+safe(r.title,100)+'. Status '+safe(r.status,30)+'.'+
    (path==='21'?' Press 5 twice to complete this assigned task.':'')+nav:
    'No matching assigned work was found.'+nav;
@@ -180,7 +181,7 @@ async function actionable(db,path,subject,page){
  }
  const r=await db.query(
   "SELECT id,organization_id,campaign_id,display_name AS title FROM cc_contacts "+
-  "WHERE organization_id=$1 AND created_by=$2 AND do_not_call=false "+
+  "WHERE organization_id=$1 AND created_by=$2 "+
   "ORDER BY created_at DESC,id DESC LIMIT 1 OFFSET $3",[org,subject,p]);
  return r.rows[0]||null;
 }
