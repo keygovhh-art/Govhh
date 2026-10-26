@@ -84,15 +84,18 @@ export default function campaignLineRouter({pool, bad, platformAdmin}){
    let token;
    try{token=decrypt(dbRow);}catch{throw bad(503,'Campaign Center cannot decrypt this key');}
    try{
-    const response=await fetch('https://www.call2all.co.il/ym/api/GetTemplates',{
+    const response=await fetch('https://www.call2all.co.il/ym/api/GetSession',{
       method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
       body:JSON.stringify({token}),signal:AbortSignal.timeout(12000),
       redirect:'error',cache:'no-store'
     });
     if(!response.ok)throw Error('Provider rejected connection');
     const data=await response.json();
-    if(data?.responseStatus!=='OK'||data?.error||!Array.isArray(data?.templates))
-      throw Error('Invalid provider response');
+    if(data?.responseStatus!=='OK'||data?.error||typeof data?.username!=='string')
+      throw Error('Invalid provider session');
+    const authenticatedNumber=String(data.username).replace(/\D/g,'');
+    if(authenticatedNumber!==dbRow.line_number || authenticatedNumber===current)
+      return res.status(409).json({connected:false,numberOwnershipVerified:false,error:'Provider token does not belong to the separate Campaign Center number'});
    }catch{
     // Never include provider responses, credentials, URLs with tokens or private caller data.
     return res.status(502).json({connected:false,error:'Second-line read-only provider test failed'});
@@ -102,8 +105,8 @@ export default function campaignLineRouter({pool, bad, platformAdmin}){
    if(!updated.rowCount)throw bad(409,'Connection changed during testing; test again');
    await audit(pool,req.userId,'credential.read_only_test_passed',dbRow.line_number);
    res.set('Cache-Control','no-store');
-   res.json({connected:true,readOnly:true,active:false,numberOwnershipVerified:false,
-     message:'Token passed a read-only provider test. Confirm the account owns the stated number before routing calls.'});
+   res.json({connected:true,readOnly:true,active:false,numberOwnershipVerified:true,
+     message:'Provider verified this token belongs to the separate Campaign Center number. No provider routing changed yet.'});
  }));
  router.delete('/',wrap(async(req,res)=>{
    const db=await pool.connect();
