@@ -23,6 +23,7 @@ import organizationResourcesRouter from './organization-resources.js';
 import organizationMemoryRouter from './organization-memory.js';
 import customFocusRouter from './custom-focus.js';
 import campaignLineRouter from './campaign-line.js';
+import campaignIvrRouter from './campaign-ivr.js';
 import {makePlanPolicy} from './plan-policy.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
@@ -143,6 +144,9 @@ app.use('/api', (req,res,next) => pool ? next() : res.status(503).json({error:'N
 // Cross-service endpoint is reachable ONLY with an explicitly configured 32+ byte shared secret.
 app.use('/api/connect/service', (req,res,next)=>pool?next():res.status(503).json({error:'Neon not configured'}));
 app.use('/api/connect/service', connectServiceRouter({pool,bad,uuid,log}));
+// Dedicated new-number provider callback: protected by its separate secret hash.
+// Must run BEFORE user-JWT authentication because phone carriers cannot supply Neon Auth.
+app.use('/api/yemot/campaign-ivr',campaignIvrRouter({pool}));
 app.use('/api', authenticate);
 const planPolicy=makePlanPolicy({pool,bad});
 app.get('/api/organizations/:oid/entitlements',async(req,res,next)=>{
