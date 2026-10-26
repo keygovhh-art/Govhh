@@ -24,6 +24,7 @@ import organizationMemoryRouter from './organization-memory.js';
 import customFocusRouter from './custom-focus.js';
 import campaignLineRouter from './campaign-line.js';
 import campaignIvrRouter from './campaign-ivr.js';
+import {campaignBridgeRouter,campaignPairingRouter} from './campaign-phone-bridge.js';
 import {makePlanPolicy} from './plan-policy.js';
 import { CAMPAIGN_PLANS, PLAN_FEATURES } from '../src/plan-catalog.js';
 import { connectUserRouter, connectServiceRouter } from './connect.js';
@@ -147,7 +148,11 @@ app.use('/api/connect/service', connectServiceRouter({pool,bad,uuid,log}));
 // Dedicated new-number provider callback: protected by its separate secret hash.
 // Must run BEFORE user-JWT authentication because phone carriers cannot supply Neon Auth.
 app.use('/api/yemot/campaign-ivr',campaignIvrRouter({pool}));
+// Existing Gavhah /4444 forwards only authenticated server-signed callbacks.
+// Always use Campaign Center's OWN Neon records and phone session identity.
+app.use('/api/yemot/gavhah-bridge',campaignBridgeRouter({pool}));
 app.use('/api', authenticate);
+app.use('/api/phone',campaignPairingRouter({pool}));
 const planPolicy=makePlanPolicy({pool,bad});
 app.get('/api/organizations/:oid/entitlements',async(req,res,next)=>{
   try{const plan=await planPolicy.forMember(pool,req.params.oid,req.userId);

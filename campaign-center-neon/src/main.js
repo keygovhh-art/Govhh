@@ -27,7 +27,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null,isCampaignLineAdmin:false};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null,isCampaignLineAdmin:false,phonePairCode:null,phonePairValidUntil:null};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -362,8 +362,22 @@ async function exportContactsPage(){
  say(more?'די ערשטע 1,000 קשרים זענען ארויסגענומען. דרוק נאכאמאל פארן קומענדיגן בלאט.':'די דערלויבטע קשרים פון דעם בלאט זענען ארויסגענומען.');
 }
 
+
+function phonePairPanel(){
+ if(!state.user||!state.orgs?.length)return '';
+ const valid=state.phonePairCode&&state.phonePairValidUntil>Date.now();
+ return `<section class="card" aria-label="Campaign Center telephone access" style="margin:12px 0;padding:15px">
+  <h3>טעלעפאן־צוטריט — קאמפיין סענטער, עקסטענשאן 4444</h3>
+  <p>פארבינד דיין אייגענעם קאמפיין־סענטער־חשבון מיטן האטליין. דער קאוד איז נאר גילטיג פאר 5 מינוט און ווערט גענוצט איינמאל.</p>
+  <button type="button" data-action="phone-pair-generate">באקום א נייעם טעלעפאן־איינלאגיר־קאוד</button>
+  ${valid?`<p dir="ltr" style="font-size:1.6rem;letter-spacing:4px;font-weight:700;text-align:center">${esc(state.phonePairCode)}</p>`:''}
+  <p>רוף <a href="tel:+16055621286" dir="ltr">605-562-1286</a>, גיי צו 4444, דרוק 88, און גיב אריין דעם אכט־ציפעריגן קאוד.</p>
+  <p class="muted">נאר דיין אייגענער חשבון ווערט פארבונדן; גבהה־מעמבערס ווערן נישט אויטאמאטיש איבערגעפירט.</p>
+ </section>`;
+}
+
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='yemot'&&state.isCampaignLineAdmin?yemotPanel():state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='crm'?proCrmView(state,esc):state.tab==='sprint'?proSprintsView(state,esc):state.tab==='guidance'?proGuidanceView(state,esc):state.tab==='blockers'?proBlockersView(state,esc):state.tab==='gabbai'?gabbaiApprovalsView(state,esc,money):state.tab==='organization'?organizationPortfolioView(state,esc,money)+organizationResourcesView(state,esc):state.tab==='orgmemory'?organizationMemoryView(state,esc):state.tab==='custom'?customFocusView(state,esc):state.tab==='finance'?finance()+(state.entitlements?.usableFeatures?.includes('partial_pledges')?plusPledgesView(state,esc,money):''):state.tab==='team'?teamView(state,esc,money)+(state.entitlements?.usableFeatures?.includes('teams_captains')?askanPlusView(state,esc,money):''):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+phonePairPanel()+(state.tab==='yemot'&&state.isCampaignLineAdmin?yemotPanel():state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='crm'?proCrmView(state,esc):state.tab==='sprint'?proSprintsView(state,esc):state.tab==='guidance'?proGuidanceView(state,esc):state.tab==='blockers'?proBlockersView(state,esc):state.tab==='gabbai'?gabbaiApprovalsView(state,esc,money):state.tab==='organization'?organizationPortfolioView(state,esc,money)+organizationResourcesView(state,esc):state.tab==='orgmemory'?organizationMemoryView(state,esc):state.tab==='custom'?customFocusView(state,esc):state.tab==='finance'?finance()+(state.entitlements?.usableFeatures?.includes('partial_pledges')?plusPledgesView(state,esc,money):''):state.tab==='team'?teamView(state,esc,money)+(state.entitlements?.usableFeatures?.includes('teams_captains')?askanPlusView(state,esc,money):''):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -642,6 +656,12 @@ async function click(event){
  const btn=event.target.closest('[data-action]');if(!btn)return;
  const a=btn.dataset.action;
  try {
+  if(a==='phone-pair-generate'){
+    const outcome=await api('/phone/pairing',{method:'POST',body:'{}'});
+    state.phonePairCode=outcome.code;
+    state.phonePairValidUntil=Date.now()+(Number(outcome.expiresInSeconds)||300)*1000;
+    draw();return;
+  }
   if(a==='campaign-yemot-install'){
     if(!state.isCampaignLineAdmin||!confirm('באשטעטיגסטו אז דעם נייעם קאמפיין־נומער זאל מען פארבינדן מיטן קאמפיין־סענטער IVR? דער אלטער גבהה־ליין ווערט נישט געטוישט.'))return;
     const outcome=await api('/yemot/campaign-line/install',{method:'POST',body:'{}'});
@@ -656,7 +676,7 @@ async function click(event){
     if(!state.isCampaignLineAdmin||!confirm('אויסמעקן בלויז דעם קאמפיין־שליסל? גבהה בלייבט אומבארירט.'))return;
     await api('/yemot/campaign-line',{method:'DELETE'});await refresh();say('דער קאמפיין־שליסל איז אויסגעמעקט.');return;
   }
-  if(a==='logout'){await stopSmallAudio();stopOptionalVideo();await state.auth.signOut();state.user=null;state.notice='';draw();return;}
+  if(a==='logout'){state.phonePairCode=null;state.phonePairValidUntil=null;await stopSmallAudio();stopOptionalVideo();await state.auth.signOut();state.user=null;state.notice='';draw();return;}
   if(a==='tab'){state.tab=btn.dataset.tab;draw();return;}
    if(a==='plan-open'){state.tab='plans';draw();return;}
    if(a==='goal-archive'){
