@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
+import { randomBytes, createCipheriv, createDecipheriv, createHash } from 'node:crypto';
 
 // A dedicated Campaign Center line: NO imports, tokens, writes or fallback to Gavhah.
 // The authenticated platform-admin gate is installed by server/index.js.
@@ -41,7 +41,7 @@ export default function campaignLineRouter({pool, bad, platformAdmin}){
   decipher.setAuthTag(Buffer.from(row.token_tag,'base64'));
   return Buffer.concat([decipher.update(Buffer.from(row.token_ciphertext,'base64')),decipher.final()]).toString('utf8');
  };
- const read=async()=> (await pool.query("SELECT line_number, token_nonce, token_ciphertext, token_tag, last_verified_at, last_test_attempt_at, updated_at FROM public.cc_platform_yemot_line WHERE id='campaign-center'")).rows[0];
+ const read=async()=> (await pool.query("SELECT line_number, token_nonce, token_ciphertext, token_tag, last_verified_at, last_test_attempt_at, updated_at, install_state, installed_at FROM public.cc_platform_yemot_line WHERE id='campaign-center'")).rows[0];
  const audit=(db,actor,action,number)=>db.query("INSERT INTO public.cc_platform_yemot_audit(actor_subject,event_type,line_number) VALUES($1,$2,$3)",[actor,action,number]);
  const status=row=>({
    configured:!!row, lineNumber:row?.line_number||null,
@@ -49,7 +49,7 @@ export default function campaignLineRouter({pool, bad, platformAdmin}){
    storageReady:(()=>{try{key();return true;}catch{return false;}})(),
    separationReady:!!oldLine(),
    tested:!!row?.last_verified_at,
-   active:false, // no routing/number changes are made by these configuration endpoints
+   active:row?.install_state==='live', installState:row?.install_state||'not_installed', installedAt:row?.installed_at||null,
    token:'NEVER_RETURNED', provider:'yemot', scope:'campaign-center'
  });
  router.get('/',wrap(async(req,res)=>{
@@ -61,6 +61,8 @@ export default function campaignLineRouter({pool, bad, platformAdmin}){
    if(typeof token!=='string'||token.length<12||token.length>768||/[^\x21-\x7e]/.test(token))
      throw bad(400,'Invalid Yemot API token');
    safeDifferentNumber(number);
+   const previous=await read();
+   if(previous&&previous.install_state!=='not_installed')throw bad(409,'Phone line is being installed or is already active; do not replace its callback token');
    const encrypted=encrypt(token);
    const db=await pool.connect();
    try{
@@ -108,10 +110,62 @@ export default function campaignLineRouter({pool, bad, platformAdmin}){
    res.json({connected:true,readOnly:true,active:false,numberOwnershipVerified:true,
      message:'Provider verified this token belongs to the separate Campaign Center number. No provider routing changed yet.'});
  }));
+ router.post('/install',wrap(async(req,res)=>{
+   const old=oldLine();
+   if(!old)throw bad(503,'Configure GAVHAH_EXISTING_LINE_NUMBER first');
+   const current=await read();
+   if(!current?.last_verified_at||current.install_state!=='not_installed')
+      throw bad(409,'First verify the new token and ensure this line is not already installed');
+   safeDifferentNumber(current.line_number);
+   const token=decrypt(current);
+   // Recheck current Yemot account ownership immediately before editing ONLY that account.
+   let verified=false;
+   try{
+    const r=await fetch('https://www.call2all.co.il/ym/api/GetSession',{
+       method:'POST',headers:{'Content-Type':'application/json','Accept':'application/json'},
+       body:JSON.stringify({token}),signal:AbortSignal.timeout(12000),redirect:'error',cache:'no-store'
+    });
+    const j=await r.json();
+    verified=r.ok&&j?.responseStatus==='OK'&&!j?.error&&String(j.username||'').replace(/\D/g,'')===current.line_number;
+   }catch{verified=false;}
+   if(!verified)throw bad(409,'Provider no longer confirms ownership of the Campaign Center number');
+   const secret=randomBytes(32).toString('hex');
+   const callbackHash=createHash('sha256').update(secret).digest('hex');
+   const claimed=await pool.query("UPDATE public.cc_platform_yemot_line SET install_state='pending',callback_hash=$1,updated_at=now() WHERE id='campaign-center' AND install_state='not_installed' AND line_number=$2 AND token_ciphertext=$3 RETURNING line_number",
+      [callbackHash,current.line_number,current.token_ciphertext]);
+   if(!claimed.rowCount)throw bad(409,'Phone settings changed; retry verification');
+   let accepted=false;
+   try{
+     const body=new URLSearchParams({
+       token,path:'ivr2:',type:'api',title:'Campaign Center',
+       api_link:'https://gavhah-campaign-center.onrender.com/api/yemot/campaign-ivr',
+       api_url_post:'yes',api_add_0:'entryKey='+secret,language:'en',
+       api_hangup_send:'no',api_log:'no'
+     });
+     const response=await fetch('https://www.call2all.co.il/ym/api/UpdateExtension',{
+       method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','Accept':'application/json'},
+       body,signal:AbortSignal.timeout(18000),redirect:'error',cache:'no-store'
+     });
+     const result=await response.json();
+     accepted=response.ok&&result?.responseStatus==='OK';
+   }catch{accepted=false;}
+   // A timeout is ambiguous: never auto-retry/replace the callback secret.
+   if(!accepted){
+     await pool.query("UPDATE public.cc_platform_yemot_line SET install_state='blocked',updated_at=now() WHERE id='campaign-center' AND callback_hash=$1",[callbackHash]);
+     return res.status(502).json({installed:false,error:'Provider installation was not confirmed; verify the new number with Yemot before retrying'});
+   }
+   await pool.query("UPDATE public.cc_platform_yemot_line SET install_state='live',installed_at=now(),updated_at=now() WHERE id='campaign-center' AND callback_hash=$1",[callbackHash]);
+   await audit(pool,req.userId,'callback.installed',current.line_number);
+   res.set('Cache-Control','no-store');
+   res.json({installed:true,lineNumber:current.line_number,physicalCallTest:false,
+     message:'Yemot accepted the new Campaign Center IVR on its own verified number. Make a physical call to confirm audio and keypad.'});
+ }));
  router.delete('/',wrap(async(req,res)=>{
    const db=await pool.connect();
    try{
     await db.query('BEGIN');
+    const current=(await db.query("SELECT install_state FROM public.cc_platform_yemot_line WHERE id='campaign-center' FOR UPDATE")).rows[0];
+    if(current&&current.install_state!=='not_installed')throw bad(409,'Cannot remove a connected provider callback. Disconnect it from Yemot first.');
     const row=(await db.query("DELETE FROM public.cc_platform_yemot_line WHERE id='campaign-center' RETURNING line_number")).rows[0];
     if(row)await audit(db,req.userId,'credential.removed',row.line_number);
     await db.query('COMMIT');
