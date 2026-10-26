@@ -41,6 +41,8 @@ jobs:
       - run: npm install --ignore-scripts
       - run: npm run check
       - run: npm run build
+      - name: Signed Gavhah 4444 to CC phone integration and tenant isolation
+        run: node --test tests/campaign-phone-bridge.test.mjs && node --check server/campaign-phone-bridge.js
       - name: Multi-member campaign team and Connect end-to-end test on disposable Postgres
         run: node --test tests/team-connect.test.mjs
       - name: Six-tier plan catalogue and immutable scope
