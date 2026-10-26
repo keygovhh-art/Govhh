@@ -27,7 +27,7 @@ import { watchOptionalVideo,stopOptionalVideo,playingOptionalVideo,watchedContex
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = x => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(Number(x||0));
-const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null};
+const state = {auth:null,user:null,subject:null,showCampaignForm:false,orgs:[],orgId:null,campaigns:[],campaignId:null,overview:null,tasks:[],contacts:[],finance:[],tab:'today',planTierIndex:0,entitlements:null,entitlementError:'',goals:[],goalsError:'',donationLink:null,notice:'',busy:false,manager:null,members:[],memberProgress:[],plusDesk:null,plusReport:null,plusAlerts:null,plusCredits:[],plusDays:7,donationLevels:[],donationLevelsError:'',plusPledges:[],plusPledgesError:'',receiptRequests:{},organizationPortfolio:null,organizationDecisions:[],organizationError:'',organizationResources:{pools:[]},organizationResourcesError:'',organizationMemory:[],organizationMemoryError:'',organizationMemoryHistory:false,customFocusRules:null,customFocusPreview:null,customFocusError:'',gabbaiApprovals:[],gabbaiRole:null,gabbaiError:'',gabbaiLedger:null,gabbaiPriorities:null,gabbaiDays:30,proBlockers:{blockers:[],activeByReason:{}},proBlockersError:'',proGuidance:[],proGuidanceId:null,proGuidanceMessages:[],proGuidanceError:'',proSprints:[],proHistory:[],proRecommendations:[],proContacts:[],proSelected:null,proContactId:null,proQuery:'',proOverdue:false,proError:'',leads:[],assignees:[],invitationCode:'',connectCode:'',linkStatus:null,confirmUnlink:false,rooms:[],hallAnnouncements:[],joinedRoomId:null,floorBoard:null,floorProgram:null,selectedHelpId:null,helpMessages:[],callKeys:{},activity:[],activityNextOffset:null,activityScope:'personal',csvPage:1,importRows:null,importPreview:null,conferences:[],conferenceId:null,conferenceSnapshot:null,conferencePolicies:[],experimentalAudioEnabled:false,conferenceCode:'',videoStatus:{floor:null,conference:null},videoGrants:{floor:[],conference:[]},yemot:null,isCampaignLineAdmin:false};
 // Deep links coming from MAX do not grant any permission or sign users in.
 // They only select a room AFTER the normal Neon Auth membership checks.
 const deepLink=new URLSearchParams(window.location.search);
@@ -65,6 +65,7 @@ async function refresh() {
   if(!state.user)return;
   const me=await api('/me');
   state.subject=me.subject;
+  state.isCampaignLineAdmin=me.isCampaignLineAdmin===true;
   state.orgs=me.organizations;
   if(!state.orgs.some(x=>x.id===state.orgId))state.orgId=state.orgs[0]?.id||null;
   state.campaigns=state.orgId?await api('/organizations/'+state.orgId+'/campaigns'):[];
@@ -85,8 +86,8 @@ async function refresh() {
       state.organizationMemory=memory.entries||[];state.organizationMemoryError='';}
     catch(error){state.organizationMemory=[];state.organizationMemoryError=error.message;}
   }else{state.organizationPortfolio=null;state.organizationDecisions=[];state.organizationError='';state.organizationResources={pools:[]};state.organizationResourcesError='';state.organizationMemory=[];state.organizationMemoryError='';}
-  // Centralized, read-only status; never fetch organization-specific credentials.
-  state.yemot=await api('/yemot/central-status').catch(()=>({configured:false,connected:false,lineNumber:null}));
+  // Campaign Center's own private line; do not fetch Gavhah's status or keys.
+  state.yemot=state.isCampaignLineAdmin ? await api('/yemot/campaign-line').catch(error=>({configured:false,error:error.message})) : null;
   state.conferences=[];
   if(state.orgId){
    const rooms=await api('/conferences/organizations/'+state.orgId).catch(()=>({conferences:[]}));
@@ -215,11 +216,11 @@ function authView(){
 }
 function toolbar() {
  const org=state.orgs.find(x=>x.id===state.orgId);
- return `<header class="top"><div><div class="eyebrow">GAVHAH · Campaign Center</div><h1>קאמפיין סענטער</h1><small>שלום ${esc(state.user.name||state.user.email||'פריינט')}</small></div><div class="inline"><button class="subtle" data-action="plan-open">די 6 פלענער</button><button class="subtle" data-action="logout">ארויסגיין</button></div></header>
+ return `<header class="top"><div><div class="eyebrow">GAVHAH · Campaign Center</div><h1>קאמפיין סענטער</h1><small>שלום ${esc(state.user.name||state.user.email||'פריינט')}</small></div><div class="inline">${state.isCampaignLineAdmin?'<button class="subtle" data-action="tab" data-tab="yemot">קאמפיין־ליין API</button>':''}<button class="subtle" data-action="plan-open">די 6 פלענער</button><button class="subtle" data-action="logout">ארויסגיין</button></div></header>
  <section class="selects">
   <label>דיין ארבעטס־פלאץ <select data-action="org-select">${state.orgs.map(o=>`<option value="${esc(o.id)}" ${o.id===state.orgId?'selected':''}>${esc(o.name)}</option>`).join('')}</select></label>
   <label>קאמפיין <select data-action="campaign-select">${state.campaigns.map(c=>`<option value="${esc(c.id)}" ${c.id===state.campaignId?'selected':''}>${esc(c.title)}</option>`).join('')}</select></label>
-  <div class="eyebrow">${org?'רשות: '+esc(org.role):'נאך קיין ארבעטס־פלאץ'}</div>
+  <div class="eyebrow">${org?'רשות: '+esc(org.role):'נאך קיין ארבעטס־פלאץ'}</div><details><summary>מיין זיכערער אקאונט־ID</summary><code dir="ltr">${esc(state.subject||'')}</code><small>דעם ID ניצט מען נאר צו באשטימען דער סופער־עדמין אויף Render; דאס איז נישט קיין API־שליסל.</small></details>
  </section>
  <section class="card invite-redeem">
   <details><summary>איך האב נאך אן איינלאדונגס־קאוד</summary>
@@ -250,7 +251,7 @@ function campaignNav(){
   ['custom','Custom Focus','custom_focus'],['finance','נדבות','manual_records'],
   ['history','היסטאריע',null],['team','מאנשאפט','team'],
   ['hall','עסקנים־זאל','virtual_floor'],['conference','התקבצו אסיפות','hitkabtzu'],
-  ['yemot','ימות — צענטראל',null],['plans','די 6 פלענער',null]];
+  ['plans','די 6 פלענער',null]];
  return '<nav class="tabs">'+nav.map(([key,label,feature])=>{
   // Shared meeting/floor pilots existed before pricing decisions and remain accessible
   // under their original authenticated team/privacy rules (NOT paid plan rights).
@@ -262,13 +263,21 @@ function campaignNav(){
  }).join('')+'</nav>';
 }
 function yemotPanel(){
- const setting=state.yemot||{configured:false,connected:false,lineNumber:null};
- return '<section class="card"><h2>ימות המשיח — איין צענטראלער האטליין</h2>'+
-  '<p class="muted">נאר דער גבהה־סופער־עדמין קען פארבינדן דעם איינציגן ימות API־שליסל. אנדערע באנוצער קענען נישט אויפשטעלן באזונדערע שליסלען.</p>'+
-  '<p>נומער: <strong>'+esc(setting.lineNumber||'נאכנישט באשטימט')+'</strong> · פארבינדונג: <strong>'+(setting.connected?'אקטיוו':'נאכנישט אקטיוו')+'</strong></p>'+
-  '<p>מעניו: <strong>1 — גבהה</strong> · <strong>2 — קאמפיין סענטער</strong> (דערווייל פלאן; נישט ארויפגעלייגט אויף ימות).</p>'+
-  '<p class="muted">צו פארוואלטן דעם איינציגן API שליסל: גיי צו גבהה → אדמיניסטראציע → ימות API — צענטראל.</p>'+
-  '</section>';
+ if(!state.isCampaignLineAdmin)return '';
+ const setting=state.yemot||{configured:false};
+ return '<section class="card"><h2>קאמפיין סענטער — אייגענער ימות־האטליין</h2>'+
+  '<p>דער איצטיגער גבהה־נומער בלייבט אויף גבהה. דער דאָזיגער שליסל ווערט געהיטן נאר אין קאמפיין סענטערס אייגענער דאטעבאזע, באזונדער פונעם גבהה API.</p>'+
+  (setting.error?'<p role="alert">'+esc(setting.error)+'</p>':'')+
+  '<p>נייער נומער: <strong>'+esc(setting.lineNumber||'נאכנישט אריינגעלייגט')+'</strong> · API: <strong>'+(setting.configured?'פארשלאסען אפגעהיטן':'נאכנישט פארבונדן')+'</strong> · טעסט: <strong>'+(setting.tested?'דורכגעגאנגען':'נאך נישט')+'</strong></p>'+
+  '<p class="muted">ביים טעסטן ווערט די נומער באשטעטיגט דורך ימות־המשיח. נאר אויב דער טעסט איז געלונגען קען דער סופער־עדמין אקטיוויזירן דעם נייעם ליין; דאס טוישט נאר דעם נייעם פראוויידער־אקאונט, נישט גבהה.</p>'+
+  (!setting.storageReady?'<p class="muted">דער סערווער דארף א באזונדערן CC_YEMOT_ENCRYPTION_KEY. קיין שליסל ווערט נישט אפגעהיטן אן פארשלאסענער סטארעדזש.</p>':'')+
+  (!setting.separationReady?'<p class="muted">פאר א פארבינדונג־טעסט דארף מען קודם באשטימען GAVHAH_EXISTING_LINE_NUMBER אויפן קאמפיין־סערווער, כדי צו בלאקירן דעם אלטן גבהה־נומער.</p>':'')+
+  '<form class="stack" data-form="campaign-yemot-save" autocomplete="off">'+
+   '<label>דער נייער קאמפיין־נומער<input type="tel" name="lineNumber" required inputmode="tel" dir="ltr" maxlength="24" value="'+esc(setting.lineNumber||'')+'" placeholder="Second line only"></label>'+
+   '<label>דער נייער ימות API־שליסל<input type="password" name="token" required autocomplete="new-password" dir="ltr" minlength="12" maxlength="768" placeholder="Campaign Center API token"></label>'+
+   '<button type="submit" class="primary">אפהיטן דעם נייעם שליסל פארשלאסען</button></form>'+
+  (setting.configured?'<div class="inline"><button type="button" data-action="campaign-yemot-test" '+(!setting.separationReady||setting.active?'disabled':'')+'>באשטעטיגן די נייע נומער ביים פראוויידער</button>'+(setting.tested&&!setting.active&&setting.installState==='not_installed'?'<button type="button" class="primary" data-action="campaign-yemot-install">אקטיוויזירן דעם נייעם קאמפיין־ליין</button>':'')+(!setting.active&&setting.installState==='not_installed'?'<button type="button" data-action="campaign-yemot-remove">אויסמעקן בלויז דעם קאמפיין־שליסל</button>':'')+'</div>':'')+
+  '<p class="muted">צוטריט נאר פארן קאמפיין סענטער־סופער־עדמין. דער שליסל ווערט קיינמאל נישט צוריקגעשיקט צום בלעטערער.</p></section>';
 }
 function campaignAdminPanel(){
  const campaign=state.overview?.campaign;
@@ -354,7 +363,7 @@ async function exportContactsPage(){
 }
 
 function draw(){
- $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='crm'?proCrmView(state,esc):state.tab==='sprint'?proSprintsView(state,esc):state.tab==='guidance'?proGuidanceView(state,esc):state.tab==='blockers'?proBlockersView(state,esc):state.tab==='gabbai'?gabbaiApprovalsView(state,esc,money):state.tab==='organization'?organizationPortfolioView(state,esc,money)+organizationResourcesView(state,esc):state.tab==='orgmemory'?organizationMemoryView(state,esc):state.tab==='custom'?customFocusView(state,esc):state.tab==='finance'?finance()+(state.entitlements?.usableFeatures?.includes('partial_pledges')?plusPledgesView(state,esc,money):''):state.tab==='team'?teamView(state,esc,money)+(state.entitlements?.usableFeatures?.includes('teams_captains')?askanPlusView(state,esc,money):''):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):state.tab==='yemot'?yemotPanel():history())):orgSetup())+'</div>':authView()}
+ $('#app').innerHTML= `${state.user?'<div class="shell">'+toolbar()+(state.tab==='yemot'&&state.isCampaignLineAdmin?yemotPanel():state.tab==='plans'?plansView(state):state.orgs.length?(!state.campaignId?'<div class="inline"><button data-action="conference-home">התקבצו — אסיפות</button></div>'+ (state.tab==='conference'?conferenceView(state,esc):campaignSetup()):campaignNav()+(state.showCampaignForm?campaignSetup():'')+(state.tab==='today'?today():state.tab==='goals'?goalsView(state,esc):state.tab==='people'?people():state.tab==='crm'?proCrmView(state,esc):state.tab==='sprint'?proSprintsView(state,esc):state.tab==='guidance'?proGuidanceView(state,esc):state.tab==='blockers'?proBlockersView(state,esc):state.tab==='gabbai'?gabbaiApprovalsView(state,esc,money):state.tab==='organization'?organizationPortfolioView(state,esc,money)+organizationResourcesView(state,esc):state.tab==='orgmemory'?organizationMemoryView(state,esc):state.tab==='custom'?customFocusView(state,esc):state.tab==='finance'?finance()+(state.entitlements?.usableFeatures?.includes('partial_pledges')?plusPledgesView(state,esc,money):''):state.tab==='team'?teamView(state,esc,money)+(state.entitlements?.usableFeatures?.includes('teams_captains')?askanPlusView(state,esc,money):''):state.tab==='hall'?hallView(state,esc)+eventView(state,esc,money):state.tab==='conference'?conferenceView(state,esc):history())):orgSetup())+'</div>':authView()}
  ${state.notice?`<div class="toast" role="status">${esc(state.notice)}</div>`:''}`;
 }
 function say(message){state.notice=message;draw();}
@@ -365,6 +374,12 @@ async function submit(event){
  const d=Object.fromEntries(new FormData(form).entries());
  try {
   switch(form.dataset.form){
+   case 'campaign-yemot-save': {
+     if(!state.isCampaignLineAdmin)throw new Error('נאר פארן סופער־עדמין');
+     await api('/yemot/campaign-line',{method:'PUT',body:JSON.stringify({lineNumber:d.lineNumber,token:d.token})});
+     form.reset();
+     break;
+   }
    case 'custom-focus-rules': {
      const payload={overdueWeight:Number(d.overdueWeight),dueSoonWeight:Number(d.dueSoonWeight),
        highPriorityWeight:Number(d.highPriorityWeight),followupWeight:Number(d.followupWeight)};
@@ -627,6 +642,20 @@ async function click(event){
  const btn=event.target.closest('[data-action]');if(!btn)return;
  const a=btn.dataset.action;
  try {
+  if(a==='campaign-yemot-install'){
+    if(!state.isCampaignLineAdmin||!confirm('באשטעטיגסטו אז דעם נייעם קאמפיין־נומער זאל מען פארבינדן מיטן קאמפיין־סענטער IVR? דער אלטער גבהה־ליין ווערט נישט געטוישט.'))return;
+    const outcome=await api('/yemot/campaign-line/install',{method:'POST',body:'{}'});
+    await refresh();say(outcome.message||'דער נייע קאמפיין־ליין איז פארבונדן. רוף אריין און פראביר.');return;
+  }
+  if(a==='campaign-yemot-test'){
+    if(!state.isCampaignLineAdmin)throw new Error('נאר פארן סופער־עדמין');
+    const outcome=await api('/yemot/campaign-line/test',{method:'POST',body:'{}'});
+    await refresh();say(outcome.message||'טעסט געלונגען. דער ליין איז נאך נישט רוטירט.');return;
+  }
+  if(a==='campaign-yemot-remove'){
+    if(!state.isCampaignLineAdmin||!confirm('אויסמעקן בלויז דעם קאמפיין־שליסל? גבהה בלייבט אומבארירט.'))return;
+    await api('/yemot/campaign-line',{method:'DELETE'});await refresh();say('דער קאמפיין־שליסל איז אויסגעמעקט.');return;
+  }
   if(a==='logout'){await stopSmallAudio();stopOptionalVideo();await state.auth.signOut();state.user=null;state.notice='';draw();return;}
   if(a==='tab'){state.tab=btn.dataset.tab;draw();return;}
    if(a==='plan-open'){state.tab='plans';draw();return;}
