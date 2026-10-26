@@ -80,7 +80,8 @@ async function summary(db,path,subject,page){
    "JOIN cc_memberships m ON m.organization_id=c.organization_id AND m.subject=$1 AND m.membership_status='active' "+
    "WHERE a.assignee_subject=$1 AND c.organization_id=$2"+filters+
    " ORDER BY a.created_at DESC,a.id DESC LIMIT 1 OFFSET $3",[subject,org,current]);
-  return r.title?'Work '+(current+1)+'. '+safe(r.title,100)+'. Status '+safe(r.status,30)+'.'+nav:
+  return r.title?'Work '+(current+1)+'. '+safe(r.title,100)+'. Status '+safe(r.status,30)+'.'+
+   (path==='21'?' Press 5 twice to complete this assigned task.':'')+nav:
    'No matching assigned work was found.'+nav;
  }
  if(['31','32','33'].includes(path)){
@@ -95,9 +96,11 @@ async function summary(db,path,subject,page){
     "AND (created_by=$2 OR ($3::boolean AND privacy<>'private'))",[org,subject,manager]);
    return 'Accessible donor contact records '+r.count+'. Telephone numbers and private notes are not read aloud.'+nav;
   }
-  const r=await q("SELECT count(*)::int AS count FROM cc_contacts WHERE organization_id=$1 AND do_not_call=true "+
-   "AND (created_by=$2 OR ($3::boolean AND privacy<>'private'))",[org,subject,manager]);
-  return 'Contacts marked Do Not Call: '+r.count+'. Outbound dialing is not started.'+nav;
+  const r=await q("SELECT display_name,do_not_call FROM cc_contacts WHERE organization_id=$1 AND created_by=$2 "+
+   "ORDER BY created_at DESC,id DESC LIMIT 1 OFFSET $3",[org,subject,current]);
+  return r.display_name?'Your contact '+(current+1)+'. '+safe(r.display_name,90)+'. '+
+   (r.do_not_call?'Already marked Do Not Call.':'Press 5 twice to mark this contact Do Not Call.')+
+   ' Outbound dialing is not started.'+nav:'No contact created by your account in this organization.'+nav;
  }
  if(['41','42','43'].includes(path)){
   if(!finance)return 'Finance reports require verified finance or management permission.';
@@ -160,6 +163,52 @@ async function summary(db,path,subject,page){
  }
  return 'This feature does not have a secure telephone action yet.';
 }
+
+async function actionable(db,path,subject,page){
+ const membership=await accountQuery(db,subject);
+ if(!membership||!['21','32'].includes(path))return null;
+ const p=Math.min(25,Math.max(0,Number(page)||0));
+ const org=membership.organization_id,admin=['owner','manager','finance','auditor'].includes(membership.role);
+ if(path==='21'){
+  const r=await db.query(
+   "SELECT a.id,a.organization_id,a.campaign_id,a.title FROM cc_assignments a "+
+   "JOIN cc_campaigns c ON c.id=a.campaign_id AND c.organization_id=$1 "+
+   "WHERE a.assignee_subject=$2 AND a.status NOT IN ('done','cancelled') AND "+
+   "($3::boolean OR EXISTS(SELECT 1 FROM cc_campaign_members m WHERE m.campaign_id=a.campaign_id AND m.subject=$2)) "+
+   "ORDER BY a.created_at DESC,a.id DESC LIMIT 1 OFFSET $4",[org,subject,admin,p]);
+  return r.rows[0]||null;
+ }
+ const r=await db.query(
+  "SELECT id,organization_id,campaign_id,display_name AS title FROM cc_contacts "+
+  "WHERE organization_id=$1 AND created_by=$2 AND do_not_call=false "+
+  "ORDER BY created_at DESC,id DESC LIMIT 1 OFFSET $3",[org,subject,p]);
+ return r.rows[0]||null;
+}
+async function completeAction(db,path,subject,record){
+ if(path==='21'){
+  const r=await db.query(
+   "UPDATE cc_assignments SET status='done' WHERE id=$1 AND assignee_subject=$2 AND status NOT IN ('done','cancelled') RETURNING id",
+   [record.id,subject]);
+  if(!r.rowCount)return 'Task was already completed or changed. ';
+  await db.query("INSERT INTO cc_activity_events(organization_id,campaign_id,actor_subject,event_type,target_id,details) "+
+   "VALUES($1,$2,$3,'task.completed.phone',$4,$5::jsonb)",
+   [record.organization_id,record.campaign_id,subject,record.id,
+     JSON.stringify({via:'4444',confirmed:true})]);
+  return 'The assigned task is now marked completed on your Campaign Center website. ';
+ }
+ if(path==='32'){
+  const r=await db.query(
+   "UPDATE cc_contacts SET do_not_call=true WHERE id=$1 AND created_by=$2 AND do_not_call=false RETURNING id",
+   [record.id,subject]);
+  if(!r.rowCount)return 'Contact was already marked Do Not Call or changed. ';
+  await db.query("INSERT INTO cc_activity_events(organization_id,campaign_id,actor_subject,event_type,target_id,details) "+
+   "VALUES($1,$2,$3,'contact.do_not_call.phone',$4,$5::jsonb)",
+   [record.organization_id,record.campaign_id,subject,record.id,
+     JSON.stringify({via:'4444',confirmed:true,notes:'Do Not Call only; never inferred renewed consent'})]);
+  return 'Contact marked Do Not Call on the Campaign Center website. No phone call was placed. ';
+ }
+ return '';
+}
 export function campaignPairingRouter({pool}){
  const r=Router();
  r.post('/pairing',async(req,res,next)=>{
@@ -204,11 +253,12 @@ export function campaignBridgeRouter({pool}){
     await db.query('BEGIN');
     await db.query('INSERT INTO cc_phone_bridge_states(call_hash) VALUES($1) ON CONFLICT DO NOTHING',[callHash]);
     const state=(await db.query(
-      'SELECT step,path,page,subject,linked_until,failures FROM cc_phone_bridge_states WHERE call_hash=$1 FOR UPDATE',[callHash])).rows[0];
+      'SELECT step,path,page,subject,linked_until,failures,pending_id,pending_kind FROM cc_phone_bridge_states WHERE call_hash=$1 FOR UPDATE',[callHash])).rows[0];
     let path=state.path||'',page=state.page||0,step=state.step||0,subject=state.subject,failures=state.failures||0;
+    let pendingId=state.pending_id||null,pendingKind=state.pending_kind||null,feedback='';
     if(!Number.isInteger(step)||step>9000){step=0;path='';page=0;subject=null;}
     if(failures>=5){path='';subject=null;}
-    if(!state.linked_until||new Date(state.linked_until).getTime()<=Date.now())subject=null;
+    if(!state.linked_until||new Date(state.linked_until).getTime()<=Date.now()){subject=null;pendingId=null;pendingKind=null;}
     const expectedKey=(path==='P'?'ln':'iv')+step;
     if(key && key===expectedKey){
      if(path==='P'){
@@ -218,16 +268,30 @@ export function campaignBridgeRouter({pool}){
        const result=await db.query("UPDATE cc_phone_pairing_codes SET used_at=now() "+
         "WHERE code_hash=$1 AND used_at IS NULL AND expires_at>now() RETURNING subject",[digest]);
        if(result.rowCount&&await accountQuery(db,result.rows[0].subject)){
-        subject=result.rows[0].subject;failures=0;path='';page=0;
+        subject=result.rows[0].subject;failures=0;path='';page=0;pendingId=null;pendingKind=null;
        }else{failures++;path='P';}
       }else failures++;
-     }else if(value==='0'){path='';page=0;}
-     else if(!path && value==='88'){path='P';page=0;}
-     else if(!path && sections[value]){path=value;page=0;}
-     else if(path.length===1 && sections[path]?.actions[value]){path+=value;page=0;}
+     }else if(value==='0'){path='';page=0;pendingId=null;pendingKind=null;}
+     else if(!path && value==='88'){path='P';page=0;pendingId=null;pendingKind=null;}
+     else if(!path && sections[value]){path=value;page=0;pendingId=null;pendingKind=null;}
+     else if(path.length===1 && sections[path]?.actions[value]){path+=value;page=0;pendingId=null;pendingKind=null;}
+     else if(path.length===2 && (path==='21'||path==='32') && value==='5'){
+      if(!subject){feedback='Link your Campaign Center account first. ';pendingId=null;pendingKind=null;}
+      else{
+       const target=await actionable(db,path,subject,page);
+       if(!target){feedback='No eligible record at this position. ';pendingId=null;pendingKind=null;}
+       else if(pendingId===target.id&&pendingKind===path){
+        feedback=await completeAction(db,path,subject,target);
+        pendingId=null;pendingKind=null;
+       }else{
+        pendingId=target.id;pendingKind=path;
+        feedback=path==='21'?'Press 5 again to confirm task completion. ':'Press 5 again to confirm Do Not Call. ';
+       }
+      }
+     }
      else if(path.length===2 && value==='1')page=Math.min(25,page+1);
-     else if(path.length===2 && value==='2')page=0;
-     else if(path.length===2 && value==='8')page=Math.max(0,page-1);
+     else if(path.length===2 && value==='2'){page=0;pendingId=null;pendingKind=null;}
+     else if(path.length===2 && value==='8'){page=Math.max(0,page-1);pendingId=null;pendingKind=null;}
      step++;
     }
     let text,mode='normal';
@@ -236,11 +300,11 @@ export function campaignBridgeRouter({pool}){
       :'Enter the eight digit Campaign Center account pairing code from your website. The code expires after five minutes.';}
     else if(!path){text=home();mode='root';}
     else if(path.length===1){text=sectionPrompt(path);}
-    else text=await summary(db,path,subject,page);
+    else text=feedback+await summary(db,path,subject,page);
     await db.query("UPDATE cc_phone_bridge_states SET path=$1,page=$2,step=$3,subject=$4,"+
       "linked_until=CASE WHEN $4::text IS NOT NULL THEN now()+interval '30 minutes' ELSE NULL END,"+
-      "failures=$5,updated_at=now() WHERE call_hash=$6",
-      [path,page,step,subject,failures,callHash]);
+      "failures=$5,pending_id=$6,pending_kind=$7,updated_at=now() WHERE call_hash=$8",
+      [path,page,step,subject,failures,pendingId,pendingKind,callHash]);
     await db.query('COMMIT');
     read(res,text,step,mode);
    }catch(e){await db.query('ROLLBACK').catch(()=>{});throw e;}finally{db.release();}
