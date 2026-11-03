@@ -27,7 +27,7 @@ export function installConnectCallQueue(router,{pool,linked,campaign,bad,uuid,lo
    "AND t.privacy='campaign' AND t.do_not_call=false AND length(t.phone)>=10 "+
    "AND (t.assigned_member_subject=$5 OR (t.assigned_member_subject IS NULL AND ($3::boolean OR t.assigned_team=$4))) "+
    "ORDER BY (t.next_followup_at IS NOT NULL AND t.next_followup_at<=now()) DESC,"+
-   "t.next_followup_at ASC NULLS LAST,t.created_at ASC LIMIT $5",
+   "t.next_followup_at ASC NULLS LAST,t.created_at ASC LIMIT $6",
    [a.c.organization_id,a.c.id,a.manager,a.team,a.subject,limit]);
  const publicRow=(r,subject)=>({
    id:r.id,displayName:r.display_name,phone:r.phone,status:r.status,
