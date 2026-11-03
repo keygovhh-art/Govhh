@@ -105,6 +105,42 @@ export default function teamRouter({pool,authenticate,member,campaignAccess,need
    return row;
   });res.json(result);
  }));
+ router.patch('/campaigns/:cid/contacts/:id/call-assignee',run(async(req,res)=>{
+  if(!uuid(req.params.id))throw bad(400,'Invalid contact');
+  const subject=req.body?.assigneeSubject===null?'':trim(req.body?.assigneeSubject,128);
+  const result=await tx(async db=>{
+   const c=await campaignAccess(db,req.params.cid,req.userId);
+   need(c.role,['owner','manager']);
+   planPolicy.requireFeature(await planPolicy.forMember(db,c.organization_id,req.userId),'call_assignments');
+   const old=(await db.query(
+    'SELECT * FROM cc_contacts WHERE id=$1 AND campaign_id=$2 AND organization_id=$3 FOR UPDATE',
+    [req.params.id,c.id,c.organization_id])).rows[0];
+   if(!old||old.privacy!=='campaign')throw bad(404,'Shared lead not found');
+   if(old.claimed_by&&old.claim_expires_at&&new Date(old.claim_expires_at).getTime()>Date.now())
+    throw bad(409,'Contact is already reserved by a caller');
+   let team=old.assigned_team||'';
+   if(subject){
+    const member=(await db.query(
+     "SELECT cm.subject,cm.team_name FROM cc_campaign_members cm "+
+     "JOIN cc_memberships m ON m.organization_id=cm.organization_id AND m.subject=cm.subject "+
+     "WHERE cm.campaign_id=$1 AND cm.organization_id=$2 AND cm.subject=$3 "+
+     "AND m.membership_status='active' AND m.role IN ('owner','manager','squad_leader','askan')",
+     [c.id,c.organization_id,subject])).rows[0];
+    if(!member)throw bad(403,'Assignee must be an active joined campaign member');
+    team=member.team_name||'';
+   }
+   const saved=(await db.query(
+    "UPDATE cc_contacts SET assigned_member_subject=$1,assigned_team=$2 "+
+    "WHERE id=$3 RETURNING id,assigned_member_subject,assigned_team",
+    [subject||null,team,old.id])).rows[0];
+   await log(db,c.organization_id,c.id,req.userId,'contact.call_assignee_changed',saved.id,{
+    previous:old.assigned_member_subject||null,now:saved.assigned_member_subject,
+    team:saved.assigned_team
+   });
+   return saved;
+  });
+  res.json(result);
+ }));
  router.get('/campaigns/:cid/assignees',run(async(req,res)=>{
   const c=await campaignAccess(pool,req.params.cid,req.userId);
   need(c.role,['owner','manager','squad_leader','askan']);
