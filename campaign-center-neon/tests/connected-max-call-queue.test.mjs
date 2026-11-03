@@ -85,6 +85,14 @@ test('Campaign Center MAX queue: membership and tenant security, exclusive lead 
   const first=await post('/call-queue/next',{gavhahUserId:510001,campaignId:camp});
   assert.equal(first.status,200);
   assert.equal(first.data.call.id,lead);
+  const authorized=await post('/call-queue/'+lead+'/authorize-dial',{
+   gavhahUserId:510001,campaignId:camp});
+  assert.equal(authorized.status,200);
+  assert.equal(authorized.data.authorized,true);
+  assert.equal(authorized.data.phone,'2125550123');
+  const deniedDial=await post('/call-queue/'+lead+'/authorize-dial',{
+   gavhahUserId:510002,campaignId:camp});
+  assert.notEqual(deniedDial.status,200,'Other campaign member may not dial a reserved number');
   const repeat=await post('/call-queue/next',{gavhahUserId:510001,campaignId:camp});
   assert.equal(repeat.data.reused,true,'Repeat click must reuse existing claim');
   const wrong=await post('/call-queue/'+lead+'/release',{gavhahUserId:510002,campaignId:camp});
