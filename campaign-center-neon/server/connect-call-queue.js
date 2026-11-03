@@ -94,6 +94,19 @@ export function installConnectCallQueue(router,{pool,linked,campaign,bad,uuid,lo
    })();
    res.set('Cache-Control','no-store').json(result);
  }));
+ router.post('/call-queue/:id/authorize-dial',run(async(req,res)=>{
+   if(!uuid(req.params.id))throw bad(400,'Invalid campaign contact');
+   const a=await authorized(pool,req.body?.gavhahUserId,req.body?.campaignId);
+   const row=(await pool.query(
+     "SELECT id,phone,do_not_call,claimed_by,claim_expires_at,assigned_member_subject,assigned_team "+
+     "FROM cc_contacts WHERE id=$1 AND campaign_id=$2 AND organization_id=$3 AND privacy='campaign' "+
+     "AND do_not_call=false AND claimed_by=$4 AND claim_expires_at>now() AND "+
+     "(assigned_member_subject=$4 OR (assigned_member_subject IS NULL AND ($5::boolean OR assigned_team=$6)))",
+     [req.params.id,a.c.id,a.c.organization_id,a.subject,a.manager,a.team])).rows[0];
+   if(!row)throw bad(409,'Claim expired, reassigned, or Do Not Call; outbound permission revoked');
+   res.set('Cache-Control','no-store').json({authorized:true,campaignId:a.c.id,
+     contactId:row.id,phone:row.phone,leaseExpiresAt:row.claim_expires_at});
+ }));
  router.post('/call-queue/:id/release',run(async(req,res)=>{
    if(!uuid(req.params.id))throw bad(400,'Invalid contact');
    const db=await pool.connect();
