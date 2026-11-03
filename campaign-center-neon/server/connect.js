@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import {installConnectCallQueue} from './connect-call-queue.js';
 import { randomBytes,createHash,timingSafeEqual } from 'node:crypto';
 
 const digest=s=>createHash('sha256').update(s).digest('hex');
@@ -56,7 +57,7 @@ export function connectServiceRouter({pool,bad,uuid,log}) {
  }
  async function campaign(db,subject,campaignId){
   if(!uuid(campaignId))throw bad(400,'Invalid campaign');
-  const r=await db.query("SELECT c.id,c.organization_id,c.title,m.role FROM cc_campaigns c JOIN cc_memberships m ON m.organization_id=c.organization_id AND m.subject=$2 AND m.membership_status='active' WHERE c.id=$1 AND (m.role IN ('owner','manager','finance','auditor') OR EXISTS (SELECT 1 FROM cc_campaign_members cm WHERE cm.campaign_id=c.id AND cm.subject=$2))",[campaignId,subject]);
+  const r=await db.query("SELECT c.id,c.organization_id,c.title,c.status,m.role FROM cc_campaigns c JOIN cc_memberships m ON m.organization_id=c.organization_id AND m.subject=$2 AND m.membership_status='active' WHERE c.id=$1 AND (m.role IN ('owner','manager','finance','auditor') OR EXISTS (SELECT 1 FROM cc_campaign_members cm WHERE cm.campaign_id=c.id AND cm.subject=$2))",[campaignId,subject]);
   if(!r.rowCount)throw bad(403,'No active campaign membership');
   return r.rows[0];
  }
@@ -203,5 +204,6 @@ export function connectServiceRouter({pool,bad,uuid,log}) {
   });
   res.status(result.duplicate?200:201).json(result);
  }));
+ installConnectCallQueue(router,{pool,linked,campaign,bad,uuid,log});
  return router;
 }
