@@ -25,10 +25,10 @@ export function installConnectCallQueue(router,{pool,linked,campaign,bad,uuid,lo
    "t.claimed_by,t.claim_expires_at "+
    "FROM cc_contacts t WHERE t.organization_id=$1 AND t.campaign_id=$2 "+
    "AND t.privacy='campaign' AND t.do_not_call=false AND length(t.phone)>=10 "+
-   "AND ($3::boolean OR t.assigned_team=$4) "+
+   "AND (t.assigned_member_subject=$5 OR (t.assigned_member_subject IS NULL AND ($3::boolean OR t.assigned_team=$4))) "+
    "ORDER BY (t.next_followup_at IS NOT NULL AND t.next_followup_at<=now()) DESC,"+
    "t.next_followup_at ASC NULLS LAST,t.created_at ASC LIMIT $5",
-   [a.c.organization_id,a.c.id,a.manager,a.team,limit]);
+   [a.c.organization_id,a.c.id,a.manager,a.team,a.subject,limit]);
  const publicRow=(r,subject)=>({
    id:r.id,displayName:r.display_name,phone:r.phone,status:r.status,
    dueAt:r.next_followup_at||null,
@@ -76,12 +76,12 @@ export function installConnectCallQueue(router,{pool,linked,campaign,bad,uuid,lo
       const row=(await db.query(
        "SELECT id FROM cc_contacts WHERE organization_id=$1 AND campaign_id=$2 "+
        "AND privacy='campaign' AND do_not_call=false AND length(phone)>=10 "+
-       "AND ($3::boolean OR assigned_team=$4) "+
+       "AND (assigned_member_subject=$5 OR (assigned_member_subject IS NULL AND ($3::boolean OR assigned_team=$4))) "+
        "AND (claimed_by IS NULL OR claim_expires_at IS NULL OR claim_expires_at<=now()) "+
        "AND status NOT IN ('do_not_call','closed','completed') "+
        "ORDER BY (next_followup_at IS NOT NULL AND next_followup_at<=now()) DESC,"+
        "next_followup_at ASC NULLS LAST,created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED",
-       [a.c.organization_id,a.c.id,a.manager,a.team])).rows[0];
+       [a.c.organization_id,a.c.id,a.manager,a.team,a.subject])).rows[0];
       if(!row){await db.query('COMMIT');return {call:null,reused:false,campaignId:a.c.id};}
       const saved=(await db.query(
        "UPDATE cc_contacts SET claimed_by=$1,claim_expires_at=now()+interval '20 minutes' "+
